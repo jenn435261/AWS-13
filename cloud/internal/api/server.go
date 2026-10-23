@@ -7,12 +7,14 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
 
 	resiliencev1 "github.com/resilience-network/aws13/cloud/gen/resilience/v1"
+	"github.com/resilience-network/aws13/cloud/internal/ai"
 	"github.com/resilience-network/aws13/cloud/internal/store"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -34,6 +36,14 @@ type Server struct {
 	// ready reports whether the server's dependencies are ready to serve. It
 	// may be nil, in which case readiness is assumed.
 	ready func(ctx context.Context) error
+
+	// online is the AI assistant for the online path (Bedrock). It is nil when
+	// BEDROCK_MODEL_ID is unset, in which case the API serves only the
+	// deterministic rules path. When non-nil, a Bedrock error falls back to
+	// rules.
+	online ai.Assistant
+	// rules is the always-available deterministic fallback assistant.
+	rules ai.Assistant
 }
 
 // Option configures a Server.
@@ -49,11 +59,27 @@ func WithReadiness(fn func(ctx context.Context) error) Option {
 	return func(s *Server) { s.ready = fn }
 }
 
+// WithOnlineAssistant installs the online AI assistant (Bedrock). When set,
+// AI endpoints try it first and fall back to the deterministic rules path on
+// error. When nil (the default), only the rules path is used.
+func WithOnlineAssistant(a ai.Assistant) Option {
+	return func(s *Server) { s.online = a }
+}
+
+// WithRulesAssistant overrides the deterministic fallback assistant (mainly for
+// tests). By default a fresh ai.RulesAssistant is used.
+func WithRulesAssistant(a ai.Assistant) Option {
+	return func(s *Server) { s.rules = a }
+}
+
 // NewServer builds a Server over the given Store.
 func NewServer(st store.Store, opts ...Option) *Server {
 	s := &Server{store: st, maxBodyBytes: defaultMaxBodyBytes}
 	for _, o := range opts {
 		o(s)
+	}
+	if s.rules == nil {
+		s.rules = ai.NewRulesAssistant()
 	}
 	return s
 }
@@ -63,6 +89,10 @@ func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/v1/events", s.handlePush)
 	mux.HandleFunc("/v1/events/pull", s.handlePull)
+	mux.HandleFunc("/v1/ai/structure", s.handleAIStructure)
+	mux.HandleFunc("/v1/ai/translate", s.handleAITranslate)
+	mux.HandleFunc("/v1/ai/summarize", s.handleAISummarize)
+	mux.HandleFunc("/v1/ai/dedup", s.handleAIDedup)
 	mux.HandleFunc("/healthz", s.handleHealthz)
 	mux.HandleFunc("/readyz", s.handleReadyz)
 	return mux
@@ -233,6 +263,196 @@ func trimSpace(s string) string {
 		end--
 	}
 	return s[start:end]
+}
+
+// --- AI assist endpoints ---
+//
+// Each endpoint uses plain JSON (not protobuf): the AI payloads are simple and
+// the Dart BedrockAiClient talks to these over HTTP with the http package. The
+// contract: try the online assistant (Bedrock) if configured; on any error
+// fall back to the deterministic rules assistant; ALWAYS return 200 with a
+// "degraded" flag so the emergency system never fails because AI is down.
+
+// decodeAIJSON reads a JSON request body into v, enforcing the body size limit.
+func (s *Server) decodeAIJSON(r *http.Request, v any) error {
+	body, err := io.ReadAll(http.MaxBytesReader(nil, r.Body, s.maxBodyBytes))
+	if err != nil {
+		return fmt.Errorf("read body: %w", err)
+	}
+	if len(body) == 0 {
+		return nil
+	}
+	if err := json.Unmarshal(body, v); err != nil {
+		return err
+	}
+	return nil
+}
+
+// writeAIJSON writes v as a 200 JSON response.
+func (s *Server) writeAIJSON(w http.ResponseWriter, v any) {
+	out, err := json.Marshal(v)
+	if err != nil {
+		s.writeError(w, http.StatusInternalServerError, "encode response: "+err.Error())
+		return
+	}
+	w.Header().Set("Content-Type", contentTypeJSON)
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(out)
+}
+
+// aiStructureResponse mirrors ai.StructuredReport plus the degraded flag.
+type aiStructureResponse struct {
+	Category       string `json:"category"`
+	Priority       string `json:"priority"`
+	ShortTitle     string `json:"short_title"`
+	NormalizedNote string `json:"normalized_note"`
+	Degraded       bool   `json:"degraded"`
+}
+
+func (s *Server) handleAIStructure(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		s.writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	var req struct {
+		Text     string `json:"text"`
+		LangHint string `json:"lang_hint"`
+	}
+	if err := s.decodeAIJSON(r, &req); err != nil {
+		s.writeError(w, http.StatusBadRequest, "decode request: "+err.Error())
+		return
+	}
+
+	degraded := true
+	var res ai.StructuredReport
+	if s.online != nil {
+		if out, err := s.online.Structure(r.Context(), req.Text, req.LangHint); err == nil {
+			res, degraded = out, false
+		}
+	}
+	if degraded {
+		// Fallback never errors.
+		res, _ = s.rules.Structure(r.Context(), req.Text, req.LangHint)
+	}
+
+	s.writeAIJSON(w, aiStructureResponse{
+		Category:       res.Category,
+		Priority:       string(res.Priority),
+		ShortTitle:     res.ShortTitle,
+		NormalizedNote: res.NormalizedNote,
+		Degraded:       degraded,
+	})
+}
+
+type aiTranslateResponse struct {
+	Text       string `json:"text"`
+	From       string `json:"from"`
+	To         string `json:"to"`
+	Translated bool   `json:"translated"`
+	Degraded   bool   `json:"degraded"`
+}
+
+func (s *Server) handleAITranslate(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		s.writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	var req struct {
+		Text string `json:"text"`
+		From string `json:"from"`
+		To   string `json:"to"`
+	}
+	if err := s.decodeAIJSON(r, &req); err != nil {
+		s.writeError(w, http.StatusBadRequest, "decode request: "+err.Error())
+		return
+	}
+
+	degraded := true
+	var res ai.Translation
+	if s.online != nil {
+		if out, err := s.online.Translate(r.Context(), req.Text, req.From, req.To); err == nil {
+			res, degraded = out, false
+		}
+	}
+	if degraded {
+		res, _ = s.rules.Translate(r.Context(), req.Text, req.From, req.To)
+	}
+
+	s.writeAIJSON(w, aiTranslateResponse{
+		Text:       res.Text,
+		From:       res.From,
+		To:         res.To,
+		Translated: res.Translated,
+		Degraded:   degraded,
+	})
+}
+
+type aiSummarizeResponse struct {
+	Summary  string `json:"summary"`
+	Degraded bool   `json:"degraded"`
+}
+
+func (s *Server) handleAISummarize(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		s.writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	var req struct {
+		Items []string `json:"items"`
+	}
+	if err := s.decodeAIJSON(r, &req); err != nil {
+		s.writeError(w, http.StatusBadRequest, "decode request: "+err.Error())
+		return
+	}
+
+	degraded := true
+	var summary string
+	if s.online != nil {
+		if out, err := s.online.Summarize(r.Context(), req.Items); err == nil {
+			summary, degraded = out, false
+		}
+	}
+	if degraded {
+		summary, _ = s.rules.Summarize(r.Context(), req.Items)
+	}
+
+	s.writeAIJSON(w, aiSummarizeResponse{Summary: summary, Degraded: degraded})
+}
+
+type aiDedupResponse struct {
+	Hits     []ai.DupHit `json:"hits"`
+	Degraded bool        `json:"degraded"`
+}
+
+func (s *Server) handleAIDedup(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		s.writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	var req struct {
+		Candidate string   `json:"candidate"`
+		Existing  []string `json:"existing"`
+	}
+	if err := s.decodeAIJSON(r, &req); err != nil {
+		s.writeError(w, http.StatusBadRequest, "decode request: "+err.Error())
+		return
+	}
+
+	degraded := true
+	var hits []ai.DupHit
+	if s.online != nil {
+		if out, err := s.online.Dedup(r.Context(), req.Candidate, req.Existing); err == nil {
+			hits, degraded = out, false
+		}
+	}
+	if degraded {
+		hits, _ = s.rules.Dedup(r.Context(), req.Candidate, req.Existing)
+	}
+	if hits == nil {
+		hits = []ai.DupHit{}
+	}
+
+	s.writeAIJSON(w, aiDedupResponse{Hits: hits, Degraded: degraded})
 }
 
 // ErrNoStore is returned when a Server is constructed without a Store.

@@ -21,6 +21,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/resilience-network/aws13/cloud/internal/ai"
 	"github.com/resilience-network/aws13/cloud/internal/api"
 	"github.com/resilience-network/aws13/cloud/internal/store"
 )
@@ -57,7 +58,23 @@ func main() {
 		log.Info("using postgres store")
 	}
 
-	srv := api.NewServer(st, api.WithReadiness(ready))
+	opts := []api.Option{api.WithReadiness(ready)}
+	// Enable the online AI path only when BEDROCK_MODEL_ID is explicitly set.
+	// Otherwise the API serves the deterministic rules path (degraded:true),
+	// so the core system works without AI (spec §67).
+	if _, configured := ai.ModelIDFromEnv(); configured {
+		assistant, err := ai.NewBedrockAssistant(ctx)
+		if err != nil {
+			log.Warn("bedrock assistant unavailable; AI endpoints will use rules fallback", "err", err)
+		} else {
+			opts = append(opts, api.WithOnlineAssistant(assistant))
+			log.Info("bedrock AI assistant enabled", "model_id", assistant.ModelID())
+		}
+	} else {
+		log.Info("no BEDROCK_MODEL_ID set; AI endpoints use deterministic rules (degraded)")
+	}
+
+	srv := api.NewServer(st, opts...)
 	httpSrv := &http.Server{
 		Addr:              ":" + port,
 		Handler:           srv.Handler(),
