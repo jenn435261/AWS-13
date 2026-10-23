@@ -14,6 +14,14 @@ dependencies:
   # State management (locked stack)
   flutter_riverpod: ^2.5.1
 
+  # Localization (i18n: English + Spanish + extensible)
+  flutter_localizations:
+    sdk: flutter
+  intl: ^0.20.2
+
+  # Biometric lock for sensitive sections
+  local_auth: ^2.3.0
+
   # Local database (locked stack)
   drift: ^2.20.0
   sqlite3_flutter_libs: ^0.5.24
