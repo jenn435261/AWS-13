@@ -39,3 +39,6 @@ infra/.terraform.lock.hcl
 .DS_Store
 *.swp
 *.log
+
+# Orchestrator task scratch (not part of deliverable)
+/.tasks/
