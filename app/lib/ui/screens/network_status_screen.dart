@@ -33,7 +33,7 @@ class NetworkStatusScreen extends ConsumerWidget {
               leading: const Icon(Icons.sync_rounded),
               title: Text(l.t('last_sync')),
               trailing:
-                  const Text('—', style: TextStyle(fontSize: 16)),
+                  const Text('—', style: TextStyle(fontFamily: 'Roboto', fontSize: 16)),
             ),
           ],
         ),

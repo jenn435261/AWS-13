@@ -49,7 +49,7 @@ class ContactsScreen extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(l.t('my_resilience_id'),
-                          style: const TextStyle(
+                          style: const TextStyle(fontFamily: 'Roboto', 
                               fontSize: 16, fontWeight: FontWeight.w600)),
                       const SizedBox(height: 4),
                       CopyableText(
@@ -122,7 +122,7 @@ class ContactsScreen extends ConsumerWidget {
           Icon(icon, size: 48, color: Theme.of(context).colorScheme.outline),
           const SizedBox(height: 12),
           Text(l.t('scan_qr'),
-              style: TextStyle(
+              style: TextStyle(fontFamily: 'Roboto', 
                   fontSize: 16, color: Theme.of(context).colorScheme.outline)),
         ],
       ),

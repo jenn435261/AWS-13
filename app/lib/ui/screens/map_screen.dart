@@ -103,12 +103,12 @@ class _StatusBar extends ConsumerWidget {
           const SizedBox(width: 8),
           Text(online ? l.t('online') : l.t('offline'),
               style:
-                  const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                  const TextStyle(fontFamily: 'Roboto', fontSize: 16, fontWeight: FontWeight.w600)),
           const Spacer(),
           Icon(Icons.check_circle_rounded,
               size: 20, color: AppTheme.verified),
           const SizedBox(width: 6),
-          Text(l.t('ready'), style: const TextStyle(fontSize: 16)),
+          Text(l.t('ready'), style: const TextStyle(fontFamily: 'Roboto', fontSize: 16)),
         ],
       ),
     );
@@ -192,8 +192,7 @@ class _BigAction extends StatelessWidget {
                   label,
                   textAlign: TextAlign.center,
                   maxLines: 2,
-                  style: const TextStyle(
-                    fontFamily: 'Roboto',
+                  style: const TextStyle(fontFamily: 'Roboto',
                     color: Colors.white,
                     fontSize: 17,
                     fontWeight: FontWeight.w700,

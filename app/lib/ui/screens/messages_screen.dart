@@ -49,7 +49,7 @@ class MessagesScreen extends StatelessWidget {
     if (items.isEmpty) {
       return Center(
         child: Text(l.t('type_a_message'),
-            style: TextStyle(
+            style: TextStyle(fontFamily: 'Roboto', 
                 fontSize: 16, color: Theme.of(context).colorScheme.outline)),
       );
     }

@@ -120,8 +120,7 @@ class CopyableText extends StatelessWidget {
                 child: Text(
                   text,
                   style: (style ??
-                          const TextStyle(
-                              fontFamily: 'Roboto',
+                          const TextStyle(fontFamily: 'Roboto',
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
                               letterSpacing: 1.0))
@@ -176,7 +175,7 @@ class _AdvancedDisclosureState extends State<AdvancedDisclosure> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(widget.label,
-                      style: const TextStyle(
+                      style: const TextStyle(fontFamily: 'Roboto', 
                           fontSize: 17, fontWeight: FontWeight.w600)),
                 ),
                 Icon(_open
@@ -238,8 +237,7 @@ class PrimaryActionButton extends StatelessWidget {
           icon: Icon(icon, size: 28),
           label: Text(
             label,
-            style: const TextStyle(
-                fontFamily: 'Roboto',
+            style: const TextStyle(fontFamily: 'Roboto',
                 fontSize: 20,
                 fontWeight: FontWeight.w700),
           ),

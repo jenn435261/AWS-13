@@ -158,7 +158,7 @@ class _HelpFlowScreenState extends ConsumerState<HelpFlowScreen> {
                     widget.isRequest
                         ? l.t('what_do_you_need')
                         : l.t('offer_help'),
-                    style: const TextStyle(
+                    style: const TextStyle(fontFamily: 'Roboto', 
                         fontSize: 22, fontWeight: FontWeight.w700),
                   ),
                   const SizedBox(height: 16),
@@ -191,14 +191,14 @@ class _HelpFlowScreenState extends ConsumerState<HelpFlowScreen> {
                   ),
                   const SizedBox(height: 24),
                   Text(l.t('anything_else'),
-                      style: const TextStyle(
+                      style: const TextStyle(fontFamily: 'Roboto', 
                           fontSize: 18, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 10),
                   TextField(
                     controller: _note,
                     minLines: 2,
                     maxLines: 4,
-                    style: const TextStyle(fontSize: 16),
+                    style: const TextStyle(fontFamily: 'Roboto', fontSize: 16),
                     decoration: InputDecoration(
                       hintText: l.t('add_a_note'),
                     ),
@@ -221,7 +221,7 @@ class _HelpFlowScreenState extends ConsumerState<HelpFlowScreen> {
                       children: [
                         const SizedBox(height: 8),
                         Text(l.t('amount'),
-                            style: const TextStyle(
+                            style: const TextStyle(fontFamily: 'Roboto', 
                                 fontSize: 16, fontWeight: FontWeight.w600)),
                         const SizedBox(height: 8),
                         Wrap(spacing: 10, children: [
@@ -243,7 +243,7 @@ class _HelpFlowScreenState extends ConsumerState<HelpFlowScreen> {
                         ]),
                         const SizedBox(height: 16),
                         Text(l.t('availability'),
-                            style: const TextStyle(
+                            style: const TextStyle(fontFamily: 'Roboto', 
                                 fontSize: 16, fontWeight: FontWeight.w600)),
                         const SizedBox(height: 8),
                         Wrap(spacing: 10, children: [

@@ -34,7 +34,7 @@ class ProvenanceBadge extends StatelessWidget {
           Flexible(
             child: Text(
               label,
-              style: TextStyle(
+              style: TextStyle(fontFamily: 'Roboto', 
                   fontSize: 16, fontWeight: FontWeight.w600, color: color),
               overflow: TextOverflow.ellipsis,
             ),
@@ -59,13 +59,13 @@ class CorroborationBadge extends StatelessWidget {
         const Icon(Icons.check_circle_outline_rounded, size: 20),
         const SizedBox(width: 4),
         Text('${corroboration.confirmCount} ${l.t('confirmations')}',
-            style: const TextStyle(fontSize: 16)),
+            style: const TextStyle(fontFamily: 'Roboto', fontSize: 16)),
         if (corroboration.disputeCount > 0) ...[
           const SizedBox(width: 12),
           const Icon(Icons.report_problem_outlined, size: 20),
           const SizedBox(width: 4),
           Text('${corroboration.disputeCount} ${l.t('disputes')}',
-              style: const TextStyle(fontSize: 16)),
+              style: const TextStyle(fontFamily: 'Roboto', fontSize: 16)),
         ],
       ],
     );
@@ -94,7 +94,7 @@ class FreshnessBadge extends StatelessWidget {
               size: 20, color: color),
           const SizedBox(width: 6),
           Text(_ageString(freshness.ageMs),
-              style: TextStyle(fontSize: 16, color: color)),
+              style: TextStyle(fontFamily: 'Roboto', fontSize: 16, color: color)),
         ],
       ),
     );
@@ -127,7 +127,7 @@ class ConfidenceChip extends StatelessWidget {
       child: Text(
         l.t(key),
         style:
-            TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: color),
+            TextStyle(fontFamily: 'Roboto', fontSize: 16, fontWeight: FontWeight.w600, color: color),
       ),
     );
   }

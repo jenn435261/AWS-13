@@ -58,7 +58,7 @@ class _State extends ConsumerState<LocationShareScreen> {
                       child: Text(
                         '${l.t('sharing_active')} — ${l.t('expires_in')} '
                         '${_remaining()}',
-                        style: const TextStyle(
+                        style: const TextStyle(fontFamily: 'Roboto', 
                             fontSize: 16, fontWeight: FontWeight.w600),
                       ),
                     ),
@@ -69,7 +69,7 @@ class _State extends ConsumerState<LocationShareScreen> {
 
             Text(l.t('share_location'),
                 style:
-                    const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+                    const TextStyle(fontFamily: 'Roboto', fontSize: 18, fontWeight: FontWeight.w600)),
             const SizedBox(height: 10),
             _audienceTile(_Audience.contact, Icons.person_rounded,
                 l.t('share_with_contact')),
@@ -94,7 +94,7 @@ class _State extends ConsumerState<LocationShareScreen> {
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(l.t('public_beacon_warning'),
-                          style: TextStyle(
+                          style: TextStyle(fontFamily: 'Roboto', 
                               fontSize: 16, color: scheme.onErrorContainer)),
                     ),
                   ],
@@ -104,7 +104,7 @@ class _State extends ConsumerState<LocationShareScreen> {
             const SizedBox(height: 20),
             Text(l.t('precision'),
                 style:
-                    const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+                    const TextStyle(fontFamily: 'Roboto', fontSize: 18, fontWeight: FontWeight.w600)),
             const SizedBox(height: 10),
             Wrap(spacing: 10, children: [
               ChoiceChip(
@@ -124,7 +124,7 @@ class _State extends ConsumerState<LocationShareScreen> {
             const SizedBox(height: 20),
             Text(l.t('share_duration'),
                 style:
-                    const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+                    const TextStyle(fontFamily: 'Roboto', fontSize: 18, fontWeight: FontWeight.w600)),
             const SizedBox(height: 10),
             Wrap(spacing: 10, children: [
               ChoiceChip(

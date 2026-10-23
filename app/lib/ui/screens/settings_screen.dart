@@ -29,7 +29,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
               child: Text(l.t('language'),
-                  style: const TextStyle(
+                  style: const TextStyle(fontFamily: 'Roboto', 
                       fontSize: 16, fontWeight: FontWeight.w700)),
             ),
             ...L10n.supportedLocales.map((loc) {

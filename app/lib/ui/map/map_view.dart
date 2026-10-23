@@ -46,7 +46,7 @@ class MapView extends StatelessWidget {
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(l.t('you_are_here'),
-                    style: const TextStyle(
+                    style: const TextStyle(fontFamily: 'Roboto', 
                         fontSize: 16, fontWeight: FontWeight.w600)),
               ),
             ),

@@ -71,14 +71,12 @@ class AppTheme {
         ),
       ),
       chipTheme: base.chipTheme.copyWith(
-        labelStyle: TextStyle(
-          fontFamily: 'Roboto',
+        labelStyle: TextStyle(fontFamily: 'Roboto',
           fontSize: 16,
           fontWeight: FontWeight.w600,
           color: scheme.onSurface,
         ),
-        secondaryLabelStyle: TextStyle(
-          fontFamily: 'Roboto',
+        secondaryLabelStyle: TextStyle(fontFamily: 'Roboto',
           fontSize: 16,
           fontWeight: FontWeight.w600,
           color: scheme.onSecondaryContainer,
@@ -97,17 +95,23 @@ class AppTheme {
       ),
       inputDecorationTheme: const InputDecorationTheme(
         border: OutlineInputBorder(),
-        labelStyle: TextStyle(fontSize: 16),
-        hintStyle: TextStyle(fontSize: 16),
+        labelStyle: TextStyle(fontFamily: 'Roboto', fontSize: 16),
+        hintStyle: TextStyle(fontFamily: 'Roboto', fontSize: 16),
         contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       ),
-      listTileTheme: const ListTileThemeData(
+      listTileTheme: ListTileThemeData(
         minVerticalPadding: 12,
-        titleTextStyle: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-        subtitleTextStyle: TextStyle(fontSize: 16),
+        iconColor: scheme.onSurfaceVariant,
+        titleTextStyle: TextStyle(
+            fontFamily: 'Roboto',
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+            color: scheme.onSurface),
+        subtitleTextStyle: TextStyle(
+            fontFamily: 'Roboto', fontSize: 16, color: scheme.onSurfaceVariant),
       ),
       snackBarTheme: SnackBarThemeData(
-        contentTextStyle: const TextStyle(fontSize: 16),
+        contentTextStyle: const TextStyle(fontFamily: 'Roboto', fontSize: 16),
         behavior: SnackBarBehavior.floating,
         shape:
             RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

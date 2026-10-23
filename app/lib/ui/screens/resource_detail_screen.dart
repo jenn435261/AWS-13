@@ -65,7 +65,7 @@ class ResourceDetailScreen extends ConsumerWidget {
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(r.resource.title,
-                          style: const TextStyle(
+                          style: const TextStyle(fontFamily: 'Roboto', 
                               fontSize: 22, fontWeight: FontWeight.w700)),
                     ),
                   ],
@@ -74,7 +74,7 @@ class ResourceDetailScreen extends ConsumerWidget {
                   Padding(
                     padding: const EdgeInsets.only(top: 8),
                     child: Text('(withdrawn)',
-                        style: TextStyle(
+                        style: TextStyle(fontFamily: 'Roboto', 
                             fontSize: 16,
                             color: Theme.of(context).colorScheme.error)),
                   ),
@@ -85,14 +85,14 @@ class ResourceDetailScreen extends ConsumerWidget {
                   const SizedBox(height: 20),
                   Text(
                     'Available: ${r.availableQuantity ?? r.inventory!.quantity} ${r.inventory!.unit}',
-                    style: const TextStyle(
+                    style: const TextStyle(fontFamily: 'Roboto', 
                         fontSize: 18, fontWeight: FontWeight.w600),
                   ),
                 ],
                 if (r.resource.notes.isNotEmpty) ...[
                   const SizedBox(height: 16),
                   Text(r.resource.notes,
-                      style: const TextStyle(fontSize: 16)),
+                      style: const TextStyle(fontFamily: 'Roboto', fontSize: 16)),
                 ],
                 const SizedBox(height: 28),
                 // Community confirmation actions.

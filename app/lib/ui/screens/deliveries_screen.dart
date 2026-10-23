@@ -26,7 +26,7 @@ class DeliveriesScreen extends StatelessWidget {
             for (final b in buckets)
               Center(
                 child: Text(b,
-                    style: TextStyle(
+                    style: TextStyle(fontFamily: 'Roboto', 
                         fontSize: 16,
                         color: Theme.of(context).colorScheme.outline)),
               ),

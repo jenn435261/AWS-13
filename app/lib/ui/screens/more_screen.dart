@@ -47,7 +47,7 @@ class MoreScreen extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
               child: Text(l.t('data_controls'),
-                  style: const TextStyle(
+                  style: const TextStyle(fontFamily: 'Roboto', 
                       fontSize: 16, fontWeight: FontWeight.w700)),
             ),
             _tile(context, Icons.cleaning_services_outlined, l.t('clear_cache'),
