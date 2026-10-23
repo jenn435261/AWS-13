@@ -10,12 +10,13 @@
 // ignore_for_file: deprecated_member_use_from_same_package, library_prefixes
 // ignore_for_file: non_constant_identifier_names, prefer_relative_imports
 
+import 'dart:async' as $async;
 import 'dart:core' as $core;
 
 import 'package:fixnum/fixnum.dart' as $fixnum;
 import 'package:protobuf/protobuf.dart' as $pb;
 
-import 'event.pb.dart' as $1;
+import 'event.pb.dart' as $0;
 
 export 'package:protobuf/protobuf.dart' show GeneratedMessageGenericExtensions;
 
@@ -578,7 +579,7 @@ class WantList extends $pb.GeneratedMessage {
 
 class EventBatch extends $pb.GeneratedMessage {
   factory EventBatch({
-    $core.Iterable<$1.SignedEvent>? events,
+    $core.Iterable<$0.SignedEvent>? events,
     $core.bool? more,
   }) {
     final result = EventBatch._();
@@ -600,8 +601,8 @@ class EventBatch extends $pb.GeneratedMessage {
       _omitMessageNames ? '' : 'EventBatch',
       package: const $pb.PackageName(_omitMessageNames ? '' : 'resilience.v1'),
       createEmptyInstance: EventBatch.$_createMessage)
-    ..pPM<$1.SignedEvent>(1, _omitFieldNames ? '' : 'events',
-        subBuilder: $1.SignedEvent.$_createMessage)
+    ..pPM<$0.SignedEvent>(1, _omitFieldNames ? '' : 'events',
+        subBuilder: $0.SignedEvent.$_createMessage)
     ..aOB(2, _omitFieldNames ? '' : 'more')
     ..hasRequiredFields = false;
 
@@ -626,7 +627,7 @@ class EventBatch extends $pb.GeneratedMessage {
   static EventBatch? _defaultInstance;
 
   @$pb.TagNumber(1)
-  $pb.PbList<$1.SignedEvent> get events => $_getList(0);
+  $pb.PbList<$0.SignedEvent> get events => $_getList(0);
 
   @$pb.TagNumber(2)
   $core.bool get more => $_getBF(1);
@@ -700,7 +701,7 @@ class Ack extends $pb.GeneratedMessage {
 class MeshPacket extends $pb.GeneratedMessage {
   factory MeshPacket({
     $core.List<$core.int>? packetId,
-    $1.Priority? priority,
+    $0.Priority? priority,
     $core.int? ttl,
     $core.List<$core.int>? destHint,
     $core.List<$core.int>? payload,
@@ -733,8 +734,8 @@ class MeshPacket extends $pb.GeneratedMessage {
       createEmptyInstance: MeshPacket.$_createMessage)
     ..a<$core.List<$core.int>>(
         1, _omitFieldNames ? '' : 'packetId', $pb.PbFieldType.OY)
-    ..aE<$1.Priority>(2, _omitFieldNames ? '' : 'priority',
-        enumValues: $1.Priority.values)
+    ..aE<$0.Priority>(2, _omitFieldNames ? '' : 'priority',
+        enumValues: $0.Priority.values)
     ..aI(3, _omitFieldNames ? '' : 'ttl', fieldType: $pb.PbFieldType.OU3)
     ..a<$core.List<$core.int>>(
         4, _omitFieldNames ? '' : 'destHint', $pb.PbFieldType.OY)
@@ -774,9 +775,9 @@ class MeshPacket extends $pb.GeneratedMessage {
   void clearPacketId() => $_clearField(1);
 
   @$pb.TagNumber(2)
-  $1.Priority get priority => $_getN(1);
+  $0.Priority get priority => $_getN(1);
   @$pb.TagNumber(2)
-  set priority($1.Priority value) => $_setField(2, value);
+  set priority($0.Priority value) => $_setField(2, value);
   @$pb.TagNumber(2)
   $core.bool hasPriority() => $_has(1);
   @$pb.TagNumber(2)
@@ -830,7 +831,7 @@ class MeshPacket extends $pb.GeneratedMessage {
 
 class PushEventsRequest extends $pb.GeneratedMessage {
   factory PushEventsRequest({
-    $core.Iterable<$1.SignedEvent>? events,
+    $core.Iterable<$0.SignedEvent>? events,
   }) {
     final result = PushEventsRequest._();
     if (events != null) result.events.addAll(events);
@@ -850,8 +851,8 @@ class PushEventsRequest extends $pb.GeneratedMessage {
       _omitMessageNames ? '' : 'PushEventsRequest',
       package: const $pb.PackageName(_omitMessageNames ? '' : 'resilience.v1'),
       createEmptyInstance: PushEventsRequest.$_createMessage)
-    ..pPM<$1.SignedEvent>(1, _omitFieldNames ? '' : 'events',
-        subBuilder: $1.SignedEvent.$_createMessage)
+    ..pPM<$0.SignedEvent>(1, _omitFieldNames ? '' : 'events',
+        subBuilder: $0.SignedEvent.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -877,7 +878,7 @@ class PushEventsRequest extends $pb.GeneratedMessage {
   static PushEventsRequest? _defaultInstance;
 
   @$pb.TagNumber(1)
-  $pb.PbList<$1.SignedEvent> get events => $_getList(0);
+  $pb.PbList<$0.SignedEvent> get events => $_getList(0);
 }
 
 class PushEventsResponse extends $pb.GeneratedMessage {
@@ -1152,6 +1153,21 @@ class PullEventsResponse extends $pb.GeneratedMessage {
   void clearBatch() => $_clearField(1);
   @$pb.TagNumber(1)
   EventBatch ensureBatch() => $_ensure(0);
+}
+
+class SyncServiceApi {
+  final $pb.RpcClient _client;
+
+  SyncServiceApi(this._client);
+
+  $async.Future<PushEventsResponse> pushEvents(
+          $pb.ClientContext? ctx, PushEventsRequest request) =>
+      _client.invoke<PushEventsResponse>(
+          ctx, 'SyncService', 'PushEvents', request, PushEventsResponse());
+  $async.Future<PullEventsResponse> pullEvents(
+          $pb.ClientContext? ctx, PullEventsRequest request) =>
+      _client.invoke<PullEventsResponse>(
+          ctx, 'SyncService', 'PullEvents', request, PullEventsResponse());
 }
 
 const $core.bool _omitFieldNames =

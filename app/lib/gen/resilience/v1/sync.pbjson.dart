@@ -15,6 +15,8 @@ import 'dart:convert' as $convert;
 import 'dart:core' as $core;
 import 'dart:typed_data' as $typed_data;
 
+import 'event.pbjson.dart' as $0;
+
 @$core.Deprecated('Use syncFrameDescriptor instead')
 const SyncFrame$json = {
   '1': 'SyncFrame',
@@ -340,3 +342,41 @@ const PullEventsResponse$json = {
 final $typed_data.Uint8List pullEventsResponseDescriptor = $convert.base64Decode(
     'ChJQdWxsRXZlbnRzUmVzcG9uc2USLwoFYmF0Y2gYASABKAsyGS5yZXNpbGllbmNlLnYxLkV2ZW'
     '50QmF0Y2hSBWJhdGNo');
+
+const $core.Map<$core.String, $core.dynamic> SyncServiceBase$json = {
+  '1': 'SyncService',
+  '2': [
+    {
+      '1': 'PushEvents',
+      '2': '.resilience.v1.PushEventsRequest',
+      '3': '.resilience.v1.PushEventsResponse'
+    },
+    {
+      '1': 'PullEvents',
+      '2': '.resilience.v1.PullEventsRequest',
+      '3': '.resilience.v1.PullEventsResponse'
+    },
+  ],
+};
+
+@$core.Deprecated('Use syncServiceDescriptor instead')
+const $core.Map<$core.String, $core.Map<$core.String, $core.dynamic>>
+    SyncServiceBase$messageJson = {
+  '.resilience.v1.PushEventsRequest': PushEventsRequest$json,
+  '.resilience.v1.SignedEvent': $0.SignedEvent$json,
+  '.resilience.v1.EventHeader': $0.EventHeader$json,
+  '.resilience.v1.PushEventsResponse': PushEventsResponse$json,
+  '.resilience.v1.Ack': Ack$json,
+  '.resilience.v1.PullEventsRequest': PullEventsRequest$json,
+  '.resilience.v1.PullEventsRequest.AuthorFrom':
+      PullEventsRequest_AuthorFrom$json,
+  '.resilience.v1.PullEventsResponse': PullEventsResponse$json,
+  '.resilience.v1.EventBatch': EventBatch$json,
+};
+
+/// Descriptor for `SyncService`. Decode as a `google.protobuf.ServiceDescriptorProto`.
+final $typed_data.Uint8List syncServiceDescriptor = $convert.base64Decode(
+    'CgtTeW5jU2VydmljZRJRCgpQdXNoRXZlbnRzEiAucmVzaWxpZW5jZS52MS5QdXNoRXZlbnRzUm'
+    'VxdWVzdBohLnJlc2lsaWVuY2UudjEuUHVzaEV2ZW50c1Jlc3BvbnNlElEKClB1bGxFdmVudHMS'
+    'IC5yZXNpbGllbmNlLnYxLlB1bGxFdmVudHNSZXF1ZXN0GiEucmVzaWxpZW5jZS52MS5QdWxsRX'
+    'ZlbnRzUmVzcG9uc2U=');

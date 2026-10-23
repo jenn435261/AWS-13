@@ -1,10 +1,8 @@
 version: v1
 plugins:
-  # Dart output -> Flutter app
+  # Dart output -> Flutter app (no grpc: phones use HTTP to the cloud)
   - plugin: dart
     out: ../app/lib/gen
-    opt:
-      - grpc
   # Go output -> cloud + node
   - plugin: go
     out: ../cloud/gen

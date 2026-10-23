@@ -1,0 +1,68 @@
+name: resilience
+description: "Resilience Network — local-first, encrypted, disruption-tolerant emergency coordination."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.13.7
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+
+  # State management (locked stack)
+  flutter_riverpod: ^2.5.1
+  riverpod_annotation: ^2.3.5
+
+  # Local database (locked stack)
+  drift: ^2.20.0
+  sqlite3_flutter_libs: ^0.5.24
+  path_provider: ^2.1.4
+  path: ^1.9.0
+
+  # Protobuf wire format (locked stack)
+  protobuf: ^6.0.0
+  fixnum: ^1.1.0
+
+  # Cryptography — Ed25519 signing + X25519 key agreement + hashing (vetted libs)
+  cryptography: ^2.7.0
+  pinenacl: ^0.6.0
+  # Signal Protocol (Double Ratchet, X3DH, Sender-Key groups) — pure Dart
+  libsignal_protocol_dart: ^0.8.2
+
+  # Map (locked stack): MapLibre + PMTiles (static, no tile server)
+  maplibre_gl: ^0.21.0
+  pmtiles: ^2.2.0
+
+  # P2P transport: Wi-Fi Direct (Android) / Multipeer (iOS)
+  nearby_service: ^0.2.1
+
+  # QR codes for identity + logistics
+  qr_flutter: ^4.1.0
+  mobile_scanner: ^5.2.3
+
+  # Networking (cloud transport)
+  http: ^1.2.2
+
+  # Secure storage for private keys (OS keystore / keychain)
+  flutter_secure_storage: ^9.2.2
+
+  # Utilities
+  collection: ^1.18.0
+  uuid: ^4.5.1
+  convert: ^3.1.1
+  logging: ^1.3.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  drift_dev: ^2.20.0
+  build_runner: ^2.4.12
+  riverpod_generator: ^2.4.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/
