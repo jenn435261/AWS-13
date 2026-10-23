@@ -4,7 +4,7 @@ publish_to: 'none'
 version: 1.0.0+1
 
 environment:
-  sdk: ^3.13.7
+  sdk: ^3.11.3
 
 dependencies:
   flutter:
@@ -13,7 +13,6 @@ dependencies:
 
   # State management (locked stack)
   flutter_riverpod: ^2.5.1
-  riverpod_annotation: ^2.3.5
 
   # Local database (locked stack)
   drift: ^2.20.0
@@ -60,7 +59,9 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   drift_dev: ^2.20.0
   build_runner: ^2.4.12
-  riverpod_generator: ^2.4.0
+  # NOTE: riverpod_generator intentionally omitted. Providers are hand-written
+  # (plain Provider/NotifierProvider) to keep codegen fast — build_runner only
+  # needs to generate Drift tables, not scan the whole tree for riverpod.
 
 flutter:
   uses-material-design: true
