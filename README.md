@@ -1,4 +1,4 @@
 # AWS-13
 
-# chris luk, shruti nath, jennelle dabu, bryan cruz, nathan taladua
+# Chris Luk, Shruti Nath, Jennelle Dabu, Bryan Cruz, Nathan Taladua
 
