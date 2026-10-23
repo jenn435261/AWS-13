@@ -50,6 +50,8 @@ const EventType$json = {
     {'1': 'EVENT_TYPE_CAPABILITY_GRANTED', '2': 46},
     {'1': 'EVENT_TYPE_CAPABILITY_REVOKED', '2': 47},
     {'1': 'EVENT_TYPE_EMERGENCY_ALERT', '2': 50},
+    {'1': 'EVENT_TYPE_LOCATION_SHARE', '2': 60},
+    {'1': 'EVENT_TYPE_LOCATION_STOP', '2': 61},
   ],
 };
 
@@ -73,7 +75,8 @@ final $typed_data.Uint8List eventTypeDescriptor = $convert.base64Decode(
     'dFX1BJQ0tFRF9VUBArEiIKHkVWRU5UX1RZUEVfUEFDS0FHRV9UUkFOU0ZFUlJFRBAsEiEKHUVW'
     'RU5UX1RZUEVfREVMSVZFUllfQ09NUExFVEVEEC0SIQodRVZFTlRfVFlQRV9DQVBBQklMSVRZX0'
     'dSQU5URUQQLhIhCh1FVkVOVF9UWVBFX0NBUEFCSUxJVFlfUkVWT0tFRBAvEh4KGkVWRU5UX1RZ'
-    'UEVfRU1FUkdFTkNZX0FMRVJUEDI=');
+    'UEVfRU1FUkdFTkNZX0FMRVJUEDISHQoZRVZFTlRfVFlQRV9MT0NBVElPTl9TSEFSRRA8EhwKGE'
+    'VWRU5UX1RZUEVfTE9DQVRJT05fU1RPUBA9');
 
 @$core.Deprecated('Use resourceCategoryDescriptor instead')
 const ResourceCategory$json = {
@@ -1018,3 +1021,47 @@ final $typed_data.Uint8List emergencyAlertBodyDescriptor = $convert.base64Decode
     'UYAiABKAlSBXRpdGxlEhYKBmRldGFpbBgDIAEoCVIGZGV0YWlsEjMKCHByaW9yaXR5GAQgASgO'
     'MhcucmVzaWxpZW5jZS52MS5Qcmlvcml0eVIIcHJpb3JpdHkSKwoEYXJlYRgFIAEoCzIXLnJlc2'
     'lsaWVuY2UudjEuR2VvUG9pbnRSBGFyZWESHQoKZXhwaXJlc19tcxgGIAEoA1IJZXhwaXJlc01z');
+
+@$core.Deprecated('Use locationShareBodyDescriptor instead')
+const LocationShareBody$json = {
+  '1': 'LocationShareBody',
+  '2': [
+    {'1': 'share_id', '3': 1, '4': 1, '5': 9, '10': 'shareId'},
+    {'1': 'scope', '3': 2, '4': 1, '5': 9, '10': 'scope'},
+    {'1': 'h3_cell', '3': 3, '4': 1, '5': 4, '10': 'h3Cell'},
+    {
+      '1': 'public_point',
+      '3': 4,
+      '4': 1,
+      '5': 11,
+      '6': '.resilience.v1.GeoPoint',
+      '10': 'publicPoint'
+    },
+    {'1': 'encrypted_point', '3': 5, '4': 1, '5': 12, '10': 'encryptedPoint'},
+    {'1': 'expires_ms', '3': 6, '4': 1, '5': 3, '10': 'expiresMs'},
+    {'1': 'note', '3': 7, '4': 1, '5': 9, '10': 'note'},
+    {'1': 'seq', '3': 8, '4': 1, '5': 4, '10': 'seq'},
+  ],
+};
+
+/// Descriptor for `LocationShareBody`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List locationShareBodyDescriptor = $convert.base64Decode(
+    'ChFMb2NhdGlvblNoYXJlQm9keRIZCghzaGFyZV9pZBgBIAEoCVIHc2hhcmVJZBIUCgVzY29wZR'
+    'gCIAEoCVIFc2NvcGUSFwoHaDNfY2VsbBgDIAEoBFIGaDNDZWxsEjoKDHB1YmxpY19wb2ludBgE'
+    'IAEoCzIXLnJlc2lsaWVuY2UudjEuR2VvUG9pbnRSC3B1YmxpY1BvaW50EicKD2VuY3J5cHRlZF'
+    '9wb2ludBgFIAEoDFIOZW5jcnlwdGVkUG9pbnQSHQoKZXhwaXJlc19tcxgGIAEoA1IJZXhwaXJl'
+    'c01zEhIKBG5vdGUYByABKAlSBG5vdGUSEAoDc2VxGAggASgEUgNzZXE=');
+
+@$core.Deprecated('Use locationStopBodyDescriptor instead')
+const LocationStopBody$json = {
+  '1': 'LocationStopBody',
+  '2': [
+    {'1': 'share_id', '3': 1, '4': 1, '5': 9, '10': 'shareId'},
+    {'1': 'stopped_at_ms', '3': 2, '4': 1, '5': 3, '10': 'stoppedAtMs'},
+  ],
+};
+
+/// Descriptor for `LocationStopBody`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List locationStopBodyDescriptor = $convert.base64Decode(
+    'ChBMb2NhdGlvblN0b3BCb2R5EhkKCHNoYXJlX2lkGAEgASgJUgdzaGFyZUlkEiIKDXN0b3BwZW'
+    'RfYXRfbXMYAiABKANSC3N0b3BwZWRBdE1z');

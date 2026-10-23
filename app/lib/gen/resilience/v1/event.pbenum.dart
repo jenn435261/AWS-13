@@ -90,6 +90,13 @@ class EventType extends $pb.ProtobufEnum {
   static const EventType EVENT_TYPE_EMERGENCY_ALERT =
       EventType._(50, _omitEnumNames ? '' : 'EVENT_TYPE_EMERGENCY_ALERT');
 
+  /// Location sharing (ALWAYS opt-in, audience-scoped, revocable, E2E encrypted).
+  /// Never ambient tracking. Relays see only an opaque hint + ciphertext.
+  static const EventType EVENT_TYPE_LOCATION_SHARE =
+      EventType._(60, _omitEnumNames ? '' : 'EVENT_TYPE_LOCATION_SHARE');
+  static const EventType EVENT_TYPE_LOCATION_STOP =
+      EventType._(61, _omitEnumNames ? '' : 'EVENT_TYPE_LOCATION_STOP');
+
   static const $core.List<EventType> values = <EventType>[
     EVENT_TYPE_UNSPECIFIED,
     EVENT_TYPE_IDENTITY_CERTIFICATE,
@@ -122,6 +129,8 @@ class EventType extends $pb.ProtobufEnum {
     EVENT_TYPE_CAPABILITY_GRANTED,
     EVENT_TYPE_CAPABILITY_REVOKED,
     EVENT_TYPE_EMERGENCY_ALERT,
+    EVENT_TYPE_LOCATION_SHARE,
+    EVENT_TYPE_LOCATION_STOP,
   ];
 
   static final $core.Map<$core.int, EventType> _byValue =

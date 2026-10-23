@@ -2845,6 +2845,255 @@ class EmergencyAlertBody extends $pb.GeneratedMessage {
   void clearExpiresMs() => $_clearField(6);
 }
 
+/// --- Location sharing (opt-in, audience-scoped, revocable, privacy-first) ----
+///
+/// DESIGN RULES (must hold for the civil-unrest / hostile-listener threat model):
+///   * Sharing is OFF by default and requires explicit per-share user consent.
+///   * The audience is chosen each time: a single contact, a channel/group, or
+///     a public beacon. `scope` names it.
+///   * Ephemeral + revocable: `expires_ms` bounds the share; a LOCATION_STOP
+///     event (or expiry) ends it. UI must let the user stop at any time.
+///   * Granularity is the user's choice: a coarse `h3_cell` only, OR exact
+///     coordinates. For non-public audiences the point should be delivered as
+///     ciphertext (see `encrypted_point`) so relays never see coordinates.
+///   * Relays/mesh see only `scope`, coarse `h3_cell` (if the user allowed it),
+///     and opaque ciphertext — never a name, phone number, or exact address.
+class LocationShareBody extends $pb.GeneratedMessage {
+  factory LocationShareBody({
+    $core.String? shareId,
+    $core.String? scope,
+    $fixnum.Int64? h3Cell,
+    GeoPoint? publicPoint,
+    $core.List<$core.int>? encryptedPoint,
+    $fixnum.Int64? expiresMs,
+    $core.String? note,
+    $fixnum.Int64? seq,
+  }) {
+    final result = LocationShareBody._();
+    if (shareId != null) result.shareId = shareId;
+    if (scope != null) result.scope = scope;
+    if (h3Cell != null) result.h3Cell = h3Cell;
+    if (publicPoint != null) result.publicPoint = publicPoint;
+    if (encryptedPoint != null) result.encryptedPoint = encryptedPoint;
+    if (expiresMs != null) result.expiresMs = expiresMs;
+    if (note != null) result.note = note;
+    if (seq != null) result.seq = seq;
+    return result;
+  }
+
+  LocationShareBody._();
+
+  factory LocationShareBody.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      LocationShareBody()..mergeFromBuffer(data, registry);
+  factory LocationShareBody.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      LocationShareBody()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'LocationShareBody',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'resilience.v1'),
+      createEmptyInstance: LocationShareBody.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'shareId')
+    ..aOS(2, _omitFieldNames ? '' : 'scope')
+    ..a<$fixnum.Int64>(3, _omitFieldNames ? '' : 'h3Cell', $pb.PbFieldType.OU6,
+        defaultOrMaker: $fixnum.Int64.ZERO)
+    ..aOM<GeoPoint>(4, _omitFieldNames ? '' : 'publicPoint',
+        subBuilder: GeoPoint.$_createMessage)
+    ..a<$core.List<$core.int>>(
+        5, _omitFieldNames ? '' : 'encryptedPoint', $pb.PbFieldType.OY)
+    ..aInt64(6, _omitFieldNames ? '' : 'expiresMs')
+    ..aOS(7, _omitFieldNames ? '' : 'note')
+    ..a<$fixnum.Int64>(8, _omitFieldNames ? '' : 'seq', $pb.PbFieldType.OU6,
+        defaultOrMaker: $fixnum.Int64.ZERO)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  LocationShareBody clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  LocationShareBody copyWith(void Function(LocationShareBody) updates) =>
+      super.copyWith((message) => updates(message as LocationShareBody))
+          as LocationShareBody;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use LocationShareBody() / LocationShareBody.new instead')
+  static LocationShareBody create() => LocationShareBody._();
+  static $pb.GeneratedMessage $_createMessage() => LocationShareBody._();
+  @$core.override
+  LocationShareBody createEmptyInstance() => LocationShareBody._();
+  @$core.pragma('dart2js:noInline')
+  static LocationShareBody getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<LocationShareBody>(
+          LocationShareBody.$_createMessage);
+  static LocationShareBody? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get shareId => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set shareId($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasShareId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearShareId() => $_clearField(1);
+
+  /// Audience scope for this share. Exactly one meaning per share:
+  ///   "contact:PUBKEYHEX"  — one recipient (encrypted_point set)
+  ///   "channel:CHANNELID"  — a group/community/mission channel
+  ///   "public"             — an opt-in public beacon (coarse only)
+  @$pb.TagNumber(2)
+  $core.String get scope => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set scope($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasScope() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearScope() => $_clearField(2);
+
+  /// Coarse geospatial bucket the user explicitly allowed to travel in the
+  /// clear (e.g. "I'm in this neighborhood"). 0 if the user shared nothing
+  /// coarse. Safe to broadcast; cannot pinpoint an individual.
+  @$pb.TagNumber(3)
+  $fixnum.Int64 get h3Cell => $_getI64(2);
+  @$pb.TagNumber(3)
+  set h3Cell($fixnum.Int64 value) => $_setInt64(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasH3Cell() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearH3Cell() => $_clearField(3);
+
+  /// Plaintext point ONLY for a deliberately public beacon where the user chose
+  /// to reveal precise location. For contact/channel scopes this MUST be empty
+  /// and the precise point travels in `encrypted_point` instead.
+  @$pb.TagNumber(4)
+  GeoPoint get publicPoint => $_getN(3);
+  @$pb.TagNumber(4)
+  set publicPoint(GeoPoint value) => $_setField(4, value);
+  @$pb.TagNumber(4)
+  $core.bool hasPublicPoint() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearPublicPoint() => $_clearField(4);
+  @$pb.TagNumber(4)
+  GeoPoint ensurePublicPoint() => $_ensure(3);
+
+  /// The precise location encrypted to the chosen audience (Signal 1:1 for a
+  /// contact, Sender-Key for a channel). Opaque to relays. Empty for a coarse-
+  /// only or public-point share.
+  @$pb.TagNumber(5)
+  $core.List<$core.int> get encryptedPoint => $_getN(4);
+  @$pb.TagNumber(5)
+  set encryptedPoint($core.List<$core.int> value) => $_setBytes(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasEncryptedPoint() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearEncryptedPoint() => $_clearField(5);
+
+  /// When this share stops being valid (unix millis). Always set; a share is
+  /// never indefinite by default. UI surfaces the countdown.
+  @$pb.TagNumber(6)
+  $fixnum.Int64 get expiresMs => $_getI64(5);
+  @$pb.TagNumber(6)
+  set expiresMs($fixnum.Int64 value) => $_setInt64(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasExpiresMs() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearExpiresMs() => $_clearField(6);
+
+  /// Optional short note ("moving toward the north exit"). For non-public
+  /// audiences this should also be encrypted; keep empty on the public path.
+  @$pb.TagNumber(7)
+  $core.String get note => $_getSZ(6);
+  @$pb.TagNumber(7)
+  set note($core.String value) => $_setString(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasNote() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearNote() => $_clearField(7);
+
+  /// Monotonic sequence so a stream of updates for one share_id orders itself.
+  @$pb.TagNumber(8)
+  $fixnum.Int64 get seq => $_getI64(7);
+  @$pb.TagNumber(8)
+  set seq($fixnum.Int64 value) => $_setInt64(7, value);
+  @$pb.TagNumber(8)
+  $core.bool hasSeq() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearSeq() => $_clearField(8);
+}
+
+/// Revokes/stops an active share (or all shares by the author when share_id is
+/// empty). Signed by the sharer; honored even if it arrives before `expires_ms`.
+class LocationStopBody extends $pb.GeneratedMessage {
+  factory LocationStopBody({
+    $core.String? shareId,
+    $fixnum.Int64? stoppedAtMs,
+  }) {
+    final result = LocationStopBody._();
+    if (shareId != null) result.shareId = shareId;
+    if (stoppedAtMs != null) result.stoppedAtMs = stoppedAtMs;
+    return result;
+  }
+
+  LocationStopBody._();
+
+  factory LocationStopBody.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      LocationStopBody()..mergeFromBuffer(data, registry);
+  factory LocationStopBody.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      LocationStopBody()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'LocationStopBody',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'resilience.v1'),
+      createEmptyInstance: LocationStopBody.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'shareId')
+    ..aInt64(2, _omitFieldNames ? '' : 'stoppedAtMs')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  LocationStopBody clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  LocationStopBody copyWith(void Function(LocationStopBody) updates) =>
+      super.copyWith((message) => updates(message as LocationStopBody))
+          as LocationStopBody;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use LocationStopBody() / LocationStopBody.new instead')
+  static LocationStopBody create() => LocationStopBody._();
+  static $pb.GeneratedMessage $_createMessage() => LocationStopBody._();
+  @$core.override
+  LocationStopBody createEmptyInstance() => LocationStopBody._();
+  @$core.pragma('dart2js:noInline')
+  static LocationStopBody getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<LocationStopBody>(
+          LocationStopBody.$_createMessage);
+  static LocationStopBody? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get shareId => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set shareId($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasShareId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearShareId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $fixnum.Int64 get stoppedAtMs => $_getI64(1);
+  @$pb.TagNumber(2)
+  set stoppedAtMs($fixnum.Int64 value) => $_setInt64(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasStoppedAtMs() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearStoppedAtMs() => $_clearField(2);
+}
+
 const $core.bool _omitFieldNames =
     $core.bool.fromEnvironment('protobuf.omit_field_names');
 const $core.bool _omitMessageNames =

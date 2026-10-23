@@ -61,6 +61,10 @@ const (
 	EventType_EVENT_TYPE_CAPABILITY_REVOKED  EventType = 47
 	// Emergency info
 	EventType_EVENT_TYPE_EMERGENCY_ALERT EventType = 50 // signed authoritative alert
+	// Location sharing (ALWAYS opt-in, audience-scoped, revocable, E2E encrypted).
+	// Never ambient tracking. Relays see only an opaque hint + ciphertext.
+	EventType_EVENT_TYPE_LOCATION_SHARE EventType = 60 // an ephemeral, consented location update
+	EventType_EVENT_TYPE_LOCATION_STOP  EventType = 61 // revoke/stop an active share or beacon
 )
 
 // Enum value maps for EventType.
@@ -97,6 +101,8 @@ var (
 		46: "EVENT_TYPE_CAPABILITY_GRANTED",
 		47: "EVENT_TYPE_CAPABILITY_REVOKED",
 		50: "EVENT_TYPE_EMERGENCY_ALERT",
+		60: "EVENT_TYPE_LOCATION_SHARE",
+		61: "EVENT_TYPE_LOCATION_STOP",
 	}
 	EventType_value = map[string]int32{
 		"EVENT_TYPE_UNSPECIFIED":          0,
@@ -130,6 +136,8 @@ var (
 		"EVENT_TYPE_CAPABILITY_GRANTED":   46,
 		"EVENT_TYPE_CAPABILITY_REVOKED":   47,
 		"EVENT_TYPE_EMERGENCY_ALERT":      50,
+		"EVENT_TYPE_LOCATION_SHARE":       60,
+		"EVENT_TYPE_LOCATION_STOP":        61,
 	}
 )
 
@@ -2732,6 +2740,192 @@ func (x *EmergencyAlertBody) GetExpiresMs() int64 {
 	return 0
 }
 
+// --- Location sharing (opt-in, audience-scoped, revocable, privacy-first) ----
+//
+// DESIGN RULES (must hold for the civil-unrest / hostile-listener threat model):
+//   - Sharing is OFF by default and requires explicit per-share user consent.
+//   - The audience is chosen each time: a single contact, a channel/group, or
+//     a public beacon. `scope` names it.
+//   - Ephemeral + revocable: `expires_ms` bounds the share; a LOCATION_STOP
+//     event (or expiry) ends it. UI must let the user stop at any time.
+//   - Granularity is the user's choice: a coarse `h3_cell` only, OR exact
+//     coordinates. For non-public audiences the point should be delivered as
+//     ciphertext (see `encrypted_point`) so relays never see coordinates.
+//   - Relays/mesh see only `scope`, coarse `h3_cell` (if the user allowed it),
+//     and opaque ciphertext — never a name, phone number, or exact address.
+type LocationShareBody struct {
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	ShareId string                 `protobuf:"bytes,1,opt,name=share_id,json=shareId,proto3" json:"share_id,omitempty"`
+	// Audience scope for this share. Exactly one meaning per share:
+	//
+	//	"contact:PUBKEYHEX"  — one recipient (encrypted_point set)
+	//	"channel:CHANNELID"  — a group/community/mission channel
+	//	"public"             — an opt-in public beacon (coarse only)
+	Scope string `protobuf:"bytes,2,opt,name=scope,proto3" json:"scope,omitempty"`
+	// Coarse geospatial bucket the user explicitly allowed to travel in the
+	// clear (e.g. "I'm in this neighborhood"). 0 if the user shared nothing
+	// coarse. Safe to broadcast; cannot pinpoint an individual.
+	H3Cell uint64 `protobuf:"varint,3,opt,name=h3_cell,json=h3Cell,proto3" json:"h3_cell,omitempty"`
+	// Plaintext point ONLY for a deliberately public beacon where the user chose
+	// to reveal precise location. For contact/channel scopes this MUST be empty
+	// and the precise point travels in `encrypted_point` instead.
+	PublicPoint *GeoPoint `protobuf:"bytes,4,opt,name=public_point,json=publicPoint,proto3" json:"public_point,omitempty"`
+	// The precise location encrypted to the chosen audience (Signal 1:1 for a
+	// contact, Sender-Key for a channel). Opaque to relays. Empty for a coarse-
+	// only or public-point share.
+	EncryptedPoint []byte `protobuf:"bytes,5,opt,name=encrypted_point,json=encryptedPoint,proto3" json:"encrypted_point,omitempty"`
+	// When this share stops being valid (unix millis). Always set; a share is
+	// never indefinite by default. UI surfaces the countdown.
+	ExpiresMs int64 `protobuf:"varint,6,opt,name=expires_ms,json=expiresMs,proto3" json:"expires_ms,omitempty"`
+	// Optional short note ("moving toward the north exit"). For non-public
+	// audiences this should also be encrypted; keep empty on the public path.
+	Note string `protobuf:"bytes,7,opt,name=note,proto3" json:"note,omitempty"`
+	// Monotonic sequence so a stream of updates for one share_id orders itself.
+	Seq           uint64 `protobuf:"varint,8,opt,name=seq,proto3" json:"seq,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LocationShareBody) Reset() {
+	*x = LocationShareBody{}
+	mi := &file_resilience_v1_event_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LocationShareBody) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LocationShareBody) ProtoMessage() {}
+
+func (x *LocationShareBody) ProtoReflect() protoreflect.Message {
+	mi := &file_resilience_v1_event_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LocationShareBody.ProtoReflect.Descriptor instead.
+func (*LocationShareBody) Descriptor() ([]byte, []int) {
+	return file_resilience_v1_event_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *LocationShareBody) GetShareId() string {
+	if x != nil {
+		return x.ShareId
+	}
+	return ""
+}
+
+func (x *LocationShareBody) GetScope() string {
+	if x != nil {
+		return x.Scope
+	}
+	return ""
+}
+
+func (x *LocationShareBody) GetH3Cell() uint64 {
+	if x != nil {
+		return x.H3Cell
+	}
+	return 0
+}
+
+func (x *LocationShareBody) GetPublicPoint() *GeoPoint {
+	if x != nil {
+		return x.PublicPoint
+	}
+	return nil
+}
+
+func (x *LocationShareBody) GetEncryptedPoint() []byte {
+	if x != nil {
+		return x.EncryptedPoint
+	}
+	return nil
+}
+
+func (x *LocationShareBody) GetExpiresMs() int64 {
+	if x != nil {
+		return x.ExpiresMs
+	}
+	return 0
+}
+
+func (x *LocationShareBody) GetNote() string {
+	if x != nil {
+		return x.Note
+	}
+	return ""
+}
+
+func (x *LocationShareBody) GetSeq() uint64 {
+	if x != nil {
+		return x.Seq
+	}
+	return 0
+}
+
+// Revokes/stops an active share (or all shares by the author when share_id is
+// empty). Signed by the sharer; honored even if it arrives before `expires_ms`.
+type LocationStopBody struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ShareId       string                 `protobuf:"bytes,1,opt,name=share_id,json=shareId,proto3" json:"share_id,omitempty"` // empty => stop ALL of the author's active shares
+	StoppedAtMs   int64                  `protobuf:"varint,2,opt,name=stopped_at_ms,json=stoppedAtMs,proto3" json:"stopped_at_ms,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LocationStopBody) Reset() {
+	*x = LocationStopBody{}
+	mi := &file_resilience_v1_event_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LocationStopBody) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LocationStopBody) ProtoMessage() {}
+
+func (x *LocationStopBody) ProtoReflect() protoreflect.Message {
+	mi := &file_resilience_v1_event_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LocationStopBody.ProtoReflect.Descriptor instead.
+func (*LocationStopBody) Descriptor() ([]byte, []int) {
+	return file_resilience_v1_event_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *LocationStopBody) GetShareId() string {
+	if x != nil {
+		return x.ShareId
+	}
+	return ""
+}
+
+func (x *LocationStopBody) GetStoppedAtMs() int64 {
+	if x != nil {
+		return x.StoppedAtMs
+	}
+	return 0
+}
+
 var File_resilience_v1_event_proto protoreflect.FileDescriptor
 
 const file_resilience_v1_event_proto_rawDesc = "" +
@@ -2947,7 +3141,20 @@ const file_resilience_v1_event_proto_rawDesc = "" +
 	"\bpriority\x18\x04 \x01(\x0e2\x17.resilience.v1.PriorityR\bpriority\x12+\n" +
 	"\x04area\x18\x05 \x01(\v2\x17.resilience.v1.GeoPointR\x04area\x12\x1d\n" +
 	"\n" +
-	"expires_ms\x18\x06 \x01(\x03R\texpiresMs*\xfb\a\n" +
+	"expires_ms\x18\x06 \x01(\x03R\texpiresMs\"\x87\x02\n" +
+	"\x11LocationShareBody\x12\x19\n" +
+	"\bshare_id\x18\x01 \x01(\tR\ashareId\x12\x14\n" +
+	"\x05scope\x18\x02 \x01(\tR\x05scope\x12\x17\n" +
+	"\ah3_cell\x18\x03 \x01(\x04R\x06h3Cell\x12:\n" +
+	"\fpublic_point\x18\x04 \x01(\v2\x17.resilience.v1.GeoPointR\vpublicPoint\x12'\n" +
+	"\x0fencrypted_point\x18\x05 \x01(\fR\x0eencryptedPoint\x12\x1d\n" +
+	"\n" +
+	"expires_ms\x18\x06 \x01(\x03R\texpiresMs\x12\x12\n" +
+	"\x04note\x18\a \x01(\tR\x04note\x12\x10\n" +
+	"\x03seq\x18\b \x01(\x04R\x03seq\"Q\n" +
+	"\x10LocationStopBody\x12\x19\n" +
+	"\bshare_id\x18\x01 \x01(\tR\ashareId\x12\"\n" +
+	"\rstopped_at_ms\x18\x02 \x01(\x03R\vstoppedAtMs*\xb8\b\n" +
 	"\tEventType\x12\x1a\n" +
 	"\x16EVENT_TYPE_UNSPECIFIED\x10\x00\x12#\n" +
 	"\x1fEVENT_TYPE_IDENTITY_CERTIFICATE\x10\x01\x12\x1a\n" +
@@ -2980,7 +3187,9 @@ const file_resilience_v1_event_proto_rawDesc = "" +
 	"\x1dEVENT_TYPE_DELIVERY_COMPLETED\x10-\x12!\n" +
 	"\x1dEVENT_TYPE_CAPABILITY_GRANTED\x10.\x12!\n" +
 	"\x1dEVENT_TYPE_CAPABILITY_REVOKED\x10/\x12\x1e\n" +
-	"\x1aEVENT_TYPE_EMERGENCY_ALERT\x102*\xd4\x03\n" +
+	"\x1aEVENT_TYPE_EMERGENCY_ALERT\x102\x12\x1d\n" +
+	"\x19EVENT_TYPE_LOCATION_SHARE\x10<\x12\x1c\n" +
+	"\x18EVENT_TYPE_LOCATION_STOP\x10=*\xd4\x03\n" +
 	"\x10ResourceCategory\x12!\n" +
 	"\x1dRESOURCE_CATEGORY_UNSPECIFIED\x10\x00\x12\x1b\n" +
 	"\x17RESOURCE_CATEGORY_WATER\x10\x01\x12\x1a\n" +
@@ -3051,7 +3260,7 @@ func file_resilience_v1_event_proto_rawDescGZIP() []byte {
 }
 
 var file_resilience_v1_event_proto_enumTypes = make([]protoimpl.EnumInfo, 11)
-var file_resilience_v1_event_proto_msgTypes = make([]protoimpl.MessageInfo, 25)
+var file_resilience_v1_event_proto_msgTypes = make([]protoimpl.MessageInfo, 27)
 var file_resilience_v1_event_proto_goTypes = []any{
 	(EventType)(0),                  // 0: resilience.v1.EventType
 	(ResourceCategory)(0),           // 1: resilience.v1.ResourceCategory
@@ -3089,6 +3298,8 @@ var file_resilience_v1_event_proto_goTypes = []any{
 	(*PackageEventBody)(nil),        // 33: resilience.v1.PackageEventBody
 	(*CapabilityBody)(nil),          // 34: resilience.v1.CapabilityBody
 	(*EmergencyAlertBody)(nil),      // 35: resilience.v1.EmergencyAlertBody
+	(*LocationShareBody)(nil),       // 36: resilience.v1.LocationShareBody
+	(*LocationStopBody)(nil),        // 37: resilience.v1.LocationStopBody
 }
 var file_resilience_v1_event_proto_depIdxs = []int32{
 	12, // 0: resilience.v1.SignedEvent.header:type_name -> resilience.v1.EventHeader
@@ -3123,11 +3334,12 @@ var file_resilience_v1_event_proto_depIdxs = []int32{
 	10, // 29: resilience.v1.PackageEventBody.stage:type_name -> resilience.v1.PackageEventBody.Stage
 	5,  // 30: resilience.v1.EmergencyAlertBody.priority:type_name -> resilience.v1.Priority
 	13, // 31: resilience.v1.EmergencyAlertBody.area:type_name -> resilience.v1.GeoPoint
-	32, // [32:32] is the sub-list for method output_type
-	32, // [32:32] is the sub-list for method input_type
-	32, // [32:32] is the sub-list for extension type_name
-	32, // [32:32] is the sub-list for extension extendee
-	0,  // [0:32] is the sub-list for field type_name
+	13, // 32: resilience.v1.LocationShareBody.public_point:type_name -> resilience.v1.GeoPoint
+	33, // [33:33] is the sub-list for method output_type
+	33, // [33:33] is the sub-list for method input_type
+	33, // [33:33] is the sub-list for extension type_name
+	33, // [33:33] is the sub-list for extension extendee
+	0,  // [0:33] is the sub-list for field type_name
 }
 
 func init() { file_resilience_v1_event_proto_init() }
@@ -3141,7 +3353,7 @@ func file_resilience_v1_event_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_resilience_v1_event_proto_rawDesc), len(file_resilience_v1_event_proto_rawDesc)),
 			NumEnums:      11,
-			NumMessages:   25,
+			NumMessages:   27,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

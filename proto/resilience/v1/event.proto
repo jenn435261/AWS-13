@@ -110,6 +110,11 @@ enum EventType {
 
   // Emergency info
   EVENT_TYPE_EMERGENCY_ALERT = 50;     // signed authoritative alert
+
+  // Location sharing (ALWAYS opt-in, audience-scoped, revocable, E2E encrypted).
+  // Never ambient tracking. Relays see only an opaque hint + ciphertext.
+  EVENT_TYPE_LOCATION_SHARE = 60;      // an ephemeral, consented location update
+  EVENT_TYPE_LOCATION_STOP = 61;       // revoke/stop an active share or beacon
 }
 
 // --- Common value types -----------------------------------------------------
@@ -403,4 +408,60 @@ message EmergencyAlertBody {
   Priority priority = 4;
   GeoPoint area = 5;
   int64 expires_ms = 6;
+}
+
+// --- Location sharing (opt-in, audience-scoped, revocable, privacy-first) ----
+//
+// DESIGN RULES (must hold for the civil-unrest / hostile-listener threat model):
+//   * Sharing is OFF by default and requires explicit per-share user consent.
+//   * The audience is chosen each time: a single contact, a channel/group, or
+//     a public beacon. `scope` names it.
+//   * Ephemeral + revocable: `expires_ms` bounds the share; a LOCATION_STOP
+//     event (or expiry) ends it. UI must let the user stop at any time.
+//   * Granularity is the user's choice: a coarse `h3_cell` only, OR exact
+//     coordinates. For non-public audiences the point should be delivered as
+//     ciphertext (see `encrypted_point`) so relays never see coordinates.
+//   * Relays/mesh see only `scope`, coarse `h3_cell` (if the user allowed it),
+//     and opaque ciphertext — never a name, phone number, or exact address.
+message LocationShareBody {
+  string share_id = 1;
+
+  // Audience scope for this share. Exactly one meaning per share:
+  //   "contact:PUBKEYHEX"  — one recipient (encrypted_point set)
+  //   "channel:CHANNELID"  — a group/community/mission channel
+  //   "public"             — an opt-in public beacon (coarse only)
+  string scope = 2;
+
+  // Coarse geospatial bucket the user explicitly allowed to travel in the
+  // clear (e.g. "I'm in this neighborhood"). 0 if the user shared nothing
+  // coarse. Safe to broadcast; cannot pinpoint an individual.
+  uint64 h3_cell = 3;
+
+  // Plaintext point ONLY for a deliberately public beacon where the user chose
+  // to reveal precise location. For contact/channel scopes this MUST be empty
+  // and the precise point travels in `encrypted_point` instead.
+  GeoPoint public_point = 4;
+
+  // The precise location encrypted to the chosen audience (Signal 1:1 for a
+  // contact, Sender-Key for a channel). Opaque to relays. Empty for a coarse-
+  // only or public-point share.
+  bytes encrypted_point = 5;
+
+  // When this share stops being valid (unix millis). Always set; a share is
+  // never indefinite by default. UI surfaces the countdown.
+  int64 expires_ms = 6;
+
+  // Optional short note ("moving toward the north exit"). For non-public
+  // audiences this should also be encrypted; keep empty on the public path.
+  string note = 7;
+
+  // Monotonic sequence so a stream of updates for one share_id orders itself.
+  uint64 seq = 8;
+}
+
+// Revokes/stops an active share (or all shares by the author when share_id is
+// empty). Signed by the sharer; honored even if it arrives before `expires_ms`.
+message LocationStopBody {
+  string share_id = 1;  // empty => stop ALL of the author's active shares
+  int64 stopped_at_ms = 2;
 }
