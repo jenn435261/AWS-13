@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
 import '../../l10n/strings.dart';
 import '../../state/derived_state.dart';
-import '../components/common.dart';
 import '../components/trust_badges.dart';
 import '../map/map_view.dart';
 import '../theme/app_theme.dart';
@@ -34,12 +34,14 @@ class MapScreen extends ConsumerWidget {
                 ),
               ),
             ),
+            // The primary actions — map-first, pinned at the bottom, big.
+            Padding(
+              padding: const EdgeInsets.fromLTRB(0, 12, 0, 12),
+              child: _PrimaryMapAction(),
+            ),
           ],
         ),
       ),
-      // The one primary action — map-first, central, reachable in one tap.
-      floatingActionButton: _PrimaryMapAction(),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
     );
   }
 
@@ -118,30 +120,90 @@ class _PrimaryMapAction extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = L10n.of(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         children: [
           Expanded(
-            child: PrimaryActionButton(
+            child: _BigAction(
               label: l.t('i_need_help'),
               icon: Icons.sos_rounded,
               urgent: true,
-              onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+              onTap: () => Navigator.of(context).push(MaterialPageRoute(
                 builder: (_) => const HelpFlowScreen(isRequest: true),
               )),
             ),
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: PrimaryActionButton(
+            child: _BigAction(
               label: l.t('offer_help'),
               icon: Icons.volunteer_activism_rounded,
-              onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+              urgent: false,
+              onTap: () => Navigator.of(context).push(MaterialPageRoute(
                 builder: (_) => const HelpFlowScreen(isRequest: false),
               )),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// A large two-line-safe action button: icon on top, label below, centered.
+/// Sized so the primary emergency actions are big, legible, and never clip.
+class _BigAction extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final bool urgent;
+  final VoidCallback onTap;
+  const _BigAction({
+    required this.label,
+    required this.icon,
+    required this.urgent,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final bg = urgent ? AppTheme.urgent : scheme.primary;
+    return Semantics(
+      button: true,
+      label: label,
+      child: Material(
+        color: bg,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () {
+            HapticFeedback.mediumImpact();
+            onTap();
+          },
+          child: Container(
+            height: 92,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, color: Colors.white, size: 30),
+                const SizedBox(height: 6),
+                Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  style: const TextStyle(
+                    fontFamily: 'Roboto',
+                    color: Colors.white,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    height: 1.1,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

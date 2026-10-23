@@ -46,9 +46,9 @@ class NetworkStatusScreen extends ConsumerWidget {
     final scheme = Theme.of(context).colorScheme;
     return ListTile(
       leading: Icon(icon),
-      title: Text(label, style: const TextStyle(fontSize: 16)),
+      title: Text(label, style: const TextStyle(fontFamily: 'Roboto', fontSize: 16)),
       trailing: trailing != null
-          ? Text(trailing, style: const TextStyle(fontSize: 16))
+          ? Text(trailing, style: const TextStyle(fontFamily: 'Roboto', fontSize: 16))
           : Icon(
               ok ? Icons.check_circle_rounded : Icons.cancel_rounded,
               color: ok ? AppTheme.verified : scheme.outline,

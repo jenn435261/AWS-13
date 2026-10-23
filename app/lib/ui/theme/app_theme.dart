@@ -38,6 +38,10 @@ class AppTheme {
       useMaterial3: true,
       colorScheme: scheme,
       visualDensity: VisualDensity.standard,
+      // Explicit family so text styles resolve to the same font. Explicitly
+      // constructed TextStyles in widgets should also pass fontFamily where
+      // they set size/weight, so headless rendering matches the device.
+      fontFamily: 'Roboto',
     );
 
     return base.copyWith(
@@ -46,7 +50,7 @@ class AppTheme {
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           minimumSize: const Size(kMinTapTarget, kMinTapTarget),
-          textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+          textStyle: const TextStyle(fontFamily: 'Roboto', fontSize: 18, fontWeight: FontWeight.w600),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
@@ -56,24 +60,38 @@ class AppTheme {
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           minimumSize: const Size(kMinTapTarget, kMinTapTarget),
-          textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+          textStyle: const TextStyle(fontFamily: 'Roboto', fontSize: 17, fontWeight: FontWeight.w600),
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           minimumSize: const Size(kMinTapTarget, kMinTapTarget),
-          textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+          textStyle: const TextStyle(fontFamily: 'Roboto', fontSize: 17, fontWeight: FontWeight.w600),
         ),
       ),
       chipTheme: base.chipTheme.copyWith(
-        labelStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+        labelStyle: TextStyle(
+          fontFamily: 'Roboto',
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+          color: scheme.onSurface,
+        ),
+        secondaryLabelStyle: TextStyle(
+          fontFamily: 'Roboto',
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+          color: scheme.onSecondaryContainer,
+        ),
+        selectedColor: scheme.secondaryContainer,
+        backgroundColor: scheme.surface,
+        side: BorderSide(color: scheme.outlineVariant),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       ),
       navigationBarTheme: NavigationBarThemeData(
         height: 72,
         labelTextStyle: WidgetStateProperty.all(
-          const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          const TextStyle(fontFamily: 'Roboto', fontSize: 16, fontWeight: FontWeight.w600),
         ),
         iconTheme: WidgetStateProperty.all(const IconThemeData(size: 28)),
       ),

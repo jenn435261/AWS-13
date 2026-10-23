@@ -23,6 +23,8 @@ class ContactsScreen extends ConsumerWidget {
         appBar: AppBar(
           title: Text(l.t('nav_contacts')),
           bottom: TabBar(
+            isScrollable: true,
+            tabAlignment: TabAlignment.start,
             tabs: [
               Tab(text: l.t('people')),
               Tab(text: l.t('organizations')),

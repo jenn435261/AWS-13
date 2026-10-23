@@ -41,7 +41,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ref.read(localeProvider.notifier).state = Locale(v!);
                 },
                 title: Text(L10n.languageName(code),
-                    style: const TextStyle(fontSize: 16)),
+                    style: const TextStyle(fontFamily: 'Roboto', fontSize: 16)),
               );
             }),
             const Divider(),
@@ -50,7 +50,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               onChanged: (v) => setState(() => _biometric = v),
               secondary: const Icon(Icons.fingerprint_rounded),
               title: Text(l.t('biometric_lock'),
-                  style: const TextStyle(fontSize: 16)),
+                  style: const TextStyle(fontFamily: 'Roboto', fontSize: 16)),
             ),
           ],
         ),

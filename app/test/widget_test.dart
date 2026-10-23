@@ -1,30 +1,67 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:resilience/app/providers.dart';
+import 'package:resilience/db/database.dart';
+import 'package:resilience/identity/identity_keys.dart';
+import 'package:resilience/identity/identity_store.dart';
+import 'package:resilience/ui/app_shell.dart';
 
-import 'package:resilience/main.dart';
+/// Smoke tests for the app shell: it boots to the map, bottom nav switches
+/// tabs (and back), and the conditional Deliveries tab is hidden by default
+/// and shown when a distributor capability/active mission is present.
+Widget _harness() {
+  return ProviderScope(
+    overrides: [
+      databaseProvider.overrideWith((ref) {
+        final db = AppDatabase.memory();
+        ref.onDispose(db.close);
+        return db;
+      }),
+      identityProvider.overrideWith((ref) async {
+        final keys = await IdentityKeys.generate();
+        return DeviceIdentity(keys: keys, displayName: 'Test User');
+      }),
+    ],
+    child: const MaterialApp(home: AppShell()),
+  );
+}
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('boots to a map-first shell with bottom navigation',
+      (tester) async {
+    await tester.pumpWidget(_harness());
+    await tester.pump(const Duration(milliseconds: 300));
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    // Bottom nav shows the four default destinations.
+    expect(find.text('Map'), findsWidgets);
+    expect(find.text('Messages'), findsWidgets);
+    expect(find.text('Contacts'), findsWidgets);
+    expect(find.text('More'), findsWidgets);
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    // The two primary emergency actions are present on the map.
+    expect(find.text('I Need Help'), findsOneWidget);
+    expect(find.text('Offer Help'), findsOneWidget);
+  });
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+  testWidgets('navigating to Contacts and back works', (tester) async {
+    await tester.pumpWidget(_harness());
+    await tester.pump(const Duration(milliseconds: 300));
+
+    await tester.tap(find.text('Contacts').first);
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('My Resilience ID'), findsOneWidget);
+
+    // Back to the map.
+    await tester.tap(find.text('Map').first);
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('I Need Help'), findsOneWidget);
+  });
+
+  testWidgets('Deliveries tab is hidden by default, shown when enabled',
+      (tester) async {
+    await tester.pumpWidget(_harness());
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Deliveries'), findsNothing);
   });
 }

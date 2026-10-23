@@ -168,7 +168,7 @@ class _State extends ConsumerState<LocationShareScreen> {
       groupValue: _audience,
       onChanged: (v) => setState(() => _audience = v!),
       secondary: Icon(icon),
-      title: Text(label, style: const TextStyle(fontSize: 16)),
+      title: Text(label, style: const TextStyle(fontFamily: 'Roboto', fontSize: 16)),
       contentPadding: EdgeInsets.zero,
     );
   }

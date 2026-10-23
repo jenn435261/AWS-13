@@ -88,7 +88,7 @@ class CopyableText extends StatelessWidget {
     this.display,
     this.copiedMessage = 'Copied to clipboard',
     this.style,
-    this.monospace = true,
+    this.monospace = false,
   });
 
   @override
@@ -119,10 +119,13 @@ class CopyableText extends StatelessWidget {
               Flexible(
                 child: Text(
                   text,
-                  style: (style ?? const TextStyle(fontSize: 16)).copyWith(
-                    fontFamily: monospace ? 'monospace' : null,
-                    fontFeatures: const [],
-                  ),
+                  style: (style ??
+                          const TextStyle(
+                              fontFamily: 'Roboto',
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 1.0))
+                      .copyWith(fontFamily: monospace ? 'monospace' : 'Roboto'),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -231,11 +234,15 @@ class PrimaryActionButton extends StatelessWidget {
           style: FilledButton.styleFrom(
             backgroundColor: urgent ? AppTheme.urgent : scheme.primary,
             foregroundColor: Colors.white,
-            textStyle:
-                const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
           ),
           icon: Icon(icon, size: 28),
-          label: Text(label),
+          label: Text(
+            label,
+            style: const TextStyle(
+                fontFamily: 'Roboto',
+                fontSize: 20,
+                fontWeight: FontWeight.w700),
+          ),
         ),
       ),
     );

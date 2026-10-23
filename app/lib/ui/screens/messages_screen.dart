@@ -16,6 +16,8 @@ class MessagesScreen extends StatelessWidget {
         appBar: AppBar(
           title: Text(l.t('nav_messages')),
           bottom: TabBar(
+            isScrollable: true,
+            tabAlignment: TabAlignment.start,
             tabs: [
               Tab(text: l.t('direct')),
               Tab(text: l.t('community')),
@@ -84,7 +86,7 @@ class _DeliveryIcon extends StatelessWidget {
     return Row(mainAxisSize: MainAxisSize.min, children: [
       Icon(icon, size: 20),
       const SizedBox(width: 4),
-      Text(label, style: const TextStyle(fontSize: 16)),
+      Text(label, style: const TextStyle(fontFamily: 'Roboto', fontSize: 16)),
     ]);
   }
 }
