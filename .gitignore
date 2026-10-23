@@ -51,3 +51,11 @@ infra/.terraform.lock.hcl
 
 # Orchestrator task scratch (not part of deliverable)
 /.tasks/
+
+# agent scratch + local secrets (never commit)
+.agents/
+*.env
+.env
+.env.*
+aws-credentials*
+*.credentials
