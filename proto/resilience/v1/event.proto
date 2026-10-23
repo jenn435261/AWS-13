@@ -1,0 +1,406 @@
+syntax = "proto3";
+
+package resilience.v1;
+
+option go_package = "github.com/resilience-network/aws13/cloud/gen/resilience/v1;resiliencev1";
+
+// =============================================================================
+// Resilience Network — Core Event Model
+//
+// Every important action is a signed, immutable Event. State (resources,
+// messages, missions, trust) is DERIVED by folding the event log. Events are
+// never mutated; corrections are new events that reference prior ones.
+//
+// Event identity = content hash (BLAKE2b-256) over the canonically-serialized
+// EventHeader + body. Causal ordering is carried by a Lamport clock plus a
+// per-author `prev_event_id` back-reference, forming a hash-linked DAG so the
+// system converges correctly even with wrong device clocks.
+// =============================================================================
+
+// Top-level signed, self-describing unit that travels over every transport.
+message SignedEvent {
+  // The canonical event header (hashed + signed).
+  EventHeader header = 1;
+
+  // The opaque event body. One of the *Body messages below, packed as bytes
+  // so relays can forward without understanding the schema. The concrete type
+  // is given by header.type.
+  bytes body = 2;
+
+  // Ed25519 signature over (sha/blake of header || body). 64 bytes.
+  bytes signature = 3;
+}
+
+message EventHeader {
+  // Content-addressed id: BLAKE2b-256 of canonical(header-without-id || body).
+  // 32 bytes. Primary key, dedup key, and DAG node id.
+  bytes event_id = 1;
+
+  // Event schema/type discriminator for `SignedEvent.body`.
+  EventType type = 2;
+
+  // Author's Ed25519 public identity key (32 bytes). The signer.
+  bytes author_pubkey = 3;
+
+  // Lamport logical clock for causal ordering. Monotonic per author;
+  // max(seen)+1 on creation. Survives wrong wall-clock.
+  uint64 lamport = 4;
+
+  // Back-reference to the author's previous event id (hash chain per author).
+  // Empty for the author's first event. Enables tamper-evident per-author logs.
+  bytes prev_event_id = 5;
+
+  // Additional causal dependencies (ids of events this one references), e.g.
+  // a confirmation references the resource it confirms. Used for DAG ordering.
+  repeated bytes depends_on = 6;
+
+  // Wall-clock at creation (unix millis), advisory only. Never authoritative
+  // for ordering — used for the freshness/decay UI and tie-breaking.
+  int64 created_at_ms = 7;
+
+  // Monotonic schema version for forward-compat.
+  uint32 schema_version = 8;
+
+  // Optional opaque H3 cell index (geospatial bucketing) for coarse routing
+  // and "resources near me" without exposing exact coordinates on the wire.
+  uint64 h3_cell = 9;
+}
+
+enum EventType {
+  EVENT_TYPE_UNSPECIFIED = 0;
+
+  // Identity & trust
+  EVENT_TYPE_IDENTITY_CERTIFICATE = 1;
+  EVENT_TYPE_KEY_REVOKED = 2;
+  EVENT_TYPE_ORG_CERTIFICATE = 3;      // org certifies a facility/user
+
+  // Resources & observations
+  EVENT_TYPE_RESOURCE_CREATED = 10;
+  EVENT_TYPE_RESOURCE_UPDATED = 11;    // references a prior RESOURCE_CREATED
+  EVENT_TYPE_RESOURCE_OBSERVED = 12;
+  EVENT_TYPE_RESOURCE_CONFIRMED = 13;
+  EVENT_TYPE_RESOURCE_DISPUTED = 14;
+  EVENT_TYPE_RESOURCE_USEFUL = 15;
+  EVENT_TYPE_INVENTORY_SNAPSHOT = 16;  // authoritative count by owner
+  EVENT_TYPE_RESERVATION = 17;         // owner-signed reservation
+
+  // Help flows
+  EVENT_TYPE_HELP_REQUESTED = 20;
+  EVENT_TYPE_HELP_OFFERED = 21;
+  EVENT_TYPE_SHELTER_CREATED = 22;
+  EVENT_TYPE_TRANSPORT_OFFERED = 23;
+
+  // Messaging (ciphertext payloads; relays cannot read)
+  EVENT_TYPE_MESSAGE_SENT = 30;
+  EVENT_TYPE_MESSAGE_DELIVERED = 31;   // delivery receipt
+  EVENT_TYPE_MESSAGE_READ = 32;        // read receipt
+  EVENT_TYPE_CHANNEL_CREATED = 33;
+  EVENT_TYPE_CHANNEL_MEMBERSHIP = 34;  // add/remove members (rotates group key)
+  EVENT_TYPE_PREKEY_BUNDLE = 35;       // X3DH prekey publication
+
+  // Logistics / missions
+  EVENT_TYPE_MISSION_CREATED = 40;
+  EVENT_TYPE_MISSION_ACCEPTED = 41;
+  EVENT_TYPE_MISSION_MATCHED = 42;
+  EVENT_TYPE_PACKAGE_PICKED_UP = 43;
+  EVENT_TYPE_PACKAGE_TRANSFERRED = 44; // handoff A->B
+  EVENT_TYPE_DELIVERY_COMPLETED = 45;
+  EVENT_TYPE_CAPABILITY_GRANTED = 46;  // capability token (e.g. MISSION_x_DRIVER)
+  EVENT_TYPE_CAPABILITY_REVOKED = 47;
+
+  // Emergency info
+  EVENT_TYPE_EMERGENCY_ALERT = 50;     // signed authoritative alert
+}
+
+// --- Common value types -----------------------------------------------------
+
+enum ResourceCategory {
+  RESOURCE_CATEGORY_UNSPECIFIED = 0;
+  RESOURCE_CATEGORY_WATER = 1;
+  RESOURCE_CATEGORY_FOOD = 2;
+  RESOURCE_CATEGORY_MEDICINE = 3;
+  RESOURCE_CATEGORY_SHELTER = 4;
+  RESOURCE_CATEGORY_POWER = 5;
+  RESOURCE_CATEGORY_TRANSPORTATION = 6;
+  RESOURCE_CATEGORY_MEDICAL_HELP = 7;
+  RESOURCE_CATEGORY_COMMUNICATION = 8;
+  RESOURCE_CATEGORY_BLANKETS = 9;
+  RESOURCE_CATEGORY_BATTERIES = 10;
+  RESOURCE_CATEGORY_CHARGING = 11;
+  RESOURCE_CATEGORY_TOOLS = 12;
+  RESOURCE_CATEGORY_OTHER = 99;
+}
+
+enum AmountBand {
+  AMOUNT_BAND_UNSPECIFIED = 0;
+  AMOUNT_BAND_PLENTY = 1;
+  AMOUNT_BAND_SOME = 2;
+  AMOUNT_BAND_LOW = 3;
+}
+
+enum Availability {
+  AVAILABILITY_UNSPECIFIED = 0;
+  AVAILABILITY_NOW = 1;
+  AVAILABILITY_TODAY = 2;
+  AVAILABILITY_CUSTOM = 3;
+}
+
+enum ProvenanceKind {
+  PROVENANCE_KIND_UNSPECIFIED = 0;
+  PROVENANCE_KIND_COMMUNITY = 1;       // ○ community resource
+  PROVENANCE_KIND_VERIFIED_ORG = 2;    // ✓ verified organization
+}
+
+enum Priority {
+  PRIORITY_UNSPECIFIED = 0;
+  PRIORITY_LOW = 1;
+  PRIORITY_NORMAL = 2;
+  PRIORITY_HIGH = 3;
+  PRIORITY_CRITICAL = 4; // SOS / official alert / revocation
+}
+
+// Approximate-by-default location. Exact coords only populated when the author
+// deliberately shares them (e.g. with an assigned courier via a restricted
+// channel). `h3_cell` gives a coarse bucket safe to broadcast.
+message GeoPoint {
+  uint64 h3_cell = 1;        // coarse cell, always safe to share
+  double approx_lat = 2;     // jittered/rounded center
+  double approx_lon = 3;
+  double exact_lat = 4;      // 0 unless explicitly shared
+  double exact_lon = 5;
+  bool has_exact = 6;
+  string address = 7;        // exact postal address, only when shared
+}
+
+// --- Event bodies ------------------------------------------------------------
+
+message IdentityCertificateBody {
+  bytes signing_pubkey = 1;      // Ed25519
+  bytes key_agreement_pubkey = 2; // X25519
+  string display_name = 3;
+  string resilience_id = 4;       // human-facing short id derived from pubkey
+  int64 valid_from_ms = 5;
+  int64 valid_until_ms = 6;
+}
+
+message OrgCertificateBody {
+  bytes org_root_pubkey = 1;      // issuing org root
+  bytes subject_pubkey = 2;       // certified facility/user
+  string org_name = 3;
+  string facility_name = 4;
+  ProvenanceKind provenance = 5;  // VERIFIED_ORG
+  int64 valid_from_ms = 6;
+  int64 valid_until_ms = 7;
+}
+
+message KeyRevokedBody {
+  bytes revoked_pubkey = 1;
+  string reason = 2;
+  int64 revoked_at_ms = 3;
+}
+
+message ResourceBody {
+  string resource_id = 1;         // stable id (== creating event_id hex)
+  ResourceCategory category = 2;
+  string title = 3;
+  string notes = 4;               // freeform
+  AmountBand amount = 5;
+  Availability availability = 6;
+  int64 available_until_ms = 7;
+  GeoPoint location = 8;
+  ProvenanceKind provenance = 9;
+  bool is_shelter = 10;
+}
+
+// Correction/update that references a prior resource event in depends_on.
+message ResourceUpdateBody {
+  string resource_id = 1;
+  AmountBand amount = 2;
+  Availability availability = 3;
+  string notes = 4;
+  bool withdrawn = 5;             // resource no longer available
+}
+
+message ObservationBody {
+  string resource_id = 1;
+  enum Kind {
+    KIND_UNSPECIFIED = 0;
+    KIND_OBSERVED = 1;            // I personally observed this
+    KIND_CONFIRMED = 2;
+    KIND_DISPUTED = 3;            // my observation differs
+    KIND_USEFUL = 4;
+  }
+  Kind kind = 2;
+  string note = 3;
+  AmountBand observed_amount = 4; // e.g. "almost empty"
+}
+
+message InventorySnapshotBody {
+  string resource_id = 1;
+  int64 quantity = 2;             // authoritative count
+  string unit = 3;                // "bottles", "cases"
+  int64 as_of_ms = 4;
+}
+
+message ReservationBody {
+  string resource_id = 1;
+  int64 quantity = 2;
+  string mission_id = 3;          // reserved for this mission
+  int64 reserved_until_ms = 4;
+}
+
+message HelpRequestBody {
+  string request_id = 1;
+  repeated ResourceCategory categories = 2;
+  string freeform = 3;            // "Need somewhere refrigerated for insulin..."
+  Priority priority = 4;
+  GeoPoint location = 5;
+  int64 needed_by_ms = 6;
+}
+
+message HelpOfferBody {
+  string offer_id = 1;
+  repeated ResourceCategory categories = 2;
+  AmountBand amount = 3;
+  Availability availability = 4;
+  string notes = 5;
+  GeoPoint location = 6;
+}
+
+enum TransportMode {
+  TRANSPORT_MODE_UNSPECIFIED = 0;
+  TRANSPORT_MODE_WALKING = 1;
+  TRANSPORT_MODE_BICYCLE = 2;
+  TRANSPORT_MODE_CAR = 3;
+  TRANSPORT_MODE_TRUCK = 4;
+  TRANSPORT_MODE_VAN = 5;
+}
+
+enum CapacityBand {
+  CAPACITY_BAND_UNSPECIFIED = 0;
+  CAPACITY_BAND_SMALL = 1;
+  CAPACITY_BAND_MEDIUM = 2;
+  CAPACITY_BAND_LARGE = 3;
+}
+
+message TransportOfferBody {
+  string offer_id = 1;
+  TransportMode mode = 2;
+  CapacityBand capacity = 3;
+  Availability availability = 4;
+  GeoPoint location = 5;
+}
+
+// --- Messaging ---------------------------------------------------------------
+
+enum ChannelType {
+  CHANNEL_TYPE_UNSPECIFIED = 0;
+  CHANNEL_TYPE_DIRECT = 1;        // 1:1 E2E
+  CHANNEL_TYPE_PUBLIC = 2;        // signed, readable by all
+  CHANNEL_TYPE_COMMUNITY = 3;     // membership-based
+  CHANNEL_TYPE_RESTRICTED = 4;    // encrypted + explicitly authorized
+  CHANNEL_TYPE_MISSION = 5;       // mission-private
+}
+
+message ChannelCreatedBody {
+  string channel_id = 1;
+  ChannelType type = 2;
+  string name = 3;                // "#water", "shelter-staff", "Delivery #2193"
+  repeated bytes initial_members = 4; // pubkeys (restricted/community)
+}
+
+message ChannelMembershipBody {
+  string channel_id = 1;
+  repeated bytes added = 2;
+  repeated bytes removed = 3;     // removal rotates future group key
+  uint64 epoch = 4;               // group key epoch (Sender-Key rotation)
+}
+
+// Carries ciphertext only. Relays see recipient hint + ciphertext, nothing else.
+message MessageBody {
+  string message_id = 1;
+  string channel_id = 2;          // empty for direct
+  bytes recipient_hint = 3;       // opaque: hash(recipient_pubkey) — NOT a name/phone
+  bytes ciphertext = 4;           // Signal Double-Ratchet / Sender-Key ciphertext
+  uint32 group_epoch = 5;         // which group key epoch (group msgs)
+  Priority priority = 6;
+}
+
+message ReceiptBody {
+  string message_id = 1;
+  bytes by_pubkey = 2;
+}
+
+message PrekeyBundleBody {
+  bytes identity_pubkey = 1;      // X25519 identity
+  uint32 registration_id = 2;
+  uint32 signed_prekey_id = 3;
+  bytes signed_prekey_pub = 4;
+  bytes signed_prekey_sig = 5;
+  uint32 prekey_id = 6;
+  bytes prekey_pub = 7;           // one-time prekey
+}
+
+// --- Logistics / missions ----------------------------------------------------
+
+message MissionBody {
+  string mission_id = 1;          // "2193"
+  ResourceCategory cargo_category = 2;
+  string cargo_description = 3;   // "Water, 20 cases"
+  int64 cargo_quantity = 4;
+  string pickup_name = 5;         // "Community Center"
+  GeoPoint pickup_location = 6;   // exact only revealed to assigned driver
+  string destination_name = 7;    // "Shelter 18"
+  GeoPoint destination_location = 8;
+  Priority priority = 9;
+  string channel_id = 10;         // mission-private channel
+}
+
+message MissionAcceptBody {
+  string mission_id = 1;
+  bytes carrier_pubkey = 2;
+}
+
+message MissionMatchBody {
+  string mission_id = 1;
+  string request_id = 2;
+  string offer_id = 3;
+}
+
+// Signed package lifecycle events (QR-driven).
+message PackageEventBody {
+  string package_id = 1;          // "8192"
+  string mission_id = 2;
+  bytes actor_pubkey = 3;         // who signed the event
+  bytes counterparty_pubkey = 4;  // store/driver/recipient on the other side
+  enum Stage {
+    STAGE_UNSPECIFIED = 0;
+    STAGE_PICKED_UP = 1;
+    STAGE_TRANSFERRED = 2;        // handoff
+    STAGE_DELIVERED = 3;
+  }
+  Stage stage = 5;
+  int64 at_ms = 6;
+}
+
+// --- Capabilities (capability-based authorization) ---------------------------
+
+message CapabilityBody {
+  string capability_id = 1;       // "MISSION_2193_DRIVER"
+  bytes subject_pubkey = 2;       // who holds it
+  bytes issuer_pubkey = 3;        // who granted it (must be authorized)
+  string scope = 4;               // "mission:2193"
+  repeated string actions = 5;    // see_exact_pickup, confirm_pickup, ...
+  int64 valid_until_ms = 6;
+}
+
+// --- Emergency alerts --------------------------------------------------------
+
+message EmergencyAlertBody {
+  string alert_id = 1;
+  string title = 2;
+  string detail = 3;
+  Priority priority = 4;
+  GeoPoint area = 5;
+  int64 expires_ms = 6;
+}

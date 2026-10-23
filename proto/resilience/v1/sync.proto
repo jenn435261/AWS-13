@@ -1,0 +1,103 @@
+syntax = "proto3";
+
+package resilience.v1;
+
+import "resilience/v1/event.proto";
+
+option go_package = "github.com/resilience-network/aws13/cloud/gen/resilience/v1;resiliencev1";
+
+// =============================================================================
+// Sync / Transport wire protocol.
+//
+// Two devices (or device<->node, device<->cloud) reconcile their event sets
+// using a compact set-reconciliation handshake, then exchange only the events
+// the other side is missing. Transport-agnostic: the same frames flow over
+// Wi-Fi Direct, BLE, a Node HTTP endpoint, LoRa (compacted), or the cloud API.
+// =============================================================================
+
+// A gossip frame is the outermost unit exchanged on a transport session.
+message SyncFrame {
+  oneof frame {
+    Hello hello = 1;
+    HaveDigest have = 2;         // "here is a digest of what I have"
+    WantList want = 3;           // "send me these event ids"
+    EventBatch batch = 4;        // actual events
+    Ack ack = 5;
+    MeshPacket mesh = 6;         // compact single-event packet for LoRa
+  }
+}
+
+message Hello {
+  bytes node_pubkey = 1;
+  string software_version = 2;
+  uint64 lamport_high_water = 3; // my max lamport, cheap hint
+  repeated bytes known_authors = 4; // authors I have events for (optional)
+}
+
+// Compact digest of held events. We send per-author high-water lamport values
+// plus a bloom filter of recent event ids so the peer can compute the diff
+// without transferring the full id set.
+message HaveDigest {
+  message AuthorHW {
+    bytes author_pubkey = 1;
+    uint64 high_water = 2;       // highest lamport held for this author
+    bytes head_event_id = 3;     // latest event id (chain head)
+  }
+  repeated AuthorHW authors = 1;
+  bytes bloom = 2;               // bloom filter of all held event ids
+  uint32 bloom_hashes = 3;
+  uint32 bloom_bits = 4;
+}
+
+message WantList {
+  repeated bytes event_ids = 1;  // explicit ids
+  // Or request everything above a per-author watermark:
+  message AuthorFrom {
+    bytes author_pubkey = 1;
+    uint64 from_lamport = 2;
+  }
+  repeated AuthorFrom from = 2;
+}
+
+message EventBatch {
+  repeated SignedEvent events = 1;
+  bool more = 2;                 // more batches to follow
+}
+
+message Ack {
+  repeated bytes applied = 1;    // event ids accepted
+  repeated bytes rejected = 2;   // event ids rejected (bad sig / revoked)
+}
+
+// Compact packet for LoRa / Meshtastic. Only high-priority small events.
+// Relays see priority, TTL, opaque dest hint, ciphertext — nothing sensitive.
+message MeshPacket {
+  bytes packet_id = 1;           // short id
+  Priority priority = 2;
+  uint32 ttl = 3;                // decremented per hop
+  bytes dest_hint = 4;           // opaque recipient hint, NOT name/phone/address
+  bytes payload = 5;             // a single compacted SignedEvent or fragment
+  uint32 frag_index = 6;         // fragmentation for multi-packet payloads
+  uint32 frag_total = 7;
+}
+
+// --- Cloud/API service definition (used by the Go backend over gRPC/Connect) -
+
+message PushEventsRequest { repeated SignedEvent events = 1; }
+message PushEventsResponse { Ack ack = 1; }
+
+message PullEventsRequest {
+  message AuthorFrom {
+    bytes author_pubkey = 1;
+    uint64 from_lamport = 2;
+  }
+  repeated AuthorFrom from = 1;
+  uint64 h3_cell = 2;            // optional geo filter
+  uint32 limit = 3;
+}
+message PullEventsResponse { EventBatch batch = 1; }
+
+service SyncService {
+  rpc PushEvents(PushEventsRequest) returns (PushEventsResponse);
+  rpc PullEvents(PullEventsRequest) returns (PullEventsResponse);
+}
