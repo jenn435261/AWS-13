@@ -1,10 +1,6 @@
-import 'dart:io';
-
 import 'package:drift/drift.dart';
-import 'package:drift/native.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 
+import 'connection/connection.dart' as conn;
 import 'event_dao.dart';
 
 part 'database.g.dart';
@@ -66,11 +62,11 @@ class KeyValue extends Table {
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
-  /// In-memory database for tests.
-  AppDatabase.memory() : super(NativeDatabase.memory());
+  /// In-memory database for tests (native FFI in-memory; WASM in-memory on web).
+  AppDatabase.memory() : super(conn.openMemory());
 
-  /// Opens the on-device database file under the app documents directory.
-  factory AppDatabase.open() => AppDatabase(_openConnection());
+  /// Opens the on-device database (native file; WASM/IndexedDB on web).
+  factory AppDatabase.open() => AppDatabase(conn.openConnection());
 
   @override
   int get schemaVersion => 1;
@@ -83,10 +79,4 @@ class AppDatabase extends _$AppDatabase {
       );
 }
 
-LazyDatabase _openConnection() {
-  return LazyDatabase(() async {
-    final Directory dir = await getApplicationDocumentsDirectory();
-    final File file = File(p.join(dir.path, 'resilience.sqlite'));
-    return NativeDatabase.createInBackground(file);
-  });
-}
+
