@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Resilience Node — Offline</title>
+<style>
+  :root {
+    --bg: #0f1419;
+    --panel: #1a222c;
+    --panel-2: #222d3a;
+    --text: #e8eef4;
+    --muted: #9fb0c0;
+    --accent: #4fd1c5;
+    --warn: #f6ad55;
+    --crit: #fc8181;
+    --line: #2d3a49;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.45;
+  }
+  header {
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+    padding: 16px 20px;
+    position: sticky;
+    top: 0;
+  }
+  header h1 { margin: 0; font-size: 20px; }
+  header p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+  .status { font-size: 12px; color: var(--muted); }
+  .status.ok { color: var(--accent); }
+  .status.err { color: var(--crit); }
+  main { padding: 16px 20px 40px; max-width: 760px; margin: 0 auto; }
+  section { margin-bottom: 28px; }
+  section h2 {
+    font-size: 15px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 6px;
+  }
+  ul { list-style: none; padding: 0; margin: 0; }
+  li.card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin: 10px 0;
+  }
+  li.card .title { font-weight: 600; }
+  li.card .meta { color: var(--muted); font-size: 13px; margin-top: 4px; }
+  li.card.alert { border-left: 4px solid var(--crit); }
+  li.card.request { border-left: 4px solid var(--warn); }
+  .empty { color: var(--muted); font-style: italic; }
+  .instructions {
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .instructions li { list-style: disc; margin-left: 18px; }
+  button {
+    background: var(--accent);
+    color: #04201d;
+    border: 0;
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Resilience Node</h1>
+  <p>Offline emergency board — served locally over Wi-Fi, no internet required.</p>
+  <div class="row" style="margin-top:8px">
+    <button id="refresh" type="button">Refresh</button>
+    <span id="status" class="status">loading…</span>
+  </div>
+</header>
+<main>
+  <section id="alerts-section">
+    <h2>Emergency Alerts</h2>
+    <ul id="alerts"></ul>
+  </section>
+
+  <section id="resources-section">
+    <h2>Available Resources</h2>
+    <ul id="resources"></ul>
+  </section>
+
+  <section id="requests-section">
+    <h2>Open Help Requests</h2>
+    <ul id="requests"></ul>
+  </section>
+
+  <section>
+    <h2>If This Is An Emergency</h2>
+    <div class="instructions">
+      <ul>
+        <li>Stay calm. Move to a safe location away from immediate hazards.</li>
+        <li>Conserve phone battery: lower screen brightness and close other apps.</li>
+        <li>This board updates from devices on the local network — check back for new alerts.</li>
+        <li>Share verified information only. Do not spread rumors.</li>
+        <li>If you can reach official services, call local emergency numbers.</li>
+        <li>Help others nearby if it is safe to do so.</li>
+      </ul>
+    </div>
+  </section>
+</main>
+
+<script>
+(function () {
+  "use strict";
+
+  var statusEl = document.getElementById("status");
+
+  function setStatus(text, cls) {
+    statusEl.textContent = text;
+    statusEl.className = "status" + (cls ? " " + cls : "");
+  }
+
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+
+  function clean(label) {
+    // Turn an enum like RESOURCE_CATEGORY_WATER or AMOUNT_BAND_LOW into "Water".
+    if (!label) return "";
+    var parts = String(label).split("_");
+    // drop known enum prefixes
+    while (parts.length > 1 &&
+           /^(RESOURCE|CATEGORY|AMOUNT|BAND|AVAILABILITY|PRIORITY|KIND)$/.test(parts[0])) {
+      parts.shift();
+    }
+    var s = parts.join(" ").toLowerCase();
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  }
+
+  function renderResources(list) {
+    var ul = document.getElementById("resources");
+    ul.innerHTML = "";
+    if (!list || !list.length) {
+      ul.appendChild(el("li", "empty", "No resources reported yet."));
+      return;
+    }
+    list.forEach(function (r) {
+      var li = el("li", "card");
+      li.appendChild(el("div", "title", r.title || clean(r.category) || "Resource"));
+      var meta = clean(r.category);
+      if (r.amount) meta += " · " + clean(r.amount);
+      if (r.availability) meta += " · " + clean(r.availability);
+      if (r.is_shelter) meta += " · shelter";
+      li.appendChild(el("div", "meta", meta));
+      if (r.notes) li.appendChild(el("div", "meta", r.notes));
+      ul.appendChild(li);
+    });
+  }
+
+  function renderAlerts(list) {
+    var ul = document.getElementById("alerts");
+    ul.innerHTML = "";
+    if (!list || !list.length) {
+      ul.appendChild(el("li", "empty", "No active alerts."));
+      return;
+    }
+    list.forEach(function (a) {
+      var li = el("li", "card alert");
+      li.appendChild(el("div", "title", a.title || "Alert"));
+      if (a.detail) li.appendChild(el("div", "meta", a.detail));
+      li.appendChild(el("div", "meta", clean(a.priority)));
+      ul.appendChild(li);
+    });
+  }
+
+  function renderRequests(list) {
+    var ul = document.getElementById("requests");
+    ul.innerHTML = "";
+    if (!list || !list.length) {
+      ul.appendChild(el("li", "empty", "No open requests."));
+      return;
+    }
+    list.forEach(function (q) {
+      var li = el("li", "card request");
+      li.appendChild(el("div", "title", q.freeform || "Help request"));
+      li.appendChild(el("div", "meta", clean(q.priority)));
+      ul.appendChild(li);
+    });
+  }
+
+  function load() {
+    setStatus("loading…");
+    var xhr = new XMLHttpRequest();
+    xhr.open("GET", "/node/v1/state", true);
+    xhr.onreadystatechange = function () {
+      if (xhr.readyState !== 4) return;
+      if (xhr.status === 200) {
+        try {
+          var st = JSON.parse(xhr.responseText);
+          renderAlerts(st.alerts);
+          renderResources(st.resources);
+          renderRequests(st.requests);
+          setStatus("Up to date · " + (st.count || 0) + " events", "ok");
+        } catch (e) {
+          setStatus("Bad response from node", "err");
+        }
+      } else {
+        setStatus("Cannot reach node (offline)", "err");
+      }
+    };
+    xhr.onerror = function () { setStatus("Cannot reach node (offline)", "err"); };
+    xhr.send();
+  }
+
+  document.getElementById("refresh").addEventListener("click", load);
+  load();
+  // Light polling so the board refreshes as phones sync through the node.
+  setInterval(load, 15000);
+})();
+</script>
+</body>
+</html>
