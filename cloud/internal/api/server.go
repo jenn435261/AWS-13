@@ -7,14 +7,18 @@ package api
 
 import (
 	"context"
+	"crypto/subtle"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
+	"strings"
 
 	resiliencev1 "github.com/resilience-network/aws13/cloud/gen/resilience/v1"
 	"github.com/resilience-network/aws13/cloud/internal/ai"
+	"github.com/resilience-network/aws13/cloud/internal/org"
 	"github.com/resilience-network/aws13/cloud/internal/store"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -44,6 +48,15 @@ type Server struct {
 	online ai.Assistant
 	// rules is the always-available deterministic fallback assistant.
 	rules ai.Assistant
+
+	// aggregator computes aggregate, consent-respecting org need-by-cell data.
+	aggregator *org.Aggregator
+	// orgTokens is the set of valid X-Org-Token values (the hackathon-simple
+	// stand-in for a verified-org certificate). When empty, token auth is
+	// rejected and only a verified-org path (if any) could pass.
+	orgTokens map[string]struct{}
+	// trustedOrgs recognizes verified-org signing keys (ORG_TRUSTED_PUBKEYS).
+	trustedOrgs *org.TrustedOrgs
 }
 
 // Option configures a Server.
@@ -72,6 +85,29 @@ func WithRulesAssistant(a ai.Assistant) Option {
 	return func(s *Server) { s.rules = a }
 }
 
+// WithOrgTokens installs the set of valid X-Org-Token values (the
+// hackathon-simple stand-in for a verified-org certificate). In production this
+// maps to the verified-org cert; the token is the stand-in. Tokens are compared
+// in constant time.
+func WithOrgTokens(tokens []string) Option {
+	return func(s *Server) {
+		s.orgTokens = make(map[string]struct{}, len(tokens))
+		for _, t := range tokens {
+			t = strings.TrimSpace(t)
+			if t == "" {
+				continue
+			}
+			s.orgTokens[t] = struct{}{}
+		}
+	}
+}
+
+// WithTrustedOrgs installs the verified-org signing-key set used to validate
+// and tag EMERGENCY_ALERT events (ORG_TRUSTED_PUBKEYS).
+func WithTrustedOrgs(t *org.TrustedOrgs) Option {
+	return func(s *Server) { s.trustedOrgs = t }
+}
+
 // NewServer builds a Server over the given Store.
 func NewServer(st store.Store, opts ...Option) *Server {
 	s := &Server{store: st, maxBodyBytes: defaultMaxBodyBytes}
@@ -80,6 +116,9 @@ func NewServer(st store.Store, opts ...Option) *Server {
 	}
 	if s.rules == nil {
 		s.rules = ai.NewRulesAssistant()
+	}
+	if s.aggregator == nil && st != nil {
+		s.aggregator = org.NewAggregator(st)
 	}
 	return s
 }
@@ -93,6 +132,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/v1/ai/translate", s.handleAITranslate)
 	mux.HandleFunc("/v1/ai/summarize", s.handleAISummarize)
 	mux.HandleFunc("/v1/ai/dedup", s.handleAIDedup)
+	mux.HandleFunc("/v1/org/needs", s.handleOrgNeeds)
 	mux.HandleFunc("/healthz", s.handleHealthz)
 	mux.HandleFunc("/readyz", s.handleReadyz)
 	return mux
@@ -453,6 +493,102 @@ func (s *Server) handleAIDedup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.writeAIJSON(w, aiDedupResponse{Hits: hits, Degraded: degraded})
+}
+
+// --- Org / first-responder integration (aggregate, consent-respecting) ---
+//
+// GET/POST /v1/org/needs returns ONLY aggregate need-by-H3-cell data:
+// {"cells":[{"h3_cell","category","count"}],"generated_at","window_ms"}. It
+// NEVER exposes individual authors, exact coordinates, message contents, or any
+// location-share payload. The endpoint is gated behind an org capability check:
+// a header X-Org-Token matching a configured token (ORG_API_TOKENS) OR a
+// verified-org request. Absent/invalid credentials return 401.
+
+// orgNeedsRequest is the optional JSON request body for /v1/org/needs.
+type orgNeedsRequest struct {
+	Cells         []uint64 `json:"cells"`
+	WindowMs      int64    `json:"window_ms"`
+	NowMs         int64    `json:"now_ms"`
+	IncludeOffers bool     `json:"include_offers"`
+}
+
+func (s *Server) handleOrgNeeds(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet && r.Method != http.MethodPost {
+		s.writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	if !s.orgAuthorized(r) {
+		s.writeError(w, http.StatusUnauthorized, "org authorization required")
+		return
+	}
+	if s.aggregator == nil {
+		s.writeError(w, http.StatusServiceUnavailable, "aggregator unavailable")
+		return
+	}
+
+	q := org.Query{}
+	// Accept a JSON body (POST) or query params (GET) for the aggregation
+	// bounds; both are optional.
+	if r.Method == http.MethodPost {
+		var req orgNeedsRequest
+		if err := s.decodeAIJSON(r, &req); err != nil {
+			s.writeError(w, http.StatusBadRequest, "decode request: "+err.Error())
+			return
+		}
+		q.Cells = req.Cells
+		q.WindowMs = req.WindowMs
+		q.NowMs = req.NowMs
+		q.IncludeOffers = req.IncludeOffers
+	} else {
+		q = parseNeedsQuery(r)
+	}
+
+	report, err := s.aggregator.Needs(r.Context(), q)
+	if err != nil {
+		s.writeError(w, http.StatusInternalServerError, "aggregate: "+err.Error())
+		return
+	}
+	// The report is aggregate-only by construction (see package org): no author,
+	// no exact coordinate, no message content ever appears here.
+	s.writeAIJSON(w, report)
+}
+
+// orgAuthorized gates the org endpoints: a valid X-Org-Token (constant-time
+// compared against the configured set) grants access. This is the
+// hackathon-simple stand-in for a verified-org certificate; in production the
+// same gate maps to the verified-org cert chain.
+func (s *Server) orgAuthorized(r *http.Request) bool {
+	token := strings.TrimSpace(r.Header.Get("X-Org-Token"))
+	if token == "" || len(s.orgTokens) == 0 {
+		return false
+	}
+	for valid := range s.orgTokens {
+		if subtle.ConstantTimeCompare([]byte(token), []byte(valid)) == 1 {
+			return true
+		}
+	}
+	return false
+}
+
+// parseNeedsQuery reads aggregation bounds from GET query params: repeated
+// ?cell= (uint64), ?window_ms=, ?now_ms=, ?include_offers=true.
+func parseNeedsQuery(r *http.Request) org.Query {
+	q := org.Query{}
+	for _, c := range r.URL.Query()["cell"] {
+		if v, err := strconv.ParseUint(c, 10, 64); err == nil {
+			q.Cells = append(q.Cells, v)
+		}
+	}
+	if v, err := strconv.ParseInt(r.URL.Query().Get("window_ms"), 10, 64); err == nil {
+		q.WindowMs = v
+	}
+	if v, err := strconv.ParseInt(r.URL.Query().Get("now_ms"), 10, 64); err == nil {
+		q.NowMs = v
+	}
+	if v, err := strconv.ParseBool(r.URL.Query().Get("include_offers")); err == nil {
+		q.IncludeOffers = v
+	}
+	return q
 }
 
 // ErrNoStore is returned when a Server is constructed without a Store.
