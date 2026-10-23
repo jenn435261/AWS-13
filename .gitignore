@@ -20,9 +20,18 @@ app/.idea/
 
 # Go
 cloud/bin/
+cloud/build/
 node/bin/
 *.test
 *.out
+
+# CDK / Node (infra)
+infra/node_modules/
+infra/cdk.out/
+infra/package-lock.json
+infra/cdk.context.json
+infra/cdk-outputs.json
+infra/dist/
 
 # Generated protobuf (regenerated via buf generate)
 # NOTE: we DO commit generated code so the app builds without codegen step.
