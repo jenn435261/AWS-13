@@ -59,6 +59,12 @@ func canonicalHeaderBytes(header *resiliencev1.EventHeader, includeID bool) ([]b
 	if !includeID {
 		clone.EventId = nil
 	}
+	// Discard unknown fields before marshaling so the canonical preimage commits
+	// to exactly the known-field projection. This matches the Dart client, which
+	// clears unknownFields before hashing, and keeps the cross-language content
+	// hash identical as the schema evolves (a newer client may set header fields
+	// an older verifier doesn't know; both sides must hash the same bytes).
+	clone.ProtoReflect().SetUnknown(nil)
 	return canonicalOpts.Marshal(clone)
 }
 

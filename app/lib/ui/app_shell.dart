@@ -29,13 +29,15 @@ class _AppShellState extends ConsumerState<AppShell> {
 
     // Tab definitions; Deliveries is inserted only when relevant.
     final tabs = <_Tab>[
-      _Tab(const MapScreen(), Icons.map_rounded, l.t('nav_map')),
-      _Tab(const MessagesScreen(), Icons.forum_rounded, l.t('nav_messages')),
-      _Tab(const ContactsScreen(), Icons.contacts_rounded, l.t('nav_contacts')),
+      _Tab('map', const MapScreen(), Icons.map_rounded, l.t('nav_map')),
+      _Tab('messages', const MessagesScreen(), Icons.forum_rounded,
+          l.t('nav_messages')),
+      _Tab('contacts', const ContactsScreen(), Icons.contacts_rounded,
+          l.t('nav_contacts')),
       if (showDeliveries)
-        _Tab(const DeliveriesScreen(), Icons.local_shipping_rounded,
-            l.t('nav_deliveries')),
-      _Tab(const MoreScreen(), Icons.menu_rounded, l.t('nav_more')),
+        _Tab('deliveries', const DeliveriesScreen(),
+            Icons.local_shipping_rounded, l.t('nav_deliveries')),
+      _Tab('more', const MoreScreen(), Icons.menu_rounded, l.t('nav_more')),
     ];
     final safeIndex = _index.clamp(0, tabs.length - 1);
 
@@ -46,6 +48,7 @@ class _AppShellState extends ConsumerState<AppShell> {
         children: [
           for (final t in tabs)
             Navigator(
+              key: ValueKey(t.id),
               onGenerateRoute: (settings) =>
                   MaterialPageRoute(builder: (_) => t.screen),
             ),
@@ -70,8 +73,9 @@ class _AppShellState extends ConsumerState<AppShell> {
 }
 
 class _Tab {
+  final String id;
   final Widget screen;
   final IconData icon;
   final String label;
-  const _Tab(this.screen, this.icon, this.label);
+  const _Tab(this.id, this.screen, this.icon, this.label);
 }

@@ -18,11 +18,13 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/resilience-network/aws13/cloud/internal/ai"
 	"github.com/resilience-network/aws13/cloud/internal/api"
+	"github.com/resilience-network/aws13/cloud/internal/org"
 	"github.com/resilience-network/aws13/cloud/internal/store"
 )
 
@@ -74,6 +76,19 @@ func main() {
 		log.Info("no BEDROCK_MODEL_ID set; AI endpoints use deterministic rules (degraded)")
 	}
 
+	// Org/first-responder integration (aggregate needs API + trusted-org alert
+	// tagging). Gated by env so it is off unless explicitly configured.
+	if tokens := getenv("ORG_API_TOKENS", ""); tokens != "" {
+		list := splitCSV(tokens)
+		opts = append(opts, api.WithOrgTokens(list))
+		log.Info("org needs API enabled", "tokens", len(list))
+	}
+	if pubkeys := getenv("ORG_TRUSTED_PUBKEYS", ""); pubkeys != "" {
+		trusted := org.ParseTrustedOrgs(pubkeys)
+		opts = append(opts, api.WithTrustedOrgs(trusted))
+		log.Info("trusted org keys loaded", "count", trusted.Len())
+	}
+
 	srv := api.NewServer(st, opts...)
 	httpSrv := &http.Server{
 		Addr:              ":" + port,
@@ -105,4 +120,15 @@ func getenv(key, def string) string {
 		return v
 	}
 	return def
+}
+
+// splitCSV splits a comma-separated env value into trimmed, non-empty parts.
+func splitCSV(s string) []string {
+	var out []string
+	for _, p := range strings.Split(s, ",") {
+		if t := strings.TrimSpace(p); t != "" {
+			out = append(out, t)
+		}
+	}
+	return out
 }

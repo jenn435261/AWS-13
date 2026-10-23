@@ -71,12 +71,20 @@ class _State extends ConsumerState<LocationShareScreen> {
                 style:
                     const TextStyle(fontFamily: 'Roboto', fontSize: 18, fontWeight: FontWeight.w600)),
             const SizedBox(height: 10),
-            _audienceTile(_Audience.contact, Icons.person_rounded,
-                l.t('share_with_contact')),
-            _audienceTile(_Audience.channel, Icons.groups_rounded,
-                l.t('share_with_channel')),
-            _audienceTile(_Audience.publicBeacon, Icons.public_rounded,
-                l.t('share_public_beacon')),
+            RadioGroup<_Audience>(
+              groupValue: _audience,
+              onChanged: (v) => setState(() => _audience = v!),
+              child: Column(
+                children: [
+                  _audienceTile(_Audience.contact, Icons.person_rounded,
+                      l.t('share_with_contact')),
+                  _audienceTile(_Audience.channel, Icons.groups_rounded,
+                      l.t('share_with_channel')),
+                  _audienceTile(_Audience.publicBeacon, Icons.public_rounded,
+                      l.t('share_public_beacon')),
+                ],
+              ),
+            ),
 
             // Explicit warning for the public beacon path.
             if (_audience == _Audience.publicBeacon)
@@ -165,8 +173,6 @@ class _State extends ConsumerState<LocationShareScreen> {
   Widget _audienceTile(_Audience a, IconData icon, String label) {
     return RadioListTile<_Audience>(
       value: a,
-      groupValue: _audience,
-      onChanged: (v) => setState(() => _audience = v!),
       secondary: Icon(icon),
       title: Text(label, style: const TextStyle(fontFamily: 'Roboto', fontSize: 16)),
       contentPadding: EdgeInsets.zero,

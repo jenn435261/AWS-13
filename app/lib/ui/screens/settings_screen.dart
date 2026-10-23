@@ -32,18 +32,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   style: const TextStyle(fontFamily: 'Roboto', 
                       fontSize: 16, fontWeight: FontWeight.w700)),
             ),
-            ...L10n.supportedLocales.map((loc) {
-              final code = loc.languageCode;
-              return RadioListTile<String>(
-                value: code,
-                groupValue: current,
-                onChanged: (v) {
-                  ref.read(localeProvider.notifier).state = Locale(v!);
-                },
-                title: Text(L10n.languageName(code),
-                    style: const TextStyle(fontFamily: 'Roboto', fontSize: 16)),
-              );
-            }),
+            RadioGroup<String>(
+              groupValue: current,
+              onChanged: (v) {
+                if (v != null) {
+                  ref.read(localeProvider.notifier).state = Locale(v);
+                }
+              },
+              child: Column(
+                children: L10n.supportedLocales.map((loc) {
+                  final code = loc.languageCode;
+                  return RadioListTile<String>(
+                    value: code,
+                    title: Text(L10n.languageName(code),
+                        style: const TextStyle(
+                            fontFamily: 'Roboto', fontSize: 16)),
+                  );
+                }).toList(),
+              ),
+            ),
             const Divider(),
             SwitchListTile(
               value: _biometric,
