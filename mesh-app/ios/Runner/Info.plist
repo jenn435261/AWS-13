@@ -70,6 +70,17 @@
 	<string>Face ID keeps your requests, contacts and messages private if someone else picks up this phone.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>The camera scans QR codes to add a contact you meet in person or to confirm a delivery handoff.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Your location is shared only while you carry a delivery. A help request sends only the place you chose.</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Bluetooth reaches nearby phones and a paired radio when the internet is down.</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>Bluetooth reaches nearby phones and a paired radio when the internet is down.</string>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>sms</string>
+		<string>tel</string>
+	</array>
 	<key>CFBundleLocalizations</key>
 	<array>
 		<string>en</string>
