@@ -123,7 +123,12 @@ class HelpRequest {
         note: note,
         mine: mine,
         sos: sos,
-        stage: RequestStage.verified,
+        // Back to the last stage the network really reached, never one it
+        // skipped (a request still on the mesh must not show "verified").
+        stage: RequestStage.values.lastWhere(
+          (s) => s.index < RequestStage.assigned.index && stageTimes.containsKey(s),
+          orElse: () => RequestStage.saved,
+        ),
         stageTimes: {...stageTimes}..remove(RequestStage.assigned),
         hops: hops,
       );

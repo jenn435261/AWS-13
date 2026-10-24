@@ -25,10 +25,18 @@ enum MapTilesStatus {
 /// API asks. Google's terms limit storing tiles, so the app keeps no offline
 /// copy; with no internet the map shows pins without streets.
 class MapTiles extends ChangeNotifier {
-  MapTiles({this.key = googleMapsKey, http.Client? client})
-      : _client = client ?? http.Client();
+  MapTiles({
+    this.key = googleMapsKey,
+    http.Client? client,
+    this.retryAfter = const Duration(seconds: 20),
+  }) : _client = client ?? http.Client();
 
   final String key;
+
+  /// How long to wait before trying again after the map became unavailable,
+  /// so streets come back on their own when the internet does.
+  final Duration retryAfter;
+  Timer? _retryTimer;
   final http.Client _client;
 
   static const _base = 'https://tile.googleapis.com';
@@ -121,14 +129,25 @@ class MapTiles extends ChangeNotifier {
   }
 
   void _set(MapTilesStatus status) {
+    if (status == MapTilesStatus.unavailable) _scheduleRetry();
     if (_status == status) return;
     _status = status;
     notifyListeners();
   }
 
+  void _scheduleRetry() {
+    _retryTimer?.cancel();
+    _retryTimer = Timer(retryAfter, () {
+      final look = _look;
+      if (_disposed || look == null || _status != MapTilesStatus.unavailable) return;
+      open(dark: look.$1, languageCode: look.$2);
+    });
+  }
+
   @override
   void dispose() {
     _disposed = true;
+    _retryTimer?.cancel();
     _attributionTimer?.cancel();
     _client.close();
     super.dispose();

@@ -171,15 +171,14 @@ class _VoteButtons extends StatelessWidget {
   Future<void> _vote(BuildContext context, Vote vote) {
     final scope = AppScope.of(context);
     final l = AppLocalizations.of(context);
-    final previous = resource.myVote;
-    final next = previous == vote ? null : vote;
+    final next = resource.myVote == vote ? null : vote;
     return scope.undoable(
       context,
       message: next == null ? l.voteWithdrawnToast : l.voted,
       undone: next == null ? l.voted : l.voteWithdrawnToast,
       icon: next == null ? Icons.undo : Icons.how_to_vote_outlined,
       run: () => scope.repository.vote(resource.id, next),
-      revert: () => scope.repository.vote(resource.id, previous),
+      revert: () => scope.repository.restoreVote(resource),
     );
   }
 

@@ -8,7 +8,6 @@ import 'features/deliveries/deliveries_screen.dart';
 import 'features/deliveries/mission_screen.dart';
 import 'features/help/offer_flow.dart';
 import 'features/help/request_flow.dart';
-import 'features/lock/lock_screen.dart';
 import 'features/manage/manage_screen.dart';
 import 'features/map/map_screen.dart';
 import 'features/messages/chat_screen.dart';
@@ -31,7 +30,6 @@ import 'l10n/labels.dart';
 import 'models/role.dart';
 import 'state/auth_controller.dart';
 import 'state/drafts.dart';
-import 'state/lock_controller.dart';
 
 // Deferred: on web, admin code is a separate download that only admins fetch.
 import 'features/admin/admin_screen.dart' deferred as admin;
@@ -71,23 +69,15 @@ GoRoute _route(String path, Widget Function(GoRouterState s) build,
 
 GoRouter buildRouter({
   required AuthController auth,
-  required LockController lock,
   required RequestDraft requestDraft,
   required OfferDraft offerDraft,
 }) {
   return GoRouter(
     navigatorKey: _rootKey,
     initialLocation: '/map',
-    refreshListenable: Listenable.merge([auth, lock]),
+    refreshListenable: auth,
     redirect: (context, state) {
       final path = state.uri.path;
-
-      if (lock.locked) {
-        if (path == '/lock') return null;
-        return Uri(path: '/lock', queryParameters: {'from': '${state.uri}'})
-            .toString();
-      }
-      if (path == '/lock') return state.uri.queryParameters['from'] ?? '/map';
 
       // Keep users out of screens above their role. This is a UX guard only;
       // the backend must enforce the same rules.
@@ -107,7 +97,6 @@ GoRouter buildRouter({
     },
     routes: [
       GoRoute(path: '/', redirect: (_, _) => '/map'),
-      GoRoute(path: '/lock', builder: (_, _) => const LockScreen()),
       StatefulShellRoute.indexedStack(
         builder: (context, state, shell) => AppShell(shell: shell),
         branches: [

@@ -62,7 +62,9 @@ class _HoldButtonState extends State<HoldButton>
 
   void _down() {
     _fired = false;
-    _controller.forward();
+    // Start from zero every time. A controller left at 1.0 by a cancelled
+    // hold would never report "completed" again, so the next SOS would not fire.
+    _controller.forward(from: 0);
   }
 
   void _up() {
@@ -92,7 +94,11 @@ class _HoldButtonState extends State<HoldButton>
         onTapDown: (_) => _down(),
         onTapUp: (_) => _up(),
         onTapCancel: () {
-          if (!_fired) _controller.reverse();
+          if (_fired) {
+            _controller.value = 0;
+          } else {
+            _controller.reverse();
+          }
         },
         child: AnimatedBuilder(
           animation: _controller,

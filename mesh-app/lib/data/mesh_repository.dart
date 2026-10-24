@@ -138,6 +138,10 @@ abstract class MeshRepository {
   /// Records this phone's vote; null withdraws it.
   Future<void> vote(String resourceId, Vote? vote);
 
+  /// Undo for [vote]: puts [before] back exactly as it was, including how
+  /// fresh it looked.
+  Future<void> restoreVote(Resource before);
+
   /// Adds someone met in person, from their QR code or typed ID.
   Future<Contact> addContact(String resilienceId, String name);
 
@@ -146,6 +150,9 @@ abstract class MeshRepository {
   Future<Contact?> findContact({String? username, String? phone});
 
   Future<void> removeContact(String id);
+
+  /// Undo for [removeContact]: puts [contact] back unchanged, in its old place.
+  Future<void> restoreContact(Contact contact);
 
   Future<void> acceptMission(String id, {required AppUser carrier});
 

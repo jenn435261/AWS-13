@@ -567,6 +567,10 @@ class MockMeshRepository implements MeshRepository {
     }
   }
 
+  /// Lets tests start from any mix of routes, e.g. no route at all.
+  @visibleForTesting
+  void debugSetNetwork(NetworkStatus status) => _network.value = status;
+
   @override
   void setInternet(bool on) {
     _network.value = _network.value.copyWith(internet: on);
@@ -770,6 +774,22 @@ class MockMeshRepository implements MeshRepository {
   }
 
   @override
+  Future<void> restoreVote(Resource before) async {
+    _resources.value = [
+      for (final r in _resources.value) r.id == before.id ? before : r,
+    ];
+    await _record(
+      switch (before.myVote) {
+        Vote.useful => EventType.resourceUseful,
+        Vote.confirm => EventType.resourceConfirmed,
+        Vote.dispute => EventType.resourceDisputed,
+        null => EventType.voteWithdrawn,
+      },
+      before.id,
+    );
+  }
+
+  @override
   Future<Contact> addContact(String resilienceId, String name) async {
     final existing = _contacts.value.where((c) => c.id == resilienceId);
     if (existing.isNotEmpty) return existing.first;
@@ -817,11 +837,26 @@ class MockMeshRepository implements MeshRepository {
 
   @override
   Future<void> removeContact(String id) async {
+    final index = _contacts.value.indexWhere((c) => c.id == id);
+    if (index >= 0) _removedContactAt[id] = index;
     _contacts.value = [
       for (final c in _contacts.value)
         if (c.id != id) c,
     ];
     await _record(EventType.contactRemoved, id);
+  }
+
+  /// Where each removed contact was, so Undo puts it back in the same place.
+  final _removedContactAt = <String, int>{};
+
+  @override
+  Future<void> restoreContact(Contact contact) async {
+    if (_contacts.value.any((c) => c.id == contact.id)) return;
+    final list = [..._contacts.value];
+    final at = (_removedContactAt.remove(contact.id) ?? list.length)
+        .clamp(0, list.length);
+    _contacts.value = list..insert(at, contact);
+    await _record(EventType.contactAdded, contact.id);
   }
 
   void _setMission(String id, Mission Function(Mission m) change) {
@@ -940,8 +975,13 @@ class MockMeshRepository implements MeshRepository {
   Future<int> clearCache() async {
     final finished =
         _requests.value.where((r) => r.stage == RequestStage.resolved).length;
-    final count = _messages.value.length + finished;
-    _messages.value = const [];
+    // Messages still on their way are not cache: keep them until delivered.
+    bool unsent(MeshMessage m) =>
+        m.senderId == identity.resilienceId &&
+        m.status.index < DeliveryStatus.delivered.index;
+    final kept = [for (final m in _messages.value) if (unsent(m)) m];
+    final count = _messages.value.length - kept.length + finished;
+    _messages.value = kept;
     _requests.value = [
       for (final r in _requests.value)
         if (r.stage != RequestStage.resolved) r,

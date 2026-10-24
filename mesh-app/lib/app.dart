@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import 'data/mesh_repository.dart';
+import 'features/lock/lock_screen.dart';
 import 'l10n/labels.dart';
 import 'router.dart';
 import 'state/app_scope.dart';
@@ -38,7 +39,6 @@ class _MeshAppState extends State<MeshApp> {
   final _offerDraft = OfferDraft();
   late final GoRouter _router = buildRouter(
     auth: widget.auth,
-    lock: widget.lock,
     requestDraft: _requestDraft,
     offerDraft: _offerDraft,
   );
@@ -162,11 +162,45 @@ class _MeshAppState extends State<MeshApp> {
               data: media.copyWith(
                 textScaler: TextScaler.linear(phoneScale * settings.textScale),
               ),
-              child: child!,
+              // The lock covers the app instead of replacing the route, so
+              // unlocking returns to the exact screen and back stack.
+              child: ListenableBuilder(
+                listenable: widget.lock,
+                builder: (context, _) => Stack(
+                  children: [
+                    Visibility(
+                      visible: !widget.lock.locked,
+                      maintainState: true,
+                      child: child!,
+                    ),
+                    if (widget.lock.locked)
+                      InheritedGoRouter(
+                        goRouter: _router,
+                        child: const _LockLayer(),
+                      ),
+                  ],
+                ),
+              ),
             );
           },
         ),
       ),
     );
   }
+}
+
+/// Hosts the lock screen above the router, with its own overlay for the
+/// toasts and sheets it may show.
+class _LockLayer extends StatefulWidget {
+  const _LockLayer();
+
+  @override
+  State<_LockLayer> createState() => _LockLayerState();
+}
+
+class _LockLayerState extends State<_LockLayer> {
+  final _entry = OverlayEntry(builder: (_) => const LockScreen());
+
+  @override
+  Widget build(BuildContext context) => Overlay(initialEntries: [_entry]);
 }

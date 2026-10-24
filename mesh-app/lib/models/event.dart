@@ -48,8 +48,14 @@ class SignedEvent {
 
   /// The exact bytes that were signed. Anyone with the author's public key
   /// can check them.
-  static String signedText(String id, EventType type, String subject, DateTime at) =>
-      '$id|${type.name}|$subject|${at.toUtc().toIso8601String()}';
+  static String signedText(
+    String id,
+    EventType type,
+    String subject,
+    DateTime at,
+    String author,
+  ) =>
+      '$id|${type.name}|$subject|${at.toUtc().toIso8601String()}|$author';
 
   /// The wire name used in the Spec, e.g. HELP_REQUESTED.
   String get wireName => type.name

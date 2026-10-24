@@ -21,7 +21,10 @@ const _steps = ['/help', '/help/details'];
 
 void openRequestFlow(BuildContext context) {
   final router = GoRouter.of(context);
-  AppScope.of(context).requestDraft.returnTo =
+  final scope = AppScope.of(context);
+  // An Undo left over from the last request must not overwrite this one.
+  scope.feedback.messengerKey.currentState?.hideCurrentSnackBar();
+  scope.requestDraft.returnTo =
       router.routerDelegate.currentConfiguration.uri.toString();
   router.push(_steps.first);
 }
@@ -49,6 +52,7 @@ void _close(BuildContext context, int step) {
     icon: Icons.delete_outline,
     actionLabel: l.undo,
     onAction: () {
+      if (!draft.isEmpty) return;
       draft.restoreFrom(saved);
       _reopen(router, step);
     },
@@ -216,7 +220,9 @@ class _HelpDetailsStepState extends State<HelpDetailsStep> {
       icon: Icons.send,
       actionLabel: l.undo,
       onAction: () async {
-        // Undo takes the request back and reopens it for changes.
+        // Undo takes the request back and reopens it for changes, unless a
+        // new request has been started since.
+        if (!_draft.isEmpty) return;
         await scope.repository.cancelRequest(request.id);
         _draft.restoreFrom(saved);
         router.go(saved.returnTo);

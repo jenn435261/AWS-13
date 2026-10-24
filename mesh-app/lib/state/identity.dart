@@ -47,7 +47,7 @@ class Identity {
 
   Future<SignedEvent> sign(String id, EventType type, String subject) async {
     final at = DateTime.now();
-    final text = SignedEvent.signedText(id, type, subject, at);
+    final text = SignedEvent.signedText(id, type, subject, at, resilienceId);
     final signature = await _ed25519.sign(utf8.encode(text), keyPair: _keyPair);
     return SignedEvent(
       id: id,
@@ -60,12 +60,22 @@ class Identity {
   }
 
   /// Checks that [event] was signed by this identity and not changed since.
+  /// Returns false, never throws, for a malformed or foreign signature.
   Future<bool> verify(SignedEvent event) async {
-    final text = SignedEvent.signedText(event.id, event.type, event.subject, event.at);
+    if (event.author != resilienceId) return false;
+    final bytes = _unhex(event.signature);
+    if (bytes == null || bytes.length != 64) return false;
+    final text = SignedEvent.signedText(
+      event.id,
+      event.type,
+      event.subject,
+      event.at,
+      event.author,
+    );
     return _ed25519.verify(
       utf8.encode(text),
       signature: Signature(
-        _unhex(event.signature),
+        bytes,
         publicKey: SimplePublicKey(publicKey, type: KeyPairType.ed25519),
       ),
     );
@@ -74,10 +84,13 @@ class Identity {
   static String _hex(List<int> bytes) =>
       bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
 
-  static List<int> _unhex(String hex) => [
-        for (var i = 0; i < hex.length; i += 2)
-          int.parse(hex.substring(i, i + 2), radix: 16),
-      ];
+  static List<int>? _unhex(String hex) {
+    if (!RegExp(r'^(?:[0-9a-f]{2})*$').hasMatch(hex)) return null;
+    return [
+      for (var i = 0; i < hex.length; i += 2)
+        int.parse(hex.substring(i, i + 2), radix: 16),
+    ];
+  }
 }
 
 /// Reads a contact from a scanned QR code, or null if it isn't one.

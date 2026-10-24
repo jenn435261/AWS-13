@@ -298,7 +298,7 @@ class _ContactTile extends StatelessWidget {
                   undone: l.contactAdded(contact.name),
                   icon: Icons.person_remove_outlined,
                   run: () => scope.repository.removeContact(contact.id),
-                  revert: () => scope.repository.addContact(contact.id, contact.name),
+                  revert: () => scope.repository.restoreContact(contact),
                 );
               },
             ),
