@@ -89,5 +89,12 @@
 		<string>zh</string>
 		<string>tl</string>
 	</array>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>The app syncs with a Resilience Node on your local network when there is no internet.</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
 </dict>
 </plist>
