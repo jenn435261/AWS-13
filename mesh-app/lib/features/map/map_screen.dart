@@ -83,9 +83,9 @@ class _MapScreenState extends State<MapScreen> with StreetMapHost {
 
   // The request screen lives under More; pushing it keeps Back on the map.
   void _open(Nearby item) => switch (item) {
-        NearbyRequest(:final request) => context.push(requestPath(request.id)),
-        NearbyResource(:final resource) => showResourceSheet(context, resource.id),
-      };
+    NearbyRequest(:final request) => context.push(requestPath(request.id)),
+    NearbyResource(:final resource) => showResourceSheet(context, resource.id),
+  };
 
   Future<void> _setLocation() async {
     final repo = AppScope.of(context).repository;
@@ -96,7 +96,8 @@ class _MapScreenState extends State<MapScreen> with StreetMapHost {
   }
 
   /// With no fix, "My location" asks where you are instead of guessing.
-  void _myLocation(LocationFix? fix) => fix == null ? _setLocation() : _focus(fix.point);
+  void _myLocation(LocationFix? fix) =>
+      fix == null ? _setLocation() : _focus(fix.point);
 
   Future<void> _addAt(LatLng point) async {
     setState(() => _adding = point);
@@ -179,7 +180,9 @@ class _MapScreenState extends State<MapScreen> with StreetMapHost {
     ];
     final urgent = [
       for (final item in items)
-        if (item case NearbyRequest(:final request) when request.urgency == Urgency.now)
+        if (item case NearbyRequest(
+          :final request,
+        ) when request.urgency == Urgency.now)
           item.point,
       for (final r in mine) r.location!,
     ];
@@ -210,7 +213,11 @@ class _MapScreenState extends State<MapScreen> with StreetMapHost {
         if (_showRadios) ...[
           CircleLayer(circles: coverageCircles(radios, colors.mesh)),
           PolylineLayer(
-            polylines: linkLines(meshLinks(radios, fix?.point), colors.mesh, c.surfaceContainerLowest),
+            polylines: linkLines(
+              meshLinks(radios, fix?.point),
+              colors.mesh,
+              c.surfaceContainerLowest,
+            ),
           ),
         ],
         if (fix != null)
@@ -234,7 +241,9 @@ class _MapScreenState extends State<MapScreen> with StreetMapHost {
                 point: p,
                 width: 72,
                 height: 72,
-                child: const IgnorePointer(child: Pulse(color: sosRed, size: 72, rings: 1)),
+                child: const IgnorePointer(
+                  child: Pulse(color: sosRed, size: 72, rings: 1),
+                ),
               ),
           ],
         ),
@@ -258,7 +267,12 @@ class _MapScreenState extends State<MapScreen> with StreetMapHost {
                 width: MeDot.size,
                 height: MeDot.size,
                 child: Semantics(
-                  label: manual ? '${l.mapYouAreHere}, ${l.mapSetByYou}' : l.mapYouAreHere,
+                  // Its own node, so the label is not glued to the map's.
+                  container: true,
+                  label:
+                      manual
+                          ? '${l.mapYouAreHere}, ${l.mapSetByYou}'
+                          : l.mapYouAreHere,
                   child: IgnorePointer(child: MeDot(live: !manual)),
                 ),
               ),
@@ -270,28 +284,30 @@ class _MapScreenState extends State<MapScreen> with StreetMapHost {
                 alignment: Alignment.topCenter,
                 child: switch (item) {
                   NearbyRequest(:final request) => _Tappable(
-                      label: '${l.requestTitle(request)}, ${l.urgency(request.urgency)}',
+                    label:
+                        '${l.requestTitle(request)}, ${l.urgency(request.urgency)}',
+                    selected: item.id == _selectedId,
+                    onTap: () => _selectFromMap(item.id, items),
+                    child: MapPin(
+                      icon: requestIcon(request),
+                      hue: requestHue(request),
                       selected: item.id == _selectedId,
-                      onTap: () => _selectFromMap(item.id, items),
-                      child: MapPin(
-                        icon: requestIcon(request),
-                        hue: requestHue(request),
-                        selected: item.id == _selectedId,
-                      ),
                     ),
+                  ),
                   NearbyResource(:final resource) => _Tappable(
-                      label: '${l.resourceTitle(resource)}, ${l.provenance(resource)}',
+                    label:
+                        '${l.resourceTitle(resource)}, ${l.provenance(resource)}',
+                    selected: item.id == _selectedId,
+                    onTap: () => _selectFromMap(item.id, items),
+                    child: MapPin(
+                      icon: resourceIcon(resource.kind),
+                      hue: resourceHue(resource.kind),
+                      solid: resource.verified,
+                      mark: resourceMark(context, resource),
                       selected: item.id == _selectedId,
-                      onTap: () => _selectFromMap(item.id, items),
-                      child: MapPin(
-                        icon: resourceIcon(resource.kind),
-                        hue: resourceHue(resource.kind),
-                        solid: resource.verified,
-                        mark: resourceMark(context, resource),
-                        selected: item.id == _selectedId,
-                        faded: resource.isStale(),
-                      ),
+                      faded: resource.isStale(),
                     ),
+                  ),
                 },
               ),
             for (final r in mine)
@@ -313,7 +329,11 @@ class _MapScreenState extends State<MapScreen> with StreetMapHost {
                 height: pinBox.height,
                 alignment: Alignment.topCenter,
                 child: IgnorePointer(
-                  child: MapPin(icon: Icons.add, hue: c.primary, selected: true),
+                  child: MapPin(
+                    icon: Icons.add,
+                    hue: c.primary,
+                    selected: true,
+                  ),
                 ),
               ),
           ],
@@ -331,108 +351,158 @@ class _MapScreenState extends State<MapScreen> with StreetMapHost {
     final l = AppLocalizations.of(context);
     final c = Theme.of(context).colorScheme;
     final manual = fix?.source == LocationSource.manual;
-    final cards = loading
-        ? [
-            _CardSpec(
-              leading: const IconTile(icon: Icons.water_drop, color: Hues.water),
-              title: l.resWater,
-              lines: [l.verifiedOrg, l.distanceMeters(120)],
-            ),
-          ]
-        : items.isEmpty
+    final cards =
+        loading
             ? [
-                _CardSpec(
-                  leading: IconTile(icon: Icons.add_location_alt_outlined, color: c.primary),
-                  title: l.nothingNearby,
-                  lines: [l.mapAddEmpty],
-                  onTap: () => _addAt(_map.camera.center),
+              _CardSpec(
+                leading: const IconTile(
+                  icon: Icons.water_drop,
+                  color: Hues.water,
                 ),
-              ]
-            : [for (final item in items) _cardFor(context, item, knowsWhere: fix != null)];
+                title: l.resWater,
+                lines: [l.verifiedOrg, l.distanceMeters(120)],
+              ),
+            ]
+            : items.isEmpty
+            ? [
+              _CardSpec(
+                leading: IconTile(
+                  icon: Icons.add_location_alt_outlined,
+                  color: c.primary,
+                ),
+                title: l.nothingNearby,
+                lines: [l.mapAddEmpty],
+                onTap: () => _addAt(_map.camera.center),
+              ),
+            ]
+            : [
+              for (final item in items)
+                _cardFor(context, item, knowsWhere: fix != null),
+            ];
 
-    return Padding(
-      // The bottom bar floats over the map; its height arrives as padding.
-      padding: EdgeInsets.only(bottom: MediaQuery.paddingOf(context).bottom + 6),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 0, 16, 10),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (fix == null)
-                        MapChip(
-                          icon: Icons.edit_location_alt_outlined,
-                          text: l.mapSetLocation,
-                          emphasis: true,
-                          onTap: _setLocation,
-                        )
-                      else if (manual)
-                        MapChip(
-                          icon: Icons.where_to_vote_outlined,
-                          text: fix.label.isEmpty ? l.mapSetByYou : l.mapSetByYouNamed(fix.label),
-                          onTap: _setLocation,
-                          hint: l.mapSetLocation,
+    final screenHeight = MediaQuery.sizeOf(context).height;
+    return ConstrainedBox(
+      // Never taller than the screen, or the location chip slides off the top.
+      constraints: BoxConstraints(
+        maxHeight: max(240, screenHeight - MediaQuery.paddingOf(context).top),
+      ),
+      child: Padding(
+        // The bottom bar floats over the map; its height arrives as padding.
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.paddingOf(context).bottom + 6,
+        ),
+        child: ListView(
+          shrinkWrap: true,
+          primary: false,
+          padding: EdgeInsets.zero,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 16, 10),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (fix == null)
+                          MapChip(
+                            icon: Icons.edit_location_alt_outlined,
+                            text: l.mapSetLocation,
+                            emphasis: true,
+                            onTap: _setLocation,
+                          )
+                        else if (manual)
+                          MapChip(
+                            icon: Icons.where_to_vote_outlined,
+                            text:
+                                fix.label.isEmpty
+                                    ? l.mapSetByYou
+                                    : l.mapSetByYouNamed(fix.label),
+                            onTap: _setLocation,
+                            hint: l.mapSetLocation,
+                          ),
+                        if (fix == null || manual) const SizedBox(height: 8),
+                        StreetMapStatus(tiles: tiles),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: MediaQuery.sizeOf(context).width * 0.45,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _AddHereButton(onTap: () => _addAt(_map.camera.center)),
+                        const SizedBox(height: 10),
+                        _RoundButton(
+                          icon:
+                              fix == null
+                                  ? Icons.location_searching
+                                  : Icons.my_location,
+                          color: c.primary,
+                          tooltip:
+                              fix == null ? l.mapSetLocation : l.myLocation,
+                          onTap: () => _myLocation(fix),
+                          // Hold to set the location by hand, even with GPS.
+                          onLongPress: _setLocation,
                         ),
-                      if (fix == null || manual) const SizedBox(height: 8),
-                      StreetMapStatus(tiles: tiles),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                ConstrainedBox(
-                  constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.45),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _AddHereButton(onTap: () => _addAt(_map.camera.center)),
-                      const SizedBox(height: 10),
-                      _RoundButton(
-                        icon: fix == null ? Icons.location_searching : Icons.my_location,
-                        color: c.primary,
-                        tooltip: fix == null ? l.mapSetLocation : l.myLocation,
-                        onTap: () => _myLocation(fix),
-                        // Hold to set the location by hand, even with GPS.
-                        onLongPress: _setLocation,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 0, 16, 6),
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: StreetMapCredit(tiles: tiles),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 16, 6),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: StreetMapCredit(tiles: tiles),
+              ),
             ),
-          ),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final width = constraints.maxWidth * _cardFraction;
-              // As tall as the tallest card at this text size, so no card is
-              // cut off at 150% or in a longer language.
-              final height = cards
-                  .map((spec) => _NearbyCard.heightFor(context, spec, width: width))
-                  .reduce(max);
-              Widget single(_CardSpec spec) => Center(
-                    child: SizedBox(width: width, child: _NearbyCard(spec)),
-                  );
-              return SizedBox(
-                height: height,
-                child: loading
-                    ? Skeletonizer(child: single(cards.single))
-                    : items.isEmpty
-                        ? single(cards.single)
-                        : PageView.builder(
+            // The card row hides while the add sheet is open. A request titled
+            // "Water" would otherwise be a second "Water" next to the kind list.
+            // The strip stays short so a hold on the map still lands on the map;
+            // a card that needs more room scrolls instead of being cut off.
+            LayoutBuilder(
+              builder: (context, constraints) {
+                if (_adding != null) return const SizedBox(height: 8);
+                final width = constraints.maxWidth * _cardFraction;
+                final natural = cards
+                    .map(
+                      (spec) =>
+                          _NearbyCard.heightFor(context, spec, width: width),
+                    )
+                    .reduce(max);
+                final cap = min(
+                  constraints.maxHeight,
+                  max(96.0, screenHeight * 0.22),
+                );
+                final shown = min(natural, cap);
+                Widget strip(double height) => SizedBox(
+                  height: height,
+                  child:
+                      loading
+                          ? Skeletonizer(
+                            child: Center(
+                              child: SizedBox(
+                                width: width,
+                                child: _NearbyCard(cards.single),
+                              ),
+                            ),
+                          )
+                          : items.isEmpty
+                          ? Center(
+                            child: SizedBox(
+                              width: width,
+                              child: _NearbyCard(cards.single),
+                            ),
+                          )
+                          : PageView.builder(
                             controller: _cards,
                             itemCount: items.length,
                             onPageChanged: (i) {
@@ -442,137 +512,191 @@ class _MapScreenState extends State<MapScreen> with StreetMapHost {
                             },
                             itemBuilder: (context, i) => _NearbyCard(cards[i]),
                           ),
-              );
-            },
-          ),
-        ],
+                );
+                final view = strip(natural);
+                if (natural <= shown + 1) return view;
+                return SizedBox(
+                  height: shown,
+                  child: SingleChildScrollView(child: view),
+                );
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  _CardSpec _cardFor(BuildContext context, Nearby item, {required bool knowsWhere}) {
+  _CardSpec _cardFor(
+    BuildContext context,
+    Nearby item, {
+    required bool knowsWhere,
+  }) {
     final l = AppLocalizations.of(context);
-    final distance = knowsWhere ? [l.distance(item.distance)] : const <String>[];
+    final distance =
+        knowsWhere ? [l.distance(item.distance)] : const <String>[];
 
     return switch (item) {
       NearbyRequest(:final request) => _CardSpec(
-          leading: IconTile(
-            icon: requestIcon(request),
-            color: requestHue(request),
-            solid: true,
-          ),
-          title: l.requestTitle(request),
-          lines: [
-            request.helpingIsMe ? l.youAreHelping : l.urgency(request.urgency),
-            [
-              ...distance,
-              l.peopleCount(request.people),
-              l.timeAgo(request.createdAt),
-            ].join('  ·  '),
-          ],
-          accent: urgencyHue(request.urgency),
-          selected: item.id == _selectedId,
-          onTap: () => _open(item),
-          onLongPress: () => showRequestActions(
-            context,
-            request,
-            onShowOnMap: () => _focus(item.point),
-          ),
+        leading: IconTile(
+          icon: requestIcon(request),
+          color: requestHue(request),
+          solid: true,
         ),
+        title: l.requestTitle(request),
+        lines: [
+          request.helpingIsMe ? l.youAreHelping : l.urgency(request.urgency),
+          [
+            ...distance,
+            l.peopleCount(request.people),
+            l.timeAgo(request.createdAt),
+          ].join('  ·  '),
+        ],
+        accent: urgencyHue(request.urgency),
+        selected: item.id == _selectedId,
+        onTap: () => _open(item),
+        onLongPress:
+            () => showRequestActions(
+              context,
+              request,
+              onShowOnMap: () => _focus(item.point),
+            ),
+      ),
       NearbyResource(:final resource) => _CardSpec(
-          leading: ResourceBadge(resource: resource, size: 52),
-          title: l.resourceTitle(resource),
-          lines: [
-            l.provenance(resource),
-            [
-              ...distance,
-              resource.isStale()
-                  ? l.staleWarning(l.timeAgo(resource.lastObserved))
-                  : l.timeAgo(resource.lastObserved),
-            ].join('  ·  '),
-          ],
-          selected: item.id == _selectedId,
-          onTap: () => _open(item),
-          onLongPress: () => showResourceSheet(context, resource.id),
-        ),
+        leading: ResourceBadge(resource: resource, size: 52),
+        title: l.resourceTitle(resource),
+        lines: [
+          l.provenance(resource),
+          [
+            ...distance,
+            resource.isStale()
+                ? l.staleWarning(l.timeAgo(resource.lastObserved))
+                : l.timeAgo(resource.lastObserved),
+          ].join('  ·  '),
+        ],
+        selected: item.id == _selectedId,
+        onTap: () => _open(item),
+        onLongPress: () => showResourceSheet(context, resource.id),
+      ),
     };
   }
 
   void _showLayers() {
     Haptics.tick();
     final l = AppLocalizations.of(context);
+    final screen = MediaQuery.sizeOf(context);
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      builder: (sheet) => StatefulBuilder(
-        builder: (sheet, setSheet) {
-          void toggle(void Function() change) {
-            Haptics.tick();
-            setState(change);
-            setSheet(() {});
-          }
+      // Keep the sheet below the top of the screen, so a tap there dismisses
+      // it. A full-height sheet would swallow that tap.
+      constraints: BoxConstraints(
+        maxWidth: screen.width,
+        maxHeight: max(240, screen.height - 80),
+      ),
+      builder:
+          (sheet) => StatefulBuilder(
+            builder: (sheet, setSheet) {
+              void toggle(void Function() change) {
+                Haptics.tick();
+                setState(change);
+                setSheet(() {});
+              }
 
-          Widget layer(IconData icon, Color hue, String title, bool value, void Function(bool) set) =>
-              SwitchListTile(
+              Widget layer(
+                IconData icon,
+                Color hue,
+                String title,
+                bool value,
+                void Function(bool) set,
+              ) => SwitchListTile(
                 secondary: IconTile(icon: icon, color: hue, size: 44),
                 title: Text(title),
                 value: value,
                 onChanged: (v) => toggle(() => set(v)),
               );
 
-          void then(VoidCallback action) {
-            Navigator.pop(sheet);
-            action();
-          }
+              void then(VoidCallback action) {
+                Navigator.pop(sheet);
+                action();
+              }
 
-          final saved = offlineMap.info;
-          return SafeArea(
-            child: ListView(
-              shrinkWrap: true,
-              padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                  child: Text(l.layers, style: Theme.of(sheet).textTheme.headlineSmall),
+              final saved = offlineMap.info;
+              return SafeArea(
+                child: ListView(
+                  shrinkWrap: true,
+                  padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                      child: Text(
+                        l.layers,
+                        style: Theme.of(sheet).textTheme.headlineSmall,
+                      ),
+                    ),
+                    layer(
+                      Icons.local_hospital_outlined,
+                      Hues.medical,
+                      l.layerFacilities,
+                      _showFacilities,
+                      (v) => _showFacilities = v,
+                    ),
+                    layer(
+                      Icons.water_drop_outlined,
+                      Hues.water,
+                      l.layerLive,
+                      _showLive,
+                      (v) => _showLive = v,
+                    ),
+                    layer(
+                      Icons.sos_outlined,
+                      sosRed,
+                      l.layerRequests,
+                      _showRequests,
+                      (v) => _showRequests = v,
+                    ),
+                    layer(
+                      Icons.cell_tower,
+                      Theme.of(sheet).colorScheme.primary,
+                      l.layerRadios,
+                      _showRadios,
+                      (v) => _showRadios = v,
+                    ),
+                    const Divider(indent: 16, endIndent: 16),
+                    ListTile(
+                      leading: const Icon(Icons.edit_location_alt_outlined),
+                      title: Text(l.mapSetLocation),
+                      subtitle: Text(l.mapSetLocationSub),
+                      onTap: () => then(_setLocation),
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.add_location_alt_outlined),
+                      title: Text(l.mapAddHint),
+                      onTap: () => then(() => _addAt(_map.camera.center)),
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.download_for_offline_outlined),
+                      title: Text(l.mapOfflineTitle),
+                      subtitle: Text(
+                        saved == null
+                            ? l.mapOfflineAbout
+                            : l.mapOfflineOnPhone(
+                              megabytes(l, saved.sizeBytes),
+                              l.timeAgo(saved.downloadedAt),
+                            ),
+                      ),
+                      onTap: () => then(() => context.push('/more/downloads')),
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.map_outlined),
+                      title: Text(l.mapSource),
+                      subtitle: Text(l.mapSourceNote),
+                    ),
+                  ],
                 ),
-                layer(Icons.local_hospital_outlined, Hues.medical, l.layerFacilities,
-                    _showFacilities, (v) => _showFacilities = v),
-                layer(Icons.water_drop_outlined, Hues.water, l.layerLive, _showLive,
-                    (v) => _showLive = v),
-                layer(Icons.sos_outlined, sosRed, l.layerRequests, _showRequests,
-                    (v) => _showRequests = v),
-                layer(Icons.cell_tower, Theme.of(sheet).colorScheme.primary, l.layerRadios,
-                    _showRadios, (v) => _showRadios = v),
-                const Divider(indent: 16, endIndent: 16),
-                ListTile(
-                  leading: const Icon(Icons.edit_location_alt_outlined),
-                  title: Text(l.mapSetLocation),
-                  subtitle: Text(l.mapSetLocationSub),
-                  onTap: () => then(_setLocation),
-                ),
-                ListTile(
-                  leading: const Icon(Icons.add_location_alt_outlined),
-                  title: Text(l.mapAddHint),
-                  onTap: () => then(() => _addAt(_map.camera.center)),
-                ),
-                ListTile(
-                  leading: const Icon(Icons.download_for_offline_outlined),
-                  title: Text(l.mapOfflineTitle),
-                  subtitle: Text(saved == null
-                      ? l.mapOfflineAbout
-                      : l.mapOfflineOnPhone(megabytes(l, saved.sizeBytes), l.timeAgo(saved.downloadedAt))),
-                  onTap: () => then(() => context.push('/more/downloads')),
-                ),
-                ListTile(
-                  leading: const Icon(Icons.map_outlined),
-                  title: Text(l.mapSource),
-                  subtitle: Text(l.mapSourceNote),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
+              );
+            },
+          ),
     );
   }
 }
@@ -597,11 +721,10 @@ class _AddHereButton extends StatelessWidget {
         onTap: onTap,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Row(
-          mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.add_location_alt_outlined, color: c.primary),
             const SizedBox(width: 8),
-            Flexible(
+            Expanded(
               child: Text(
                 l.mapAddHere,
                 style: TextStyle(color: c.primary, fontWeight: FontWeight.w700),
@@ -636,7 +759,7 @@ class _TopBar extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Flexible(
+        Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -646,11 +769,14 @@ class _TopBar extends StatelessWidget {
                 onTap: () => context.push('/more/network'),
                 padding: const EdgeInsets.fromLTRB(10, 8, 16, 8),
                 child: Row(
-                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _StatusIcon(internet: network.internet, ready: network.hasRoute),
+                    _StatusIcon(
+                      internet: network.internet,
+                      ready: network.hasRoute,
+                    ),
                     const SizedBox(width: 10),
-                    Flexible(
+                    Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -672,13 +798,17 @@ class _TopBar extends StatelessWidget {
                 const SizedBox(height: 8),
                 Glass(
                   radius: 24,
-                  tint: urgent ? c.errorContainer.withValues(alpha: 0.92) : null,
+                  tint:
+                      urgent ? c.errorContainer.withValues(alpha: 0.92) : null,
                   onTap: () => showAlertsSheet(context, alerts),
                   padding: const EdgeInsets.fromLTRB(12, 10, 16, 10),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.campaign, color: urgent ? c.onErrorContainer : c.primary),
+                      Icon(
+                        Icons.campaign,
+                        color: urgent ? c.onErrorContainer : c.primary,
+                      ),
                       const SizedBox(width: 10),
                       Flexible(
                         child: Text(
@@ -705,7 +835,11 @@ class _TopBar extends StatelessWidget {
               onTap: () => showLanguageSheet(context),
             ),
             const SizedBox(height: 8),
-            _RoundButton(icon: Icons.layers_outlined, tooltip: l.layers, onTap: onLayers),
+            _RoundButton(
+              icon: Icons.layers_outlined,
+              tooltip: l.layers,
+              onTap: onLayers,
+            ),
           ],
         ),
       ],
@@ -752,84 +886,104 @@ class _StatusIcon extends StatelessWidget {
 }
 
 /// Verified notices, newest first, each with its signing organization.
-Future<void> showAlertsSheet(BuildContext context, List<EmergencyAlert> alerts) {
+Future<void> showAlertsSheet(
+  BuildContext context,
+  List<EmergencyAlert> alerts,
+) {
   Haptics.tick();
   final l = AppLocalizations.of(context);
   final c = Theme.of(context).colorScheme;
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
-    builder: (sheet) => SafeArea(
-      child: ListView(
-        shrinkWrap: true,
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(4, 0, 4, 12),
-            child: Text(l.alertsTitle, style: Theme.of(sheet).textTheme.headlineSmall),
-          ),
-          for (final a in alerts) ...[
-            Card(
-              color: a.urgent ? c.errorContainer : null,
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    IconTile(
-                      icon: a.urgent ? Icons.warning_amber_rounded : Icons.campaign_outlined,
-                      color: a.urgent ? sosRed : c.primary,
-                      solid: a.urgent,
-                      size: 44,
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            a.title,
-                            style: Theme.of(sheet).textTheme.titleMedium?.copyWith(
+    builder:
+        (sheet) => SafeArea(
+          child: ListView(
+            shrinkWrap: true,
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(4, 0, 4, 12),
+                child: Text(
+                  l.alertsTitle,
+                  style: Theme.of(sheet).textTheme.headlineSmall,
+                ),
+              ),
+              for (final a in alerts) ...[
+                Card(
+                  color: a.urgent ? c.errorContainer : null,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        IconTile(
+                          icon:
+                              a.urgent
+                                  ? Icons.warning_amber_rounded
+                                  : Icons.campaign_outlined,
+                          color: a.urgent ? sosRed : c.primary,
+                          solid: a.urgent,
+                          size: 44,
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                a.title,
+                                style: Theme.of(
+                                  sheet,
+                                ).textTheme.titleMedium?.copyWith(
                                   color: a.urgent ? c.onErrorContainer : null,
                                 ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            a.body,
-                            style: TextStyle(color: a.urgent ? c.onErrorContainer : null),
-                          ),
-                          const SizedBox(height: 6),
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.verified,
-                                size: 18,
-                                color: a.urgent ? c.onErrorContainer : c.primary,
                               ),
-                              const SizedBox(width: 6),
-                              Expanded(
-                                child: Text(
-                                  '${a.organization}  ·  ${l.timeAgo(a.at)}',
-                                  style: TextStyle(
-                                    color: a.urgent ? c.onErrorContainer : c.onSurfaceVariant,
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                              const SizedBox(height: 2),
+                              Text(
+                                a.body,
+                                style: TextStyle(
+                                  color: a.urgent ? c.onErrorContainer : null,
                                 ),
+                              ),
+                              const SizedBox(height: 6),
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.verified,
+                                    size: 18,
+                                    color:
+                                        a.urgent
+                                            ? c.onErrorContainer
+                                            : c.primary,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      '${a.organization}  ·  ${l.timeAgo(a.at)}',
+                                      style: TextStyle(
+                                        color:
+                                            a.urgent
+                                                ? c.onErrorContainer
+                                                : c.onSurfaceVariant,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
-            ),
-            const SizedBox(height: 10),
-          ],
-        ],
-      ),
-    ),
+                const SizedBox(height: 10),
+              ],
+            ],
+          ),
+        ),
   );
 }
 
@@ -935,47 +1089,51 @@ class _NearbyCard extends StatelessWidget {
   static const _gap = 14.0;
   static const _chevron = 24.0;
   static const _dot = 8.0 + 6.0;
-  static const _titleLines = 2;
-  static const _lineLines = 3;
-
   static TextStyle? _titleStyle(ThemeData theme) => theme.textTheme.titleMedium;
 
-  static TextStyle? _lineStyle(ThemeData theme, int i) => theme.textTheme.bodyMedium?.copyWith(
+  static TextStyle? _lineStyle(ThemeData theme, int i) =>
+      theme.textTheme.bodyMedium?.copyWith(
         color: theme.colorScheme.onSurfaceVariant,
         fontWeight: i == 0 ? FontWeight.w600 : null,
       );
 
   /// How tall [spec]'s card is at [width], with this screen's text size,
   /// language and fonts.
-  static double heightFor(BuildContext context, _CardSpec spec, {required double width}) {
+  static double heightFor(
+    BuildContext context,
+    _CardSpec spec, {
+    required double width,
+  }) {
     final theme = Theme.of(context);
     final base = DefaultTextStyle.of(context).style;
-    final textWidth = width -
+    final textWidth =
+        width -
         _outer.horizontal -
         2 * (_border + _padding) -
         _leading -
         _gap -
         (spec.onTap == null ? 0 : _chevron);
-    double measure(String text, TextStyle? style, int maxLines, double maxWidth) {
+    double measure(String text, TextStyle? style, double maxWidth) {
       final painter = TextPainter(
         text: TextSpan(text: text, style: base.merge(style)),
         textDirection: Directionality.of(context),
         textScaler: MediaQuery.textScalerOf(context),
         locale: Localizations.maybeLocaleOf(context),
-        maxLines: maxLines,
       )..layout(maxWidth: max(1, maxWidth));
       final height = painter.height;
       painter.dispose();
       return height;
     }
 
-    var text = measure(spec.title, _titleStyle(theme), _titleLines, textWidth);
+    // A little narrower than the real line, so rounding never clips a wrap.
+    var text = measure(spec.title, _titleStyle(theme), textWidth - 8);
     for (final (i, line) in spec.lines.indexed) {
-      final lineWidth = i == 0 && spec.accent != null ? textWidth - _dot : textWidth;
-      text += measure(line, _lineStyle(theme, i), _lineLines, lineWidth);
+      final lineWidth =
+          i == 0 && spec.accent != null ? textWidth - _dot : textWidth;
+      text += measure(line, _lineStyle(theme, i), lineWidth - 8);
     }
-    // A pixel or two of room for rounding, so the text never overflows.
-    return _outer.vertical + 2 * (_border + _padding) + max(_leading, text) + 2;
+    // Room for rounding, so the text never overflows its card.
+    return _outer.vertical + 2 * (_border + _padding) + max(_leading, text) + 8;
   }
 
   @override
@@ -983,63 +1141,71 @@ class _NearbyCard extends StatelessWidget {
     final theme = Theme.of(context);
     final c = theme.colorScheme;
 
-    return Padding(
-      padding: _outer,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 220),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(26),
-          border: Border.all(
-            color: spec.selected ? c.primary : Colors.transparent,
-            width: _border,
+    return MergeSemantics(
+      child: Padding(
+        padding: _outer,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(26),
+            border: Border.all(
+              color: spec.selected ? c.primary : Colors.transparent,
+              width: _border,
+            ),
           ),
-        ),
-        child: Glass(
-          radius: 24,
-          onTap: spec.onTap,
-          onLongPress: spec.onLongPress,
-          padding: const EdgeInsets.all(_padding),
-          child: Row(
-            children: [
-              spec.leading,
-              const SizedBox(width: _gap),
-              Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      spec.title,
-                      maxLines: _titleLines,
-                      overflow: TextOverflow.ellipsis,
-                      style: _titleStyle(theme),
-                    ),
-                    for (final (i, line) in spec.lines.indexed)
-                      Row(
-                        children: [
-                          if (i == 0 && spec.accent != null) ...[
-                            Container(
-                              width: 8,
-                              height: 8,
-                              decoration: BoxDecoration(color: spec.accent, shape: BoxShape.circle),
-                            ),
-                            const SizedBox(width: 6),
-                          ],
-                          Expanded(
-                            child: Text(
-                              line,
-                              maxLines: _lineLines,
-                              overflow: TextOverflow.ellipsis,
-                              style: _lineStyle(theme, i),
-                            ),
+          child: Glass(
+            radius: 24,
+            onTap: spec.onTap,
+            onLongPress: spec.onLongPress,
+            padding: const EdgeInsets.all(_padding),
+            child: Semantics(
+              container: true,
+              button: spec.onTap != null,
+              onTap: spec.onTap,
+              onLongPress: spec.onLongPress,
+              excludeSemantics: true,
+              label: [spec.title, ...spec.lines].join('\n'),
+              child: Row(
+                children: [
+                  spec.leading,
+                  const SizedBox(width: _gap),
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(spec.title, style: _titleStyle(theme)),
+                        for (final (i, line) in spec.lines.indexed)
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (i == 0 && spec.accent != null) ...[
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 6),
+                                  child: Container(
+                                    width: 8,
+                                    height: 8,
+                                    decoration: BoxDecoration(
+                                      color: spec.accent,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                              ],
+                              Expanded(
+                                child: Text(line, style: _lineStyle(theme, i)),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                  ],
-                ),
+                      ],
+                    ),
+                  ),
+                  if (spec.onTap != null)
+                    Icon(Icons.chevron_right, color: c.outline),
+                ],
               ),
-              if (spec.onTap != null) Icon(Icons.chevron_right, color: c.outline),
-            ],
+            ),
           ),
         ),
       ),

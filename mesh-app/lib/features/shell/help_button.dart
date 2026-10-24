@@ -32,46 +32,57 @@ class HelpButton extends StatelessWidget {
     return HoldButton(
       semanticsLabel: l.helpButtonSemantics,
       semanticsHint: l.helpButtonHint,
-      onTap: sosOnly
-          ? () => AppScope.of(context).feedback.toast(
-                l.keepHolding,
-                icon: Icons.touch_app_outlined,
-              )
-          : () => showHelpMenu(context),
+      onTap:
+          sosOnly
+              ? () => AppScope.of(
+                context,
+              ).feedback.toast(l.keepHolding, icon: Icons.touch_app_outlined)
+              : () => showHelpMenu(context),
       onHeld: () => sendSos(context),
       // Pressing shrinks the button a little and a white ring fills around
       // its edge, so you can feel and see the hold working.
-      builder: (context, progress) => Transform.scale(
-        scale: 1 - 0.05 * Curves.easeOut.transform(min(progress * 3, 1)),
-        child: CustomPaint(
-          foregroundPainter: _HoldRing(progress),
-          child: Container(
-            width: size,
-            height: size,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: sosRed,
-              border: Border.all(color: Colors.white, width: 3),
-              boxShadow: softShadow(context, lift: 0.6),
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.sos, color: Colors.white, size: size * 0.36),
-                Text(
-                  l.helpButton,
-                  maxLines: 1,
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w800,
-                        height: 1,
-                      ),
+      builder:
+          (context, progress) => Transform.scale(
+            scale: 1 - 0.05 * Curves.easeOut.transform(min(progress * 3, 1)),
+            child: CustomPaint(
+              foregroundPainter: _HoldRing(progress),
+              child: Container(
+                width: size,
+                height: size,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: sosRed,
+                  border: Border.all(color: Colors.white, width: 3),
+                  boxShadow: softShadow(context, lift: 0.6),
                 ),
-              ],
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.sos, color: Colors.white, size: size * 0.36),
+                    // A long word ("Tulong", "Ayuda") stays whole at 150% text.
+                    // Scaling the paint keeps the style at 16 px or more.
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 6),
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          l.helpButton,
+                          softWrap: false,
+                          style: Theme.of(
+                            context,
+                          ).textTheme.labelLarge?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w800,
+                            height: 1,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
-        ),
-      ),
     );
   }
 }
@@ -114,7 +125,9 @@ Future<void> sendSos(BuildContext context) async {
     message: l.sosSent,
     undone: l.requestCancelled,
     icon: Icons.sos,
-    run: () async => id = (await scope.repository.sendSos(from: scope.auth.me)).id,
+    run:
+        () async =>
+            id = (await scope.repository.sendSos(from: scope.auth.me)).id,
     revert: () => scope.repository.cancelRequest(id!),
   );
   if (id != null && !scope.lock.locked) router.go(requestPath(id!));
@@ -128,64 +141,65 @@ Future<void> showHelpMenu(BuildContext context) {
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
-    builder: (sheet) => SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(4, 0, 4, 16),
-              child: Text(
-                l.helpMenuTitle,
-                style: Theme.of(sheet).textTheme.headlineSmall,
-              ),
-            ),
-            _BigChoice(
-              icon: Icons.sos,
-              color: sosRed,
-              title: l.needHelp,
-              subtitle: l.needHelpSub,
-              onTap: () {
-                Navigator.pop(sheet);
-                openRequestFlow(context);
-              },
-            ),
-            const SizedBox(height: 12),
-            _BigChoice(
-              icon: Icons.volunteer_activism,
-              title: l.canHelp,
-              subtitle: l.canHelpSub,
-              onTap: () {
-                Navigator.pop(sheet);
-                openOfferFlow(context);
-              },
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: c.surfaceContainerHigh,
-                borderRadius: BorderRadius.circular(18),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.touch_app_outlined, color: c.onSurfaceVariant),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      l.sosTip,
-                      style: TextStyle(color: c.onSurfaceVariant),
-                    ),
+    builder:
+        (sheet) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(4, 0, 4, 16),
+                  child: Text(
+                    l.helpMenuTitle,
+                    style: Theme.of(sheet).textTheme.headlineSmall,
                   ),
-                ],
-              ),
+                ),
+                _BigChoice(
+                  icon: Icons.sos,
+                  color: sosRed,
+                  title: l.needHelp,
+                  subtitle: l.needHelpSub,
+                  onTap: () {
+                    Navigator.pop(sheet);
+                    openRequestFlow(context);
+                  },
+                ),
+                const SizedBox(height: 12),
+                _BigChoice(
+                  icon: Icons.volunteer_activism,
+                  title: l.canHelp,
+                  subtitle: l.canHelpSub,
+                  onTap: () {
+                    Navigator.pop(sheet);
+                    openOfferFlow(context);
+                  },
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: c.surfaceContainerHigh,
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.touch_app_outlined, color: c.onSurfaceVariant),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          l.sosTip,
+                          style: TextStyle(color: c.onSurfaceVariant),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
-      ),
-    ),
   );
 }
 
@@ -218,9 +232,10 @@ class _BigChoice extends StatelessWidget {
     return Card(
       color: color,
       clipBehavior: Clip.antiAlias,
-      shape: filled
-          ? RoundedRectangleBorder(borderRadius: BorderRadius.circular(22))
-          : null,
+      shape:
+          filled
+              ? RoundedRectangleBorder(borderRadius: BorderRadius.circular(22))
+              : null,
       child: InkWell(
         onTap: () {
           Haptics.tick();
@@ -232,14 +247,14 @@ class _BigChoice extends StatelessWidget {
             children: [
               filled
                   ? Container(
-                      width: 56,
-                      height: 56,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.18),
-                        borderRadius: BorderRadius.circular(17),
-                      ),
-                      child: Icon(icon, color: Colors.white, size: 30),
-                    )
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.18),
+                      borderRadius: BorderRadius.circular(17),
+                    ),
+                    child: Icon(icon, color: Colors.white, size: 30),
+                  )
                   : IconTile(icon: icon, color: c.primary, size: 56),
               const SizedBox(width: 16),
               Expanded(
@@ -263,7 +278,10 @@ class _BigChoice extends StatelessWidget {
                   ],
                 ),
               ),
-              Icon(Icons.arrow_forward, color: filled ? Colors.white : c.outline),
+              Icon(
+                Icons.arrow_forward,
+                color: filled ? Colors.white : c.outline,
+              ),
             ],
           ),
         ),
