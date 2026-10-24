@@ -85,10 +85,13 @@ class BedrockAiClient implements AiAssist {
   }
 
   @override
-  Future<String> summarize(List<String> items) async {
+  Future<SummaryResult> summarize(List<String> items) async {
     final j = await _post('/v1/ai/summarize', {'items': items});
     if (j == null) return fallback.summarize(items);
-    return (j['summary'] ?? '').toString();
+    return SummaryResult(
+      text: (j['summary'] ?? '').toString(),
+      degraded: j['degraded'] == true,
+    );
   }
 
   @override

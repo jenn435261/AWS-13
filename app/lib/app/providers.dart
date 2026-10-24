@@ -1,5 +1,8 @@
+import 'dart:convert';
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:http/http.dart' as http;
 
 import '../ai/ai_assist.dart';
 import '../ai/bedrock_ai_client.dart';
@@ -232,6 +235,51 @@ final nodesProvider = FutureProvider<List<SavedNode>>((ref) async {
 final activeNodeIdProvider = FutureProvider<String?>((ref) async {
   ref.watch(nodesRevisionProvider);
   return ref.watch(nodeStoreProvider).activeId();
+});
+
+/// The active saved node (the one the user chose), or null.
+final activeNodeProvider = FutureProvider<SavedNode?>((ref) async {
+  final id = await ref.watch(activeNodeIdProvider.future);
+  if (id == null) return null;
+  final nodes = await ref.watch(nodesProvider.future);
+  for (final n in nodes) {
+    if (n.id == id) return n;
+  }
+  return null;
+});
+
+/// The full URL of an offline PMTiles map served by the active node, or null
+/// when there is no active node or the node serves no map.
+///
+/// The region is discovered honestly from the node's own catalog
+/// (`GET /node/v1/map` list via `/node/v1/packages`), so the app never guesses
+/// file names. The first `map` item is used. Any failure => null (the map view
+/// then keeps the online OSM raster layer).
+final nodePmtilesUrlProvider = FutureProvider<String?>((ref) async {
+  final node = await ref.watch(activeNodeProvider.future);
+  if (node == null) return null;
+  final base = node.url.replaceAll(RegExp(r'/$'), '');
+  try {
+    final resp = await http
+        .get(Uri.parse('$base/node/v1/packages'))
+        .timeout(const Duration(seconds: 6));
+    if (resp.statusCode != 200) return null;
+    final decoded = jsonDecode(resp.body);
+    if (decoded is! Map) return null;
+    final items = decoded['items'];
+    if (items is! List) return null;
+    for (final it in items) {
+      if (it is Map && it['kind'] == 'map') {
+        final path = it['path'];
+        if (path is String && path.isNotEmpty) {
+          return path.startsWith('http') ? path : '$base$path';
+        }
+      }
+    }
+    return null;
+  } catch (_) {
+    return null;
+  }
 });
 
 final packageStoreProvider = Provider<PackageStore>((ref) =>

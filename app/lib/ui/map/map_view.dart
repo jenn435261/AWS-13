@@ -5,14 +5,20 @@ import 'package:latlong2/latlong.dart';
 import '../../l10n/strings.dart';
 import '../../location/position_service.dart';
 import '../theme/app_theme.dart';
+import 'pmtiles_tile_provider.dart';
 
-/// A real, pannable, zoomable map (OpenStreetMap tiles) with markers at their
-/// true coordinates.
+/// A real, pannable, zoomable map with markers at their true coordinates.
 ///
-/// Tiles are fetched over the internet. Offline, the markers and the user dot
-/// still draw on a plain background and a banner says tiles are unavailable;
-/// offline PMTiles served by a Resilience Node are the planned replacement
-/// (see docs/SPEC_PROVIDER_AND_FEATURES.md, "Map").
+/// Base tiles come from one of two sources, in priority order:
+///  1. Offline PMTiles served by a Resilience Node ([pmtilesUrl], raster only)
+///     — streamed tile-by-tile over HTTP Range requests, so the map works with
+///     no internet as long as the node is reachable.
+///  2. OpenStreetMap raster tiles over the internet (the online fallback).
+///
+/// When neither is available the markers and the user dot still draw on a plain
+/// background and an honest banner says tiles are unavailable. We never add
+/// maplibre_gl (it breaks `flutter build web --release`); the PMTiles path is
+/// pure-Dart and web-safe. See docs/SPEC_PROVIDER_AND_FEATURES.md, "Map".
 ///
 /// Pass [onPick] to turn the map into a point picker: a tap reports the
 /// position and shows a pin there ([picked]).
@@ -31,6 +37,11 @@ class MapView extends StatefulWidget {
   final LatLng? picked;
   final VoidCallback? onLocateMe;
 
+  /// Full URL of a node's PMTiles archive
+  /// (`<node>/node/v1/map/<region>.pmtiles`). When set and the archive is a
+  /// raster archive, it replaces the OSM online layer. Null => OSM only.
+  final String? pmtilesUrl;
+
   const MapView({
     super.key,
     this.markers = const [],
@@ -40,6 +51,7 @@ class MapView extends StatefulWidget {
     this.onPick,
     this.picked,
     this.onLocateMe,
+    this.pmtilesUrl,
   });
 
   @override
@@ -49,6 +61,34 @@ class MapView extends StatefulWidget {
 class _MapViewState extends State<MapView> {
   final _controller = MapController();
   bool _tilesFailed = false;
+
+  /// The active PMTiles provider (raster) once opened, or null if none / still
+  /// loading / unsupported (vector) / unreachable.
+  PmTilesTileProvider? _pmtiles;
+
+  @override
+  void initState() {
+    super.initState();
+    _maybeLoadPmtiles();
+  }
+
+  @override
+  void dispose() {
+    _pmtiles?.dispose();
+    super.dispose();
+  }
+
+  Future<void> _maybeLoadPmtiles() async {
+    final url = widget.pmtilesUrl;
+    if (url == null || url.isEmpty) return;
+    final provider = await PmTilesTileProvider.openRaster(url);
+    if (!mounted) {
+      provider?.dispose();
+      return;
+    }
+    if (provider == null) return; // keep OSM fallback
+    setState(() => _pmtiles = provider);
+  }
 
   LatLng get _initialCenter {
     if (widget.center != null) return widget.center!;
@@ -72,11 +112,46 @@ class _MapViewState extends State<MapView> {
     if (widget.me != null && widget.me != old.me) {
       _controller.move(widget.me!, widget.zoom);
     }
+    // Re-open the archive if the node / region changed.
+    if (widget.pmtilesUrl != old.pmtilesUrl) {
+      _pmtiles?.dispose();
+      _pmtiles = null;
+      _tilesFailed = false;
+      _maybeLoadPmtiles();
+    }
   }
 
   void _zoom(double delta) {
     final cam = _controller.camera;
     _controller.move(cam.center, (cam.zoom + delta).clamp(2, 19));
+  }
+
+  /// The base map layer: node PMTiles (raster) when loaded, else OSM raster.
+  Widget _baseTileLayer() {
+    final pm = _pmtiles;
+    if (pm != null) {
+      // Offline PMTiles from the active node. No errorTileCallback-driven
+      // banner: tiles outside the archive bounds render transparent, which is
+      // expected for a regional offline map.
+      return TileLayer(
+        tileProvider: pm,
+        minNativeZoom: pm.minZoom,
+        maxNativeZoom: pm.maxZoom,
+        minZoom: pm.minZoom.toDouble(),
+      );
+    }
+    return TileLayer(
+      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+      userAgentPackageName: 'live.chrisccluk.resilience',
+      maxNativeZoom: 19,
+      errorTileCallback: (tile, error, stack) {
+        if (!_tilesFailed && mounted) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) setState(() => _tilesFailed = true);
+          });
+        }
+      },
+    );
   }
 
   @override
@@ -99,18 +174,7 @@ class _MapViewState extends State<MapView> {
                   : (_, p) => widget.onPick!(p),
             ),
             children: [
-              TileLayer(
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'live.chrisccluk.resilience',
-                maxNativeZoom: 19,
-                errorTileCallback: (tile, error, stack) {
-                  if (!_tilesFailed && mounted) {
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      if (mounted) setState(() => _tilesFailed = true);
-                    });
-                  }
-                },
-              ),
+              _baseTileLayer(),
               MarkerLayer(markers: [
                 for (final m in widget.markers)
                   Marker(
@@ -134,10 +198,12 @@ class _MapViewState extends State<MapView> {
                       child: Icon(Icons.location_on_rounded,
                           size: 44, color: scheme.error)),
               ]),
-              const RichAttributionWidget(
+              RichAttributionWidget(
                 alignment: AttributionAlignment.bottomLeft,
                 attributions: [
-                  TextSourceAttribution('© OpenStreetMap contributors'),
+                  TextSourceAttribution(_pmtiles != null
+                      ? l.t('map_offline_source')
+                      : '© OpenStreetMap contributors'),
                 ],
               ),
             ],

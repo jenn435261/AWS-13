@@ -37,6 +37,12 @@ class TranslationResult {
   });
 }
 
+class SummaryResult {
+  final String text;
+  final bool degraded;
+  const SummaryResult({required this.text, required this.degraded});
+}
+
 class DupHit {
   final int index;
   final String text;
@@ -48,6 +54,10 @@ abstract class AiAssist {
   Future<StructuredReport> structure(String text, {String langHint});
   Future<TranslationResult> translate(String text,
       {required String from, required String to});
-  Future<String> summarize(List<String> items);
+
+  /// Summarizes [items] into a short paragraph. The result carries a
+  /// [SummaryResult.degraded] flag so the UI can honestly say when the summary
+  /// came from the deterministic rules fallback rather than a live model.
+  Future<SummaryResult> summarize(List<String> items);
   Future<List<DupHit>> dedup(String candidate, List<String> existing);
 }

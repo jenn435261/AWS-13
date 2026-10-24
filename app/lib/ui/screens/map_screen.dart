@@ -11,6 +11,7 @@ import '../../location/position_service.dart';
 import '../../state/derived_state.dart';
 import '../components/toast.dart';
 import '../components/trust_badges.dart';
+import '../components/translate_panel.dart';
 import '../map/map_view.dart';
 import '../theme/app_theme.dart';
 import 'help_flow_screen.dart';
@@ -126,6 +127,7 @@ class MapScreen extends ConsumerWidget {
         child: Column(
           children: [
             const _StatusBar(),
+            if (w != null) _AiSummaryBar(world: w),
             for (final a in alerts) _AlertBanner(alert: a),
             Expanded(
               child: Stack(
@@ -134,6 +136,7 @@ class MapScreen extends ConsumerWidget {
                     markers: markers,
                     me: me,
                     onLocateMe: () => _locate(context, ref),
+                    pmtilesUrl: ref.watch(nodePmtilesUrlProvider).valueOrNull,
                   ),
                   if (unplaced > 0)
                     Positioned(
@@ -318,6 +321,7 @@ class MapScreen extends ConsumerWidget {
                 Text(q.body.freeform,
                     style:
                         const TextStyle(fontFamily: 'Roboto', fontSize: 16)),
+                TranslatePanel(text: q.body.freeform),
               ],
             ],
           ),
@@ -354,6 +358,173 @@ class _AlertBanner extends StatelessWidget {
           ),
         ),
       ]),
+    );
+  }
+}
+
+/// Builds the plain-text lines that feed the AI summarizer: open requests,
+/// available supplies, and active alerts, newest-relevant first. No names, no
+/// exact coordinates — just the public titles/notes the fold already exposes.
+List<String> worldSummaryItems(WorldState w, L10n l) {
+  final items = <String>[];
+  for (final a in w.emergencyAlerts) {
+    final detail = a.body.detail.isEmpty ? '' : ': ${a.body.detail}';
+    items.add('${l.t('alert_title')}: ${a.body.title}$detail');
+  }
+  for (final q in w.helpRequests) {
+    if (q.closed) continue;
+    final cats = q.body.categories.map((c) => categoryLabel(l, c)).join(', ');
+    final text = q.body.freeform.isNotEmpty ? q.body.freeform : cats;
+    if (text.isNotEmpty) items.add('${l.t('i_need_help')}: $text');
+  }
+  for (final r in w.mapResources()) {
+    if (r.withdrawn) continue;
+    items.add('${l.t('offer_help')}: ${r.resource.title}');
+  }
+  return items;
+}
+
+/// A tappable "AI summary" bar on the home map. Tapping it computes a short
+/// summary of the current world state via the AI assist (cloud Bedrock, with
+/// the deterministic rules fallback) and shows it in a sheet with an honest
+/// degraded indicator.
+class _AiSummaryBar extends ConsumerWidget {
+  const _AiSummaryBar({required this.world});
+  final WorldState world;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l = L10n.of(context);
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      color: scheme.surfaceContainerHigh,
+      child: InkWell(
+        onTap: () => _showSummary(context, ref, l),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(
+            children: [
+              Icon(Icons.auto_awesome_rounded, size: 20, color: scheme.primary),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(l.t('ai_summary'),
+                    style: const TextStyle(fontSize: 16)),
+              ),
+              Icon(Icons.chevron_right_rounded, color: scheme.outline),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showSummary(
+      BuildContext context, WidgetRef ref, L10n l) async {
+    final items = worldSummaryItems(world, l);
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (_) => _SummarySheet(items: items),
+    );
+  }
+}
+
+/// Computes and displays the AI summary. Kept stateful so the spinner, result,
+/// and degraded chip reflect the real response.
+class _SummarySheet extends ConsumerStatefulWidget {
+  const _SummarySheet({required this.items});
+  final List<String> items;
+
+  @override
+  ConsumerState<_SummarySheet> createState() => _SummarySheetState();
+}
+
+class _SummarySheetState extends ConsumerState<_SummarySheet> {
+  String? _summary;
+  bool _degraded = false;
+  bool _busy = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _run();
+  }
+
+  Future<void> _run() async {
+    if (widget.items.isEmpty) {
+      setState(() {
+        _busy = false;
+        _summary = '';
+      });
+      return;
+    }
+    final ai = ref.read(aiAssistProvider);
+    // The result's degraded flag is authoritative: it is true when the rules
+    // fallback produced the summary (offline or cloud unreachable), false only
+    // for a live cloud answer. We never imply a live AI summary otherwise.
+    final result = await ai.summarize(widget.items);
+    if (!mounted) return;
+    setState(() {
+      _summary = result.text;
+      _degraded = result.degraded;
+      _busy = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10n.of(context);
+    final scheme = Theme.of(context).colorScheme;
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.auto_awesome_rounded, color: scheme.primary),
+                const SizedBox(width: 8),
+                Text(l.t('ai_summary'),
+                    style: const TextStyle(
+                        fontSize: 20, fontWeight: FontWeight.w700)),
+                const Spacer(),
+                if (!_busy && _degraded && (_summary ?? '').isNotEmpty)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: scheme.tertiaryContainer,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(l.t('ai_degraded'),
+                        style: TextStyle(
+                            fontSize: 16,
+                            color: scheme.onTertiaryContainer)),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (_busy)
+              Row(children: [
+                const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2)),
+                const SizedBox(width: 10),
+                Text(l.t('summarizing'),
+                    style: const TextStyle(fontSize: 16)),
+              ])
+            else
+              Text(
+                (_summary ?? '').isEmpty ? l.t('no_summary') : _summary!,
+                style: const TextStyle(fontSize: 16),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }

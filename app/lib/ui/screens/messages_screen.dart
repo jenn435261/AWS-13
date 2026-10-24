@@ -15,6 +15,7 @@ import '../../messaging/photo_prep.dart';
 import '../../messaging/recorded_bytes.dart';
 import '../../messaging/voice_note.dart';
 import '../components/toast.dart';
+import '../components/translate_panel.dart';
 
 /// Messages: Direct / Community / Mission (swipeable tabs).
 ///
@@ -316,6 +317,11 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
               _audioBubble(svc, l, att),
             if (m.payload.text.isNotEmpty)
               Text(m.payload.text, style: const TextStyle(fontSize: 16)),
+            // Translate incoming messages (original stays visible). We offer it
+            // only on messages from others — translating one's own text adds no
+            // value.
+            if (!m.fromMe && m.payload.text.isNotEmpty)
+              TranslatePanel(text: m.payload.text, compact: true),
             if (m.fromMe)
               Padding(
                 padding: const EdgeInsets.only(top: 4),

@@ -86,6 +86,100 @@ class _HelpFlowScreenState extends ConsumerState<HelpFlowScreen> {
     );
   }
 
+  /// Entry point for the primary action. For a help REQUEST we first run a
+  /// non-blocking near-duplicate check (AI dedup, with the deterministic rules
+  /// fallback) against the currently open requests; if a very similar one
+  /// already exists we offer to view it or submit anyway. Offers skip this.
+  Future<void> _onSendPressed() async {
+    if (!widget.isRequest) {
+      await _send();
+      return;
+    }
+    final candidate = _candidateText();
+    if (candidate.trim().isEmpty) {
+      await _send();
+      return;
+    }
+    final world = ref.read(worldStateProvider).valueOrNull;
+    final existing = <String>[];
+    if (world != null) {
+      for (final q in world.helpRequests) {
+        if (q.closed) continue;
+        final text = q.body.freeform.trim();
+        if (text.isNotEmpty) existing.add(text);
+      }
+    }
+    if (existing.isEmpty) {
+      await _send();
+      return;
+    }
+    setState(() => _sending = true);
+    final hits = await ref.read(aiAssistProvider).dedup(candidate, existing);
+    if (!mounted) return;
+    setState(() => _sending = false);
+    if (hits.isEmpty) {
+      await _send();
+      return;
+    }
+    await _showDedupWarning(hits.first.text);
+  }
+
+  /// The text used for the near-duplicate check: the note, falling back to the
+  /// selected category labels so a note-less request still de-dupes sensibly.
+  String _candidateText() {
+    final note = _note.text.trim();
+    if (note.isNotEmpty) return note;
+    final l = L10n.of(context);
+    return _selected.map((c) => categoryLabel(l, c)).join(', ');
+  }
+
+  Future<void> _showDedupWarning(String existingText) async {
+    final l = L10n.of(context);
+    await showDialog<void>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        title: Text(l.t('dedup_warning_title')),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(l.t('dedup_warning_body'),
+                style: const TextStyle(fontSize: 16)),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Theme.of(dialogCtx).colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(existingText, style: const TextStyle(fontSize: 16)),
+            ),
+          ],
+        ),
+        actions: [
+          // "View existing" is non-destructive: close the dialog and the flow
+          // so the user lands back on the map where the existing request shows.
+          TextButton(
+            onPressed: () {
+              Navigator.of(dialogCtx).pop();
+              Navigator.of(context).pop();
+            },
+            child: Text(l.t('view_existing'),
+                style: const TextStyle(fontSize: 16)),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.of(dialogCtx).pop();
+              _send();
+            },
+            child: Text(l.t('submit_anyway'),
+                style: const TextStyle(fontSize: 16)),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _send() async {
     final l = L10n.of(context);
     setState(() => _sending = true);
@@ -291,7 +385,7 @@ class _HelpFlowScreenState extends ConsumerState<HelpFlowScreen> {
                     : l.t('send_offer'),
                 icon: Icons.send_rounded,
                 urgent: widget.isRequest,
-                onPressed: canSend ? _send : null,
+                onPressed: canSend ? _onSendPressed : null,
               ),
             ),
           ],

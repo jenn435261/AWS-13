@@ -7,6 +7,7 @@ import '../../gen/resilience/v1/event.pb.dart';
 import '../../l10n/strings.dart';
 import '../components/common.dart';
 import '../components/toast.dart';
+import '../components/translate_panel.dart';
 import '../components/trust_badges.dart';
 
 /// Resource detail: shows the three trust dimensions and lets the user
@@ -93,6 +94,8 @@ class ResourceDetailScreen extends ConsumerWidget {
                   const SizedBox(height: 16),
                   Text(r.resource.notes,
                       style: const TextStyle(fontFamily: 'Roboto', fontSize: 16)),
+                  // Translate the free-text note (original stays visible).
+                  TranslatePanel(text: r.resource.notes),
                 ],
                 const SizedBox(height: 28),
                 // Community confirmation actions.
