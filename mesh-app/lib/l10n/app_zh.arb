@@ -459,5 +459,17 @@
   "mapOffline": "街道地图需要联网",
   "mapLoading": "正在加载街道地图",
   "missionNotFound": "这个配送已不存在。",
-  "resourceNotFound": "这个地点已不在地图上。"
+  "resourceNotFound": "这个地点已不在地图上。",
+  "lookAdvanced": "高级",
+  "lookRequestAdvancedSub": "电台、服务器检查和签名记录",
+  "lookStageSent": "已发送",
+  "lookStageSentSub": "正在发给附近能帮忙的人",
+  "lookStageReceived": "已收到",
+  "lookStageReceivedSub": "能帮忙的人现在可以看到",
+  "lookStepDone": "已完成",
+  "lookStepNow": "当前",
+  "lookStepNext": "未开始",
+  "lookChatNotFound": "这个对话已不存在。",
+  "deliverySharingLocation": "正在共享你的位置，直到送达",
+  "deliveryLocationOnlyWhileCarrying": "只有在你运送这件物资时，才会共享你的位置。"
 }

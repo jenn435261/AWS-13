@@ -5,6 +5,7 @@ import '../../models/app_user.dart';
 import '../../models/role.dart';
 import '../../state/app_scope.dart';
 import '../../ui/feedback.dart';
+import '../../ui/surfaces.dart';
 import '../../ui/theme.dart';
 
 /// Admin only. Loaded as a deferred library, so on web, members and managers
@@ -25,15 +26,21 @@ class AdminScreen extends StatelessWidget {
           padding: EdgeInsets.only(bottom: bottomClearance(context)),
           children: [
             for (final user in users)
+              // The role sits under the name, so long role names and large
+              // text never squeeze the name out.
               ListTile(
-                leading: CircleAvatar(child: Text(user.name[0])),
+                leading: Avatar(name: user.name),
                 title: Text(user.name),
-                trailing: DropdownButton<Role>(
+                subtitle: DropdownButton<Role>(
                   value: user.role,
+                  isExpanded: true,
                   underline: const SizedBox.shrink(),
                   items: [
                     for (final r in Role.values)
-                      DropdownMenuItem(value: r, child: Text(l.role(r))),
+                      DropdownMenuItem(
+                        value: r,
+                        child: Text(l.role(r), overflow: TextOverflow.ellipsis),
+                      ),
                   ],
                   onChanged: (r) {
                     if (r == null) return;

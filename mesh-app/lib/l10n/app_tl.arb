@@ -459,5 +459,17 @@
   "mapOffline": "Kailangan ng internet ang mapa ng kalye",
   "mapLoading": "Nilo-load ang mapa ng kalye",
   "missionNotFound": "Wala na ang paghahatid na ito.",
-  "resourceNotFound": "Wala na sa mapa ang lugar na ito."
+  "resourceNotFound": "Wala na sa mapa ang lugar na ito.",
+  "lookAdvanced": "Karagdagang detalye",
+  "lookRequestAdvancedSub": "Mga radyo, pagsuri ng server at pirmadong kasaysayan",
+  "lookStageSent": "Naipadala",
+  "lookStageSentSub": "Papunta sa mga taong malapit na makakatulong",
+  "lookStageReceived": "Natanggap",
+  "lookStageReceivedSub": "Nakikita na ito ng mga makakatulong",
+  "lookStepDone": "Tapos na",
+  "lookStepNow": "Ngayon",
+  "lookStepNext": "Hindi pa",
+  "lookChatNotFound": "Wala na ang usapang ito.",
+  "deliverySharingLocation": "Ibinabahagi ang lokasyon mo hanggang maihatid mo",
+  "deliveryLocationOnlyWhileCarrying": "Ibinabahagi lang ang lokasyon mo habang dala mo ang paghahatid na ito."
 }

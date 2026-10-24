@@ -2863,6 +2863,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This place is no longer on the map.'**
   String get resourceNotFound;
+
+  /// No description provided for @lookAdvanced.
+  ///
+  /// In en, this message translates to:
+  /// **'Advanced'**
+  String get lookAdvanced;
+
+  /// No description provided for @lookRequestAdvancedSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Radios, server check and signed history'**
+  String get lookRequestAdvancedSub;
+
+  /// No description provided for @lookStageSent.
+  ///
+  /// In en, this message translates to:
+  /// **'Sent'**
+  String get lookStageSent;
+
+  /// No description provided for @lookStageSentSub.
+  ///
+  /// In en, this message translates to:
+  /// **'On its way to people nearby who can help'**
+  String get lookStageSentSub;
+
+  /// No description provided for @lookStageReceived.
+  ///
+  /// In en, this message translates to:
+  /// **'Received'**
+  String get lookStageReceived;
+
+  /// No description provided for @lookStageReceivedSub.
+  ///
+  /// In en, this message translates to:
+  /// **'People who can help can see it now'**
+  String get lookStageReceivedSub;
+
+  /// No description provided for @lookStepDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get lookStepDone;
+
+  /// No description provided for @lookStepNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Now'**
+  String get lookStepNow;
+
+  /// No description provided for @lookStepNext.
+  ///
+  /// In en, this message translates to:
+  /// **'Not yet'**
+  String get lookStepNext;
+
+  /// No description provided for @lookChatNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'This conversation is no longer available.'**
+  String get lookChatNotFound;
+
+  /// No description provided for @deliverySharingLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Sharing your location until you deliver'**
+  String get deliverySharingLocation;
+
+  /// No description provided for @deliveryLocationOnlyWhileCarrying.
+  ///
+  /// In en, this message translates to:
+  /// **'Your location is shared only while you carry this delivery.'**
+  String get deliveryLocationOnlyWhileCarrying;
 }
 
 class _AppLocalizationsDelegate

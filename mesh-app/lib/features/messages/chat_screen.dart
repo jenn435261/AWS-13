@@ -5,6 +5,7 @@ import '../../models/mesh_message.dart';
 import '../../models/social.dart';
 import '../../state/app_scope.dart';
 import '../../state/drafts.dart';
+import '../../ui/empty_state.dart';
 import '../../ui/feedback.dart';
 import '../../ui/theme.dart';
 import '../../ui/visuals.dart';
@@ -53,7 +54,7 @@ class _ChatScreenState extends State<ChatScreen> {
         final channel =
             repo.channels.value.where((ch) => ch.id == widget.channelId).firstOrNull;
         if (channel == null) {
-          return Scaffold(appBar: AppBar(), body: Center(child: Text(l.noChannels)));
+          return NotFoundScaffold(icon: Icons.forum_outlined, message: l.lookChatNotFound);
         }
         final messages = [
           for (final m in repo.messages.value)
@@ -83,7 +84,7 @@ class _ChatScreenState extends State<ChatScreen> {
             children: [
               Expanded(
                 child: messages.isEmpty
-                    ? Center(child: Text(l.noMessages))
+                    ? EmptyState(icon: Icons.chat_bubble_outline, message: l.noMessages)
                     : ListView.builder(
                         reverse: true,
                         padding: const EdgeInsets.all(12),

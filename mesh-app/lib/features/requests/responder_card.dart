@@ -4,6 +4,7 @@ import '../../l10n/labels.dart';
 import '../../models/help.dart';
 import '../../state/app_scope.dart';
 import '../../state/settings_controller.dart';
+import '../../ui/empty_state.dart';
 import '../../ui/feedback.dart';
 import '../../ui/visuals.dart';
 
@@ -95,14 +96,14 @@ class _ResponderCardState extends State<ResponderCard> {
             title: Text(l.showToResponder),
           ),
           body: request == null
-              ? Center(child: Text(l.requestNotFound))
+              ? EmptyState(icon: Icons.search_off, message: l.requestNotFound)
               : Column(
                   children: [
-                    SizedBox(
-                      height: 56,
-                      child: ListView(
-                        scrollDirection: Axis.horizontal,
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                    // Sized by its chips, so large text is never clipped.
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      child: Row(
                         children: [
                           for (final (i, code) in _codes.indexed)
                             Padding(

@@ -5,11 +5,19 @@ import '../../l10n/labels.dart';
 import '../../models/mission.dart';
 import '../../router.dart';
 import '../../state/app_scope.dart';
-import '../../ui/visuals.dart';
+import '../../ui/action_bar.dart';
+import '../../ui/advanced_section.dart';
+import '../../ui/empty_state.dart';
 import '../../ui/history.dart';
+import '../../ui/stage_list.dart';
+import '../../ui/visuals.dart';
+import '../../utils/format.dart';
 
 /// One mission. Exact addresses appear only for its carrier, who holds the
 /// mission's capability; everyone else sees place names (Spec 23 and 28).
+///
+/// This phone's location is shared only while it carries the package, and
+/// the screen says so for exactly that long.
 class MissionScreen extends StatelessWidget {
   const MissionScreen({super.key, required this.id});
 
@@ -18,18 +26,24 @@ class MissionScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scope = AppScope.of(context);
+    final repo = scope.repository;
     final l = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final c = theme.colorScheme;
 
-    return ValueListenableBuilder<List<Mission>>(
-      valueListenable: scope.repository.missions,
-      builder: (context, missions, _) {
-        final m = missions.where((m) => m.id == id).firstOrNull;
+    return ListenableBuilder(
+      listenable: Listenable.merge([repo.missions, repo.sharingLocation, repo.events]),
+      builder: (context, _) {
+        final m = repo.missions.value.where((m) => m.id == id).firstOrNull;
         if (m == null) {
-          return Scaffold(appBar: AppBar(), body: Center(child: Text(l.requestNotFound)));
+          return NotFoundScaffold(
+            icon: Icons.local_shipping_outlined,
+            message: l.missionNotFound,
+          );
         }
         final exact = m.carrierIsMe && m.stage != MissionStage.delivered;
+        final sharing = repo.sharingLocation.value && _carrying(m);
+        final signed = repo.events.value.any((e) => e.subject == m.id);
 
         Widget place(IconData icon, String label, String name, String address) => ListTile(
               contentPadding: EdgeInsets.zero,
@@ -72,6 +86,10 @@ class MissionScreen extends StatelessWidget {
                   ),
                 ),
               ),
+              if (sharing) ...[
+                const SizedBox(height: 12),
+                const SharingLocationNotice(),
+              ],
               const SizedBox(height: 12),
               place(Icons.storefront_outlined, l.pickupLabel, m.pickup, m.pickupExact),
               place(Icons.flag_outlined, l.destinationLabel, m.destination, m.destinationExact),
@@ -83,9 +101,15 @@ class MissionScreen extends StatelessWidget {
                   subtitle: Text(m.handedOff ? l.handedOffTo(m.carrier!) : m.carrier!),
                 ),
               const SizedBox(height: 8),
-              _Stages(mission: m),
-              const SizedBox(height: 8),
-              SignedHistory(subject: m.id),
+              StageList(
+                stages: _missionStages(l, m),
+                waiting: m.stage == MissionStage.awaitingHandoff && !m.handedOff,
+              ),
+              if (signed)
+                AdvancedSection(
+                  subtitle: l.historyTitle,
+                  children: [SignedHistory(subject: m.id)],
+                ),
             ],
           ),
           bottomNavigationBar: _Actions(mission: m),
@@ -95,46 +119,76 @@ class MissionScreen extends StatelessWidget {
   }
 }
 
-class _Stages extends StatelessWidget {
-  const _Stages({required this.mission});
+/// Whether this phone has the package right now.
+bool _carrying(Mission m) =>
+    m.carrierIsMe && !m.handedOff && m.stage != MissionStage.delivered;
 
-  final Mission mission;
+/// A delivery's stages, for [StageList]. Once delivered every stage is
+/// done. A package this phone handed off is done up to the handoff; the
+/// delivery itself is now the next driver's.
+List<StageItem> _missionStages(AppLocalizations l, Mission m) {
+  const order = [
+    MissionStage.assigned,
+    MissionStage.inTransit,
+    MissionStage.awaitingHandoff,
+    MissionStage.delivered,
+  ];
+  final (reached, finished) = m.handedOff
+      ? (MissionStage.awaitingHandoff.index, true)
+      : (m.stage.index, m.stage == MissionStage.delivered);
+  return [
+    for (final s in order)
+      StageItem(
+        icon: missionStageIcon(s),
+        title: l.missionStage(s),
+        state: s.index < reached || (s.index == reached && finished)
+            ? StageState.done
+            : s.index == reached
+                ? StageState.current
+                : StageState.upcoming,
+        detail: switch (m.stageTimes[s]) {
+          final t? when s.index <= reached => clockTime(t),
+          _ => null,
+        },
+      ),
+  ];
+}
+
+/// Shown while this phone carries the package, the only time its location
+/// leaves the phone. Read out when it appears.
+class SharingLocationNotice extends StatelessWidget {
+  const SharingLocationNotice({super.key});
 
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
-    final c = Theme.of(context).colorScheme;
-    final m = mission;
-    const order = [
-      MissionStage.assigned,
-      MissionStage.inTransit,
-      MissionStage.awaitingHandoff,
-      MissionStage.delivered,
-    ];
-    final current = m.handedOff ? MissionStage.delivered.index : m.stage.index;
+    final theme = Theme.of(context);
+    final c = theme.colorScheme;
 
-    return Column(
-      children: [
-        for (final s in order)
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: Icon(
-              s.index < current
-                  ? Icons.check_circle
-                  : s.index == current
-                      ? missionStageIcon(s)
-                      : Icons.radio_button_unchecked,
-              color: s.index <= current ? c.primary : c.outline,
-            ),
-            title: Text(
-              l.missionStage(s),
-              style: TextStyle(
-                fontWeight: s.index == current ? FontWeight.w700 : null,
-                color: s.index <= current ? c.onSurface : c.onSurfaceVariant,
+    return Semantics(
+      liveRegion: true,
+      container: true,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: c.primaryContainer,
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              Icon(Icons.share_location, color: c.onPrimaryContainer, size: 28),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  l.deliverySharingLocation,
+                  style: theme.textTheme.titleMedium?.copyWith(color: c.onPrimaryContainer),
+                ),
               ),
-            ),
+            ],
           ),
-      ],
+        ),
+      ),
     );
   }
 }
@@ -149,6 +203,7 @@ class _Actions extends StatelessWidget {
   Widget build(BuildContext context) {
     final scope = AppScope.of(context);
     final l = AppLocalizations.of(context);
+    final theme = Theme.of(context);
     final m = mission;
 
     Future<void> accept() => scope.undoable(
@@ -204,21 +259,26 @@ class _Actions extends StatelessWidget {
         ),
       _ => (null, null),
     };
-    if (primary == null) return const SizedBox.shrink();
 
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-        child: Row(
-          children: [
-            if (secondary != null) ...[
-              Expanded(child: secondary),
-              const SizedBox(width: 12),
-            ],
-            Expanded(flex: 2, child: primary),
-          ],
-        ),
-      ),
+    return ActionBar(
+      primary: primary,
+      secondary: secondary,
+      // Before taking a delivery, say what accepting shares.
+      note: m.stage == MissionStage.available
+          ? Row(
+              children: [
+                Icon(Icons.location_on_outlined, color: theme.colorScheme.onSurfaceVariant),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    l.deliveryLocationOnlyWhileCarrying,
+                    style: theme.textTheme.bodyMedium
+                        ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                  ),
+                ),
+              ],
+            )
+          : null,
     );
   }
 }

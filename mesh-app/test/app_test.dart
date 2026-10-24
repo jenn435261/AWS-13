@@ -239,12 +239,25 @@ void main() {
     await TestApp.close(tester);
   });
 
-  testWidgets('high contrast drops the see-through blur', (tester) async {
+  testWidgets('high contrast gives panels the page color and a strong outline',
+      (tester) async {
     final app = await TestApp.create(tester);
     app.settings.highContrast = true;
     await app.pump(tester);
 
-    expect(find.byType(Glass), findsWidgets);
+    final glass = find.byType(Glass);
+    expect(glass, findsWidgets);
+    final scheme = Theme.of(tester.element(glass.first)).colorScheme;
+    final plain = glass.evaluate().where((e) => (e.widget as Glass).tint == null);
+    expect(plain, isNotEmpty);
+    for (final element in plain) {
+      final panel = tester.widget<Material>(
+        find.descendant(of: find.byWidget(element.widget), matching: find.byType(Material)).first,
+      );
+      final side = (panel.shape! as RoundedRectangleBorder).side;
+      expect(panel.color, scheme.surface, reason: 'solid page color');
+      expect((side.width, side.color), (2, scheme.outline), reason: 'strong outline');
+    }
     expect(find.byType(BackdropFilter), findsNothing);
     await TestApp.close(tester);
   });
