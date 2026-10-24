@@ -76,6 +76,78 @@ func TestManifestSignAndVerify(t *testing.T) {
 	}
 }
 
+// TestCanonicalBytesNoHTMLEscape guards the cross-language canonicalization
+// contract: Go must NOT HTML-escape '<', '>' or '&' (the json.Marshal default),
+// because the Dart client rebuilds the same preimage with jsonEncode, which
+// does not escape those runes. An entry whose name/path contains one of these
+// characters (a literal '&' is ordinary in a filename) must still produce the
+// literal rune in the canonical bytes so the detached Ed25519 signature
+// verifies on device instead of reporting a false badSignature.
+func TestCanonicalBytesNoHTMLEscape(t *testing.T) {
+	m := Manifest{
+		Version:     1,
+		GeneratedMs: 1_700_000_000_000,
+		Entries: []ManifestEntry{
+			{
+				Kind:      "map",
+				Name:      "rescue & relief <east>.pmtiles",
+				Path:      "/node/v1/map/rescue & relief <east>.pmtiles",
+				SizeBytes: 3,
+				SHA256:    hex.EncodeToString(make([]byte, 32)),
+			},
+		},
+	}
+	canonical, err := m.CanonicalBytes()
+	if err != nil {
+		t.Fatalf("canonical: %v", err)
+	}
+	s := string(canonical)
+	for _, raw := range []string{"&", "<", ">"} {
+		if !bytes.Contains(canonical, []byte(raw)) {
+			t.Fatalf("canonical bytes missing literal %q: %s", raw, s)
+		}
+	}
+	for _, escaped := range []string{`\u0026`, `\u003c`, `\u003e`} {
+		if bytes.Contains(canonical, []byte(escaped)) {
+			t.Fatalf("canonical bytes contain HTML-escaped %q (must match Dart jsonEncode): %s", escaped, s)
+		}
+	}
+	// Encode must not leave a trailing newline in the signed preimage.
+	if bytes.HasSuffix(canonical, []byte("\n")) {
+		t.Fatalf("canonical bytes end with a newline: %q", s)
+	}
+}
+
+// TestManifestSignVerifyWithSpecialChars signs and verifies a manifest whose
+// name/path contain '&', '<' and '>' to prove the full round-trip holds for
+// the characters Go's default json.Marshal would have escaped.
+func TestManifestSignVerifyWithSpecialChars(t *testing.T) {
+	pub, priv, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		t.Fatalf("keygen: %v", err)
+	}
+	m := Manifest{
+		Version:     1,
+		GeneratedMs: 1_700_000_000_000,
+		Entries: []ManifestEntry{
+			{
+				Kind:      "map",
+				Name:      "a & b <c>.pmtiles",
+				Path:      "/node/v1/map/a & b <c>.pmtiles",
+				SizeBytes: 7,
+				SHA256:    hex.EncodeToString(make([]byte, 32)),
+			},
+		},
+	}
+	sm, err := SignManifest(m, priv)
+	if err != nil {
+		t.Fatalf("sign: %v", err)
+	}
+	if _, err := VerifyManifest(sm, pub); err != nil {
+		t.Fatalf("verify manifest with special chars: %v", err)
+	}
+}
+
 func TestManifestEndpointServesSigned(t *testing.T) {
 	data := []byte("1234567890")
 	s, root := signingServer(t, "region.pmtiles", data)

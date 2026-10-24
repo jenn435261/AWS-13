@@ -84,6 +84,12 @@ class LocationCoordinator {
   final EventStore store;
   final Future<PositionResult> Function() _readPosition;
 
+  /// Reads a one-shot device position through the SAME injectable seam the
+  /// contact-share path uses. Callers (e.g. the public-beacon UI path) must go
+  /// through this rather than the top-level `readPosition()` so their behavior
+  /// is driveable by the same test stub as [shareWithContacts].
+  Future<PositionResult> readPosition() => _readPosition();
+
   /// Share the local user's position with each contact in [contacts] (their
   /// 32-byte Ed25519 pubkeys) for [ttl]. The precise point is encrypted
   /// per-recipient; a recipient with no established session (no published

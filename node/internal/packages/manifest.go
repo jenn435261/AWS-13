@@ -1,6 +1,7 @@
 package packages
 
 import (
+	"bytes"
 	"crypto/ed25519"
 	"crypto/sha256"
 	"encoding/hex"
@@ -61,9 +62,22 @@ func (m Manifest) CanonicalBytes() ([]byte, error) {
 		return sorted[i].Name < sorted[j].Name
 	})
 	canonical := Manifest{Version: m.Version, GeneratedMs: m.GeneratedMs, Entries: sorted}
-	// encoding/json marshals struct fields in declaration order and escapes
-	// deterministically, so this is a stable canonical form.
-	return json.Marshal(canonical)
+	// encoding/json marshals struct fields in declaration order, so field order
+	// is stable. We MUST disable HTML escaping: json.Marshal escapes '<', '>'
+	// and '&' to \u003c/\u003e/\u0026, but the Dart client rebuilds this
+	// preimage with jsonEncode, which does NOT escape those runes. Leaving the
+	// default on would make the two canonical byte strings diverge (and the
+	// signature fail as badSignature) for any entry name/path containing one
+	// of those characters (e.g. a literal '&' in a filename). SetEscapeHTML
+	// (false) makes Go match Dart. Encode appends a trailing newline, so trim
+	// it to keep the preimage identical to Dart's jsonEncode output.
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(canonical); err != nil {
+		return nil, err
+	}
+	return bytes.TrimRight(buf.Bytes(), "\n"), nil
 }
 
 // BuildManifest computes the signable manifest for the configured directories,

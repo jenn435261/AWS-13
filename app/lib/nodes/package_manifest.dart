@@ -82,7 +82,10 @@ class PackageManifest {
       'entries': [for (final e in sorted) e._canonical()],
     };
     // jsonEncode emits compact JSON with no spaces and preserves map insertion
-    // order, matching Go's json.Marshal for these ASCII-only values.
+    // order. It does NOT HTML-escape '<', '>' or '&'; the Go signer matches
+    // this by calling json.Encoder.SetEscapeHTML(false), so the two canonical
+    // byte strings agree even when a name/path contains one of those runes
+    // (e.g. a literal '&' in a filename).
     return utf8.encode(jsonEncode(map));
   }
 }

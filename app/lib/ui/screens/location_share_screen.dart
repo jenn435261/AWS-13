@@ -340,9 +340,10 @@ class _State extends ConsumerState<LocationShareScreen> {
 
   Future<void> _sharePublicBeacon(
       L10n l, LocationCoordinator coordinator) async {
-    // A public beacon shares a coarse point in the clear; use the sharer
-    // directly with a one-shot position.
-    final pos = await readPosition();
+    // A public beacon shares a coarse point in the clear; read the one-shot
+    // position through the coordinator's injectable seam (not the top-level
+    // readPosition()) so this path is test-substitutable like contact shares.
+    final pos = await coordinator.readPosition();
     final at = pos.position;
     if (at == null) {
       _showPositionFailure(l, pos.failure ?? PositionFailure.unknown);

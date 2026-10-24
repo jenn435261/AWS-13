@@ -498,11 +498,23 @@ class WorldState {
           // someone else's alert.
           if (prevAlert != null && !_sameKey(prevAlert.author, author)) break;
           final int lamport = h.lamport.toInt();
-          if (prevAlert == null || lamport >= prevAlert.lamport) {
+          final int createdAtMs = h.createdAtMs.toInt();
+          // Latest author event wins by (lamport, created_at_ms), mirroring how
+          // location shares supersede by (seq, lamport): lamport is the primary
+          // logical ordering (monotonic per author, so a recall always advances
+          // it) and created_at_ms breaks the tie when two events share a
+          // lamport, so an out-of-order recall carrying the same lamport as the
+          // original but a later wall-clock still takes effect. See
+          // docs/DECISIONS.md.
+          if (prevAlert == null ||
+              lamport > prevAlert.lamport ||
+              (lamport == prevAlert.lamport &&
+                  createdAtMs >= prevAlert.createdAtMs)) {
             alertByKey[body.alertId] = _AlertFold(
               author: author,
               body: body,
               lamport: lamport,
+              createdAtMs: createdAtMs,
               order: prevAlert?.order ?? alertOrder++,
             );
           }
@@ -861,11 +873,13 @@ class _AlertFold {
     required this.author,
     required this.body,
     required this.lamport,
+    required this.createdAtMs,
     required this.order,
   });
 
   final Uint8List author;
   final EmergencyAlertBody body;
   final int lamport;
+  final int createdAtMs;
   final int order;
 }

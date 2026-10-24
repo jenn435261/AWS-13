@@ -317,6 +317,61 @@ void main() {
         reason: 'a recalled (past-expiry) alert is not shown');
   });
 
+  test('alert recall out of order (equal lamport, later created_at) still '
+      'supersedes (created_at_ms breaks the lamport tie)', () async {
+    final KeyPairData root = await signer.generateKeyPair();
+    final TrustRootStore roots =
+        TrustRootStore(seed: <List<int>>[root.publicKey]);
+
+    // Two independent clocks for the SAME author (e.g. a second device/session)
+    // both tick to lamport 1, so the original and the recall carry an EQUAL
+    // lamport. Under a lamport-only supersede rule the recall would be ignored
+    // (`lamport >= prev` is still true for equal, but delivery order matters);
+    // we prove the recall wins via the created_at_ms tiebreak regardless of
+    // delivery order.
+    final LamportClock clockA = LamportClock();
+    final LamportClock clockB = LamportClock();
+
+    Future<SignedEvent> buildWith(
+      LamportClock c,
+      EmergencyAlertBody body,
+      int createdAtMs,
+    ) {
+      return factory.buildFromMessage(
+        keyPair: root,
+        clock: c,
+        type: EventType.EVENT_TYPE_EMERGENCY_ALERT,
+        body: body,
+        createdAtMs: Int64(createdAtMs),
+      );
+    }
+
+    final SignedEvent original = await buildWith(
+      clockA,
+      EmergencyAlertBody(
+          alertId: 'al-2',
+          title: 'Boil water',
+          expiresMs: Int64(kNow + 3600 * 1000)),
+      kNow,
+    );
+    final SignedEvent recall = await buildWith(
+      clockB,
+      EmergencyAlertBody(
+          alertId: 'al-2',
+          title: 'Boil water',
+          expiresMs: Int64(kNow - 1000)), // recall: expiry in the past
+      kNow + 5000, // later wall-clock
+    );
+    expect(original.header.lamport, recall.header.lamport,
+        reason: 'the two events must share a lamport for this to test the tie');
+
+    // The recall is delivered AFTER the original.
+    final WorldState afterRecall = WorldState(trustRoots: roots, clock: () => kNow);
+    afterRecall.rebuildFromEvents(<SignedEvent>[original, recall]);
+    expect(afterRecall.emergencyAlerts, isEmpty,
+        reason: 'an equal-lamport recall with a later created_at hides the alert');
+  });
+
   test('a supply past available_until_ms is auto-hidden from the map but '
       'stays in the projection', () async {
     final KeyPairData owner = await signer.generateKeyPair();

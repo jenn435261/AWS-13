@@ -116,6 +116,48 @@ void main() {
         lessThan(utf8.decode(m1.canonicalBytes()).indexOf('a.pmtiles')));
   });
 
+  test('canonical bytes keep literal & < > (match Go, no HTML escaping)',
+      () async {
+    // A literal '&' is ordinary in filenames; '<' and '>' are the other runes
+    // Go's default json.Marshal would escape. The Dart canonicalizer must emit
+    // them literally so the preimage matches Go's SetEscapeHTML(false) output.
+    const special = ManifestEntry(
+      kind: 'map',
+      name: 'rescue & relief <east>.pmtiles',
+      path: '/node/v1/map/rescue & relief <east>.pmtiles',
+      sizeBytes: 3,
+      sha256: '00',
+    );
+    final m = PackageManifest(version: 1, generatedMs: 5, entries: [special]);
+    final canonical = utf8.decode(m.canonicalBytes());
+    expect(canonical.contains('&'), isTrue);
+    expect(canonical.contains('<'), isTrue);
+    expect(canonical.contains('>'), isTrue);
+    expect(canonical.contains(r'\u0026'), isFalse);
+    expect(canonical.contains(r'\u003c'), isFalse);
+    expect(canonical.contains(r'\u003e'), isFalse);
+  });
+
+  test('verifies a signed manifest whose path contains & < >', () async {
+    // Cross-language regression guard for the canonicalization gap: an entry
+    // with special characters must still verify (not report badSignature).
+    final special = ManifestEntry(
+      kind: 'map',
+      name: 'a & b <c>.pmtiles',
+      path: '/node/v1/map/a & b <c>.pmtiles',
+      sizeBytes: 7,
+      sha256: 'aa' * 32,
+    );
+    final signer = Signer();
+    final key = await signer.generateKeyPair();
+    final body = await buildSignedManifest(signer, key, [special]);
+
+    final res = await verifySignedManifest(body, _hex(key.publicKey));
+    expect(res.ok, isTrue);
+    expect(res.manifest!.entryForPath('/node/v1/map/a & b <c>.pmtiles'),
+        isNotNull);
+  });
+
   test('sha256Hex matches a known vector', () async {
     // echo -n "abc" | sha256sum
     final got = await sha256Hex(utf8.encode('abc'));

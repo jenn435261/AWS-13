@@ -325,3 +325,22 @@ Shipped the last item and finalized the docs.
 - **NOT driven through the Flutter UI:** tapping Offline Downloads → Check node → Verify checksum inside the app. Reason: the confirmed FEAT-003/004/005 limit (headless Flutter semantics publishes no `aria-label` nodes). The checksum/resume behavior is proven instead by `manifest_test.go` `TestRangeResumeDownload`, the Dart `package_manifest_test.dart`, and the real cross-origin/manifest browser steps above. No UI result is claimed that was not produced.
 
 **Env notes (unchanged):** prepend the env block + `ulimit -n 8192`; build server binaries into `/projects/sandbox` (not `/tmp`); free/choose fresh ports; do servers+puppeteer+teardown in ONE call; never `pkill -f chrome`. Scratch dirs cleaned up after the run.
+
+### 2026-10-24 Review v1 follow-up: the three non-blocking findings addressed
+
+The v1 semantic review (`.agents/tasks/task-overnight-resilience/2026-10-24-103142-review.md`) returned **APPROVED** with three non-blocking findings. All three are now fixed (no deferrals). Full rationale is in `docs/DECISIONS.md` → "Review v1 follow-up".
+
+**What changed:**
+
+- **(1) Signed-manifest canonicalization cross-language escaping (possible).** `Manifest.CanonicalBytes()` in `node/internal/packages/manifest.go` now marshals through a `json.Encoder` with `SetEscapeHTML(false)` (and trims the trailing newline `Encode` appends) so Go stops escaping `<`/`>`/`&` to `\u003c`/`\u003e`/`\u0026`, matching Dart's `jsonEncode`. Without this, a manifest `name`/`path` containing a literal `&` (ordinary in filenames) would have produced diverging preimages and a false `badSignature` on device. The Dart canonicalizer already did not escape; only its comment was corrected. New regression tests on BOTH sides: Go `TestCanonicalBytesNoHTMLEscape` + `TestManifestSignVerifyWithSpecialChars`; Dart `canonical bytes keep literal & < >` + `verifies a signed manifest whose path contains & < >`.
+- **(2) Public-beacon share bypassed the position seam (confirmed, minor).** Added `LocationCoordinator.readPosition()` (a public accessor over the injectable `_readPosition` seam) and routed `_sharePublicBeacon` in `location_share_screen.dart` through it instead of the top-level `readPosition()`, so the public-beacon path is now test-substitutable exactly like the contact path.
+- **(3) Alert recall ordering relied on lamport only (possible).** The alert fold in `app/lib/state/derived_state.dart` now supersedes same-author alert events by `(lamport, created_at_ms)` instead of `lamport >= prev` alone: lamport stays primary (the per-author `LamportClock` is monotonic, so an honest author's recall advances it) and `created_at_ms` (already in `EventHeader`) breaks the tie, fixing the out-of-order recall case where a recall shares the original's lamport (e.g. from a second device/session) but carries a later wall-clock. No proto change (EmergencyAlertBody has no `seq`; adding one was heavier than warranted). New test: `derived_state_test.dart` "alert recall out of order (equal lamport, later created_at) still supersedes".
+
+**Verification (all green):**
+
+- `cd app && flutter analyze` → `No issues found!`
+- `cd app && flutter test $(ls test/*.dart | grep -v screenshots_test.dart)` → **167 passed** (164 prior + 3 new: 2 in `package_manifest_test.dart`, 1 in `derived_state_test.dart`).
+- `cd cloud && go vet ./... && go test ./...` → all `ok`.
+- `cd node && go vet ./... && go test ./...` → all `ok` (incl. the two new manifest cases).
+- `cd proto && buf generate` + copy to `node/gen` → **no diff** in `app/lib/gen` / `cloud/gen` / `node/gen` (no proto change was needed for any of the three fixes).
+- `cd app && flutter build web --release` → `✓ Built build/web`.
