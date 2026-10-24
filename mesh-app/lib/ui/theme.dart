@@ -18,24 +18,36 @@ double bottomClearance(BuildContext context) =>
 
 /// Colors the Material scheme has no slot for: the panels that float over
 /// the map, their shadow, and the map overlays.
+///
+/// Everything is flat (rule 14): solid fills, a thin outline, and one small
+/// grey shadow only under things that float. Nothing is blurred or glows.
 @immutable
 class AppColors extends ThemeExtension<AppColors> {
   const AppColors({
     required this.glass,
     required this.glassBorder,
     required this.shadow,
-    required this.blur,
     required this.map,
+    this.borderWidth = 1,
   });
 
-  /// Frosted panel fill. Opaque in high contrast.
+  /// Fill of the panels over the map and of the bottom bar. Always solid,
+  /// so text on it keeps its contrast over any street.
   final Color glass;
-  final Color glassBorder;
-  final Color shadow;
 
-  /// Backdrop blur for frosted panels; 0 in high contrast.
-  final double blur;
+  /// The thin outline around those panels; darker in high contrast.
+  final Color glassBorder;
+
+  /// 1 normally, 2 in high contrast.
+  final double borderWidth;
+
+  /// The one plain grey shadow, for things that float.
+  final Color shadow;
   final MapColors map;
+
+  /// Nothing in the app is blurred (rule 14), so this is always 0. Kept so
+  /// older code that read it still compiles.
+  double get blur => 0;
 
   static AppColors of(BuildContext context) =>
       Theme.of(context).extension<AppColors>()!;
@@ -138,18 +150,16 @@ ColorScheme _scheme(Brightness brightness, bool highContrast) {
 AppColors _appColors(ColorScheme c, bool highContrast) {
   final dark = c.brightness == Brightness.dark;
   return AppColors(
+    // Solid, a step lighter than the page in dark mode so panels stand out.
     glass: highContrast
         ? c.surface
         : dark
-            ? const Color(0xFF111A2C).withValues(alpha: 0.92)
-            : Colors.white.withValues(alpha: 0.94),
-    glassBorder: highContrast
-        ? c.outline
-        : dark
-            ? Colors.white.withValues(alpha: 0.08)
-            : const Color(0xFF0B1220).withValues(alpha: 0.06),
-    shadow: dark ? Colors.black.withValues(alpha: 0.35) : const Color(0xFF0B1220).withValues(alpha: 0.10),
-    blur: highContrast ? 0 : 12,
+            ? c.surfaceContainerLow
+            : c.surfaceContainerLowest,
+    glassBorder: highContrast ? c.outline : c.outlineVariant,
+    borderWidth: highContrast ? 2 : 1,
+    // Black at low strength reads as plain grey on any color.
+    shadow: dark ? const Color(0x66000000) : const Color(0x1F000000),
     map: dark
         ? const MapColors(base: Color(0xFF111A2C), mesh: Color(0xFF3DDBB9))
         : const MapColors(base: Color(0xFFE9EDF4), mesh: Color(0xFF0A7363)),
@@ -247,7 +257,7 @@ ThemeData buildTheme(Brightness brightness, {bool highContrast = false}) {
       ),
       actionTextColor: scheme.inversePrimary,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-      elevation: 6,
+      elevation: 3,
     ),
     bannerTheme: MaterialBannerThemeData(
       contentTextStyle: text.bodyLarge,

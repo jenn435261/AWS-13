@@ -459,5 +459,17 @@
   "mapOffline": "El mapa de calles necesita internet",
   "mapLoading": "Cargando mapa de calles",
   "missionNotFound": "Esta entrega ya no está disponible.",
-  "resourceNotFound": "Este lugar ya no está en el mapa."
+  "resourceNotFound": "Este lugar ya no está en el mapa.",
+  "lookAdvanced": "Avanzado",
+  "lookRequestAdvancedSub": "Radios, revisión del servidor e historial firmado",
+  "lookStageSent": "Enviado",
+  "lookStageSentSub": "En camino a personas cercanas que pueden ayudar",
+  "lookStageReceived": "Recibido",
+  "lookStageReceivedSub": "Quienes pueden ayudar ya lo ven",
+  "lookStepDone": "Hecho",
+  "lookStepNow": "Ahora",
+  "lookStepNext": "Todavía no",
+  "lookChatNotFound": "Esta conversación ya no está disponible.",
+  "deliverySharingLocation": "Compartiendo tu ubicación hasta que entregues",
+  "deliveryLocationOnlyWhileCarrying": "Tu ubicación se comparte solo mientras llevas esta entrega."
 }

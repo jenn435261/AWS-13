@@ -1611,4 +1611,43 @@ class AppLocalizationsTl extends AppLocalizations {
 
   @override
   String get resourceNotFound => 'Wala na sa mapa ang lugar na ito.';
+
+  @override
+  String get lookAdvanced => 'Karagdagang detalye';
+
+  @override
+  String get lookRequestAdvancedSub =>
+      'Mga radyo, pagsuri ng server at pirmadong kasaysayan';
+
+  @override
+  String get lookStageSent => 'Naipadala';
+
+  @override
+  String get lookStageSentSub => 'Papunta sa mga taong malapit na makakatulong';
+
+  @override
+  String get lookStageReceived => 'Natanggap';
+
+  @override
+  String get lookStageReceivedSub => 'Nakikita na ito ng mga makakatulong';
+
+  @override
+  String get lookStepDone => 'Tapos na';
+
+  @override
+  String get lookStepNow => 'Ngayon';
+
+  @override
+  String get lookStepNext => 'Hindi pa';
+
+  @override
+  String get lookChatNotFound => 'Wala na ang usapang ito.';
+
+  @override
+  String get deliverySharingLocation =>
+      'Ibinabahagi ang lokasyon mo hanggang maihatid mo';
+
+  @override
+  String get deliveryLocationOnlyWhileCarrying =>
+      'Ibinabahagi lang ang lokasyon mo habang dala mo ang paghahatid na ito.';
 }

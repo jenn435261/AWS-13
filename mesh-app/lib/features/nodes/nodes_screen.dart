@@ -4,6 +4,7 @@ import '../../l10n/labels.dart';
 import '../../models/mesh_node.dart';
 import '../../models/role.dart';
 import '../../state/app_scope.dart';
+import '../../ui/empty_state.dart';
 import '../../ui/theme.dart';
 import '../../utils/format.dart';
 
@@ -25,7 +26,9 @@ class NodesScreen extends StatelessWidget {
           final nodes = (isMember ? all.where((n) => n.enabled) : all).toList()
             ..sort((a, b) => b.lastHeard.compareTo(a.lastHeard));
 
-          if (nodes.isEmpty) return Center(child: Text(l.noNodes));
+          if (nodes.isEmpty) {
+            return EmptyState(icon: Icons.cell_tower, message: l.noNodes);
+          }
           return ListView.builder(
             padding: EdgeInsets.only(bottom: bottomClearance(context)),
             itemCount: nodes.length,

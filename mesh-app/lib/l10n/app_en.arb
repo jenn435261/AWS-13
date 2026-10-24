@@ -865,5 +865,17 @@
   "mapOffline": "Street map needs internet",
   "mapLoading": "Loading street map",
   "missionNotFound": "This delivery is no longer available.",
-  "resourceNotFound": "This place is no longer on the map."
+  "resourceNotFound": "This place is no longer on the map.",
+  "lookAdvanced": "Advanced",
+  "lookRequestAdvancedSub": "Radios, server check and signed history",
+  "lookStageSent": "Sent",
+  "lookStageSentSub": "On its way to people nearby who can help",
+  "lookStageReceived": "Received",
+  "lookStageReceivedSub": "People who can help can see it now",
+  "lookStepDone": "Done",
+  "lookStepNow": "Now",
+  "lookStepNext": "Not yet",
+  "lookChatNotFound": "This conversation is no longer available.",
+  "deliverySharingLocation": "Sharing your location until you deliver",
+  "deliveryLocationOnlyWhileCarrying": "Your location is shared only while you carry this delivery."
 }

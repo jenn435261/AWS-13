@@ -1565,4 +1565,40 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get resourceNotFound => '这个地点已不在地图上。';
+
+  @override
+  String get lookAdvanced => '高级';
+
+  @override
+  String get lookRequestAdvancedSub => '电台、服务器检查和签名记录';
+
+  @override
+  String get lookStageSent => '已发送';
+
+  @override
+  String get lookStageSentSub => '正在发给附近能帮忙的人';
+
+  @override
+  String get lookStageReceived => '已收到';
+
+  @override
+  String get lookStageReceivedSub => '能帮忙的人现在可以看到';
+
+  @override
+  String get lookStepDone => '已完成';
+
+  @override
+  String get lookStepNow => '当前';
+
+  @override
+  String get lookStepNext => '未开始';
+
+  @override
+  String get lookChatNotFound => '这个对话已不存在。';
+
+  @override
+  String get deliverySharingLocation => '正在共享你的位置，直到送达';
+
+  @override
+  String get deliveryLocationOnlyWhileCarrying => '只有在你运送这件物资时，才会共享你的位置。';
 }

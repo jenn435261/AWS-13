@@ -1585,4 +1585,43 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get resourceNotFound => 'Địa điểm này không còn trên bản đồ.';
+
+  @override
+  String get lookAdvanced => 'Nâng cao';
+
+  @override
+  String get lookRequestAdvancedSub =>
+      'Bộ đàm, máy chủ kiểm tra và lịch sử đã ký';
+
+  @override
+  String get lookStageSent => 'Đã gửi';
+
+  @override
+  String get lookStageSentSub => 'Đang đến những người gần đây có thể giúp';
+
+  @override
+  String get lookStageReceived => 'Đã nhận';
+
+  @override
+  String get lookStageReceivedSub => 'Người có thể giúp đã thấy yêu cầu';
+
+  @override
+  String get lookStepDone => 'Xong';
+
+  @override
+  String get lookStepNow => 'Hiện tại';
+
+  @override
+  String get lookStepNext => 'Chưa đến';
+
+  @override
+  String get lookChatNotFound => 'Cuộc trò chuyện này không còn nữa.';
+
+  @override
+  String get deliverySharingLocation =>
+      'Đang chia sẻ vị trí của bạn cho đến khi giao xong';
+
+  @override
+  String get deliveryLocationOnlyWhileCarrying =>
+      'Vị trí của bạn chỉ được chia sẻ khi bạn đang chở hàng này.';
 }

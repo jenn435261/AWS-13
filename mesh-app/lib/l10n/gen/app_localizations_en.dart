@@ -1600,4 +1600,43 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get resourceNotFound => 'This place is no longer on the map.';
+
+  @override
+  String get lookAdvanced => 'Advanced';
+
+  @override
+  String get lookRequestAdvancedSub =>
+      'Radios, server check and signed history';
+
+  @override
+  String get lookStageSent => 'Sent';
+
+  @override
+  String get lookStageSentSub => 'On its way to people nearby who can help';
+
+  @override
+  String get lookStageReceived => 'Received';
+
+  @override
+  String get lookStageReceivedSub => 'People who can help can see it now';
+
+  @override
+  String get lookStepDone => 'Done';
+
+  @override
+  String get lookStepNow => 'Now';
+
+  @override
+  String get lookStepNext => 'Not yet';
+
+  @override
+  String get lookChatNotFound => 'This conversation is no longer available.';
+
+  @override
+  String get deliverySharingLocation =>
+      'Sharing your location until you deliver';
+
+  @override
+  String get deliveryLocationOnlyWhileCarrying =>
+      'Your location is shared only while you carry this delivery.';
 }

@@ -6,6 +6,7 @@ import '../../models/mission.dart';
 import '../../models/role.dart';
 import '../../router.dart';
 import '../../state/app_scope.dart';
+import '../../ui/empty_state.dart';
 import '../../ui/theme.dart';
 import '../../ui/visuals.dart';
 import '../help/offer_flow.dart';
@@ -62,6 +63,9 @@ class DeliveriesScreen extends StatelessWidget {
           ),
         ];
 
+        // At least 48 px to tap, and taller with large text.
+        final tabHeight = 32 + MediaQuery.textScalerOf(context).scale(16);
+
         return DefaultTabController(
           length: tabs.length,
           child: Scaffold(
@@ -71,7 +75,8 @@ class DeliveriesScreen extends StatelessWidget {
                 isScrollable: true,
                 tabAlignment: TabAlignment.start,
                 tabs: [
-                  for (final (label, list) in tabs) Tab(text: '$label (${list.length})'),
+                  for (final (label, list) in tabs)
+                    Tab(height: tabHeight, text: '$label (${list.length})'),
                 ],
               ),
             ),
@@ -106,26 +111,16 @@ class _Empty extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.local_shipping_outlined, size: 48, color: Theme.of(context).colorScheme.outline),
-            const SizedBox(height: 12),
-            Text(showOffer ? l.deliveriesHint : l.noMissions, textAlign: TextAlign.center),
-            if (showOffer) ...[
-              const SizedBox(height: 16),
-              FilledButton.icon(
-                onPressed: () => openOfferFlow(context),
-                icon: const Icon(Icons.volunteer_activism),
-                label: Text(l.canHelp),
-              ),
-            ],
-          ],
-        ),
-      ),
+    return EmptyState(
+      icon: Icons.local_shipping_outlined,
+      message: showOffer ? l.deliveriesHint : l.noMissions,
+      action: showOffer
+          ? FilledButton.icon(
+              onPressed: () => openOfferFlow(context),
+              icon: const Icon(Icons.volunteer_activism),
+              label: Text(l.canHelp),
+            )
+          : null,
     );
   }
 }

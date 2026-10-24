@@ -1,30 +1,27 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 
 import 'feedback.dart';
 import 'theme.dart';
 import 'visuals.dart';
 
-/// A soft two-layer shadow: a wide glow and a tight contact shadow.
-List<BoxShadow> softShadow(BuildContext context, {double lift = 1}) {
-  final shadow = AppColors.of(context).shadow;
-  return [
-    BoxShadow(color: shadow, blurRadius: 16 * lift, offset: Offset(0, 4 * lift)),
-    BoxShadow(
-      color: shadow.withValues(alpha: shadow.a * 0.5),
-      blurRadius: 4,
-      offset: const Offset(0, 1),
-    ),
-  ];
-}
+/// The app's only shadow: one plain grey layer, small and close, for things
+/// that float over other content (map panels, the bottom bar, the Help
+/// button). Never a glow, never colored.
+List<BoxShadow> softShadow(BuildContext context, {double lift = 1}) => [
+      BoxShadow(
+        color: AppColors.of(context).shadow,
+        blurRadius: 6 * lift,
+        offset: Offset(0, 2 * lift),
+      ),
+    ];
 
 /// Whether the person asked the phone for less motion.
 bool reduceMotion(BuildContext context) => MediaQuery.disableAnimationsOf(context);
 
-/// A panel that floats over the map, nearly opaque with a light blur so it
-/// stays readable over busy streets. In high contrast it becomes a solid
-/// panel with a strong outline.
+/// A panel that floats over the map, and the bottom bar: a solid surface
+/// with a thin outline and [softShadow], so it stays readable over busy
+/// streets. No blur and nothing see-through. In high contrast the outline
+/// is thicker and darker and the fill is the page color itself.
 class Glass extends StatelessWidget {
   const Glass({
     super.key,
@@ -41,10 +38,13 @@ class Glass extends StatelessWidget {
   final double radius;
   final EdgeInsetsGeometry padding;
 
-  /// Replaces the frosted fill, for urgent panels.
+  /// Replaces the fill, for urgent panels. A see-through tint is laid over
+  /// the solid fill, so the panel itself stays solid.
   final Color? tint;
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
+
+  /// Off for small labels that sit flat on the map.
   final bool shadow;
 
   @override
@@ -52,7 +52,7 @@ class Glass extends StatelessWidget {
     final colors = AppColors.of(context);
     final shape = RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(radius),
-      side: BorderSide(color: colors.glassBorder, width: colors.blur == 0 ? 2 : 1),
+      side: BorderSide(color: colors.glassBorder, width: colors.borderWidth),
     );
     Widget content = Padding(padding: padding, child: child);
     if (onTap != null || onLongPress != null) {
@@ -74,26 +74,19 @@ class Glass extends StatelessWidget {
       );
     }
     final panel = Material(
-      color: tint ?? colors.glass,
+      color: tint == null ? colors.glass : Color.alphaBlend(tint!, colors.glass),
       shape: shape,
       clipBehavior: Clip.antiAlias,
       child: content,
     );
+    if (!shadow) return panel;
 
     return DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(radius),
-        boxShadow: shadow ? softShadow(context) : null,
+        boxShadow: softShadow(context),
       ),
-      child: colors.blur == 0
-          ? panel
-          : ClipRRect(
-              borderRadius: BorderRadius.circular(radius),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: colors.blur, sigmaY: colors.blur),
-                child: panel,
-              ),
-            ),
+      child: panel,
     );
   }
 }

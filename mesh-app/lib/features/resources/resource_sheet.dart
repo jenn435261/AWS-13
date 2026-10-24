@@ -4,11 +4,16 @@ import 'package:latlong2/latlong.dart';
 import '../../l10n/labels.dart';
 import '../../models/resource.dart';
 import '../../state/app_scope.dart';
+import '../../ui/empty_state.dart';
 import '../../ui/feedback.dart';
-import '../../ui/surfaces.dart';
+import '../../ui/info_chip.dart';
+import '../../ui/resource_badge.dart';
 import '../../ui/visuals.dart';
 import '../../utils/format.dart';
-import '../map/map_pins.dart';
+
+// ResourceBadge and resourceMark moved to lib/ui; screens that imported them
+// from here keep working.
+export '../../ui/resource_badge.dart' show ResourceBadge, resourceMark;
 
 /// A resource with its three kinds of trust shown separately: who says so,
 /// how many people agree, and how fresh it is (Spec sections 7 to 10).
@@ -45,7 +50,7 @@ class _ResourceDetails extends StatelessWidget {
       builder: (context, resources, _) {
         final r = resources.where((r) => r.id == id).firstOrNull;
         if (r == null) {
-          return Center(child: Text(l.requestNotFound));
+          return EmptyState(icon: Icons.wrong_location_outlined, message: l.resourceNotFound);
         }
         final stale = r.isStale();
         final here = scope.repository.location.value?.point;
@@ -89,17 +94,17 @@ class _ResourceDetails extends StatelessWidget {
               spacing: 8,
               runSpacing: 8,
               children: [
-                _Chip(
+                InfoChip(
                   icon: provenanceIcon(r),
-                  text: r.verified
+                  label: r.verified
                       ? l.verifiedOrg
                       : r.confidence == Confidence.unconfirmed
                           ? l.unconfirmed
                           : l.communityResource,
                   strong: r.verified,
                 ),
-                _Chip(icon: Icons.insights_outlined, text: l.confidence(r.confidence)),
-                if (r.mine) _Chip(icon: Icons.person_outline, text: l.addedByYou),
+                InfoChip(icon: Icons.insights_outlined, label: l.confidence(r.confidence)),
+                if (r.mine) InfoChip(icon: Icons.person_outline, label: l.addedByYou),
               ],
             ),
             const SizedBox(height: 8),
@@ -263,73 +268,3 @@ class _VoteButton extends StatelessWidget {
     );
   }
 }
-
-class _Chip extends StatelessWidget {
-  const _Chip({required this.icon, required this.text, this.strong = false});
-
-  final IconData icon;
-  final String text;
-  final bool strong;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = Theme.of(context).colorScheme;
-    final (bg, fg) = strong
-        ? (c.primaryContainer, c.onPrimaryContainer)
-        : (c.surfaceContainerHighest, c.onSurfaceVariant);
-    return DecoratedBox(
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 18, color: fg),
-            const SizedBox(width: 6),
-            Flexible(child: Text(text, style: TextStyle(color: fg))),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// A resource's icon in its kind's color. Verified places are filled and
-/// carry a check, community ones are a soft tint, unconfirmed ones carry a
-/// warning, and stale ones fade.
-class ResourceBadge extends StatelessWidget {
-  const ResourceBadge({super.key, required this.resource, this.size = 44});
-
-  final Resource resource;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    final r = resource;
-    final mark = resourceMark(context, r);
-
-    return Opacity(
-      opacity: r.isStale() ? 0.5 : 1,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          IconTile(
-            icon: resourceIcon(r.kind),
-            color: resourceHue(r.kind),
-            size: size,
-            solid: r.verified,
-          ),
-          if (mark != null) Positioned(right: -5, bottom: -5, child: mark),
-        ],
-      ),
-    );
-  }
-}
-
-/// The trust sign for a resource: a check when verified, a warning when only
-/// one person reported it, nothing for community places.
-Widget? resourceMark(BuildContext context, Resource r) => r.verified
-    ? TrustMark(icon: Icons.verified, color: Theme.of(context).colorScheme.primary)
-    : r.confidence == Confidence.unconfirmed
-        ? const TrustMark(icon: Icons.warning_amber_rounded, color: Hues.cautionInk)
-        : null;

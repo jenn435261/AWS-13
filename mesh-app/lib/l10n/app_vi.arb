@@ -459,5 +459,17 @@
   "mapOffline": "Bản đồ đường phố cần internet",
   "mapLoading": "Đang tải bản đồ đường phố",
   "missionNotFound": "Chuyến giao hàng này không còn nữa.",
-  "resourceNotFound": "Địa điểm này không còn trên bản đồ."
+  "resourceNotFound": "Địa điểm này không còn trên bản đồ.",
+  "lookAdvanced": "Nâng cao",
+  "lookRequestAdvancedSub": "Bộ đàm, máy chủ kiểm tra và lịch sử đã ký",
+  "lookStageSent": "Đã gửi",
+  "lookStageSentSub": "Đang đến những người gần đây có thể giúp",
+  "lookStageReceived": "Đã nhận",
+  "lookStageReceivedSub": "Người có thể giúp đã thấy yêu cầu",
+  "lookStepDone": "Xong",
+  "lookStepNow": "Hiện tại",
+  "lookStepNext": "Chưa đến",
+  "lookChatNotFound": "Cuộc trò chuyện này không còn nữa.",
+  "deliverySharingLocation": "Đang chia sẻ vị trí của bạn cho đến khi giao xong",
+  "deliveryLocationOnlyWhileCarrying": "Vị trí của bạn chỉ được chia sẻ khi bạn đang chở hàng này."
 }

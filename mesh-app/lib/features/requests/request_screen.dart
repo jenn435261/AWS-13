@@ -5,13 +5,18 @@ import '../../l10n/labels.dart';
 import '../../models/help.dart';
 import '../../router.dart';
 import '../../state/app_scope.dart';
+import '../../ui/action_bar.dart';
+import '../../ui/advanced_section.dart';
+import '../../ui/empty_state.dart';
 import '../../ui/history.dart';
-import '../../ui/surfaces.dart';
+import '../../ui/stage_list.dart';
 import '../../ui/visuals.dart';
 import '../../utils/format.dart';
 import 'request_actions.dart';
 
-/// One request and the trip it is taking to a helper, step by step.
+/// One request and the trip it is taking to a helper, step by step, in
+/// plain words. How it travelled (radio hops, the server check, the signed
+/// history) is under Advanced.
 class RequestScreen extends StatelessWidget {
   const RequestScreen({super.key, required this.id});
 
@@ -19,19 +24,18 @@ class RequestScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scope = AppScope.of(context);
+    final repo = AppScope.of(context).repository;
     final l = AppLocalizations.of(context);
+    final theme = Theme.of(context);
 
-    return ValueListenableBuilder<List<HelpRequest>>(
-      valueListenable: scope.repository.requests,
-      builder: (context, requests, _) {
-        final r = requests.where((r) => r.id == id).firstOrNull;
-        if (r == null) {
-          return Scaffold(
-            appBar: AppBar(),
-            body: Center(child: Text(l.requestNotFound)),
-          );
-        }
+    return ListenableBuilder(
+      listenable: Listenable.merge([repo.requests, repo.events]),
+      builder: (context, _) {
+        final r = repo.requests.value.where((r) => r.id == id).firstOrNull;
+        if (r == null) return NotFoundScaffold(message: l.requestNotFound);
+        final reached = r.stage.index;
+        final signed = repo.events.value.any((e) => e.subject == r.id);
+
         return Scaffold(
           appBar: AppBar(title: Text(l.requestTitle(r))),
           body: ListView(
@@ -41,21 +45,18 @@ class RequestScreen extends StatelessWidget {
               const SizedBox(height: 24),
               Semantics(
                 header: true,
-                child: Text(
-                  l.progressTitle,
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
+                child: Text(l.progressTitle, style: theme.textTheme.titleLarge),
               ),
               const SizedBox(height: 8),
-              _Timeline(request: r),
+              StageList(
+                stages: _stages(l, r),
+                waiting: r.stage != RequestStage.resolved,
+              ),
               if (r.note.isNotEmpty || r.locationNote.isNotEmpty) ...[
                 const SizedBox(height: 16),
                 Semantics(
                   header: true,
-                  child: Text(
-                    l.detailsTitle,
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
+                  child: Text(l.detailsTitle, style: theme.textTheme.titleLarge),
                 ),
                 const SizedBox(height: 8),
                 if (r.locationNote.isNotEmpty)
@@ -71,8 +72,30 @@ class RequestScreen extends StatelessWidget {
                     title: Text(r.note),
                   ),
               ],
-              const SizedBox(height: 16),
-              SignedHistory(subject: r.id),
+              if (signed || reached >= RequestStage.mesh.index) ...[
+                const SizedBox(height: 8),
+                AdvancedSection(
+                  subtitle: l.lookRequestAdvancedSub,
+                  children: [
+                    if (reached >= RequestStage.mesh.index)
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: Icon(stageIcon(RequestStage.mesh)),
+                        title: Text(l.stageMesh),
+                        subtitle: Text(l.stageMeshSub(r.hops)),
+                      ),
+                    if (reached >= RequestStage.verified.index)
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: Icon(stageIcon(RequestStage.verified)),
+                        title: Text(l.stageVerified),
+                        subtitle: Text(l.stageVerifiedSub),
+                      ),
+                    const SizedBox(height: 8),
+                    SignedHistory(subject: r.id),
+                  ],
+                ),
+              ],
             ],
           ),
           bottomNavigationBar: _Actions(request: r),
@@ -80,7 +103,45 @@ class RequestScreen extends StatelessWidget {
       },
     );
   }
+
+  /// Resolved is shown only once reached.
+  static List<StageItem> _stages(AppLocalizations l, HelpRequest r) => [
+        for (final s in RequestStage.values)
+          if (s != RequestStage.resolved || r.stage == s)
+            StageItem(
+              icon: stageIcon(s),
+              title: plainStageTitle(l, s, mine: r.mine),
+              state: s.index < r.stage.index || r.stage == RequestStage.resolved
+                  ? StageState.done
+                  : s == r.stage
+                      ? StageState.current
+                      : StageState.upcoming,
+              detail: s.index <= r.stage.index
+                  ? [
+                      plainStageDetail(l, s, r),
+                      if (r.stageTimes[s] case final t?) clockTime(t),
+                    ].join('  ·  ')
+                  : l.stageWaiting,
+            ),
+      ];
 }
+
+/// A request's stage in words anyone understands (rule 4): "Sent" and
+/// "Received" instead of "Sent over the mesh" and "Checked by the server".
+/// Lists and map cards can use this too.
+String plainStageTitle(AppLocalizations l, RequestStage s, {bool mine = true}) => switch (s) {
+      RequestStage.mesh => l.lookStageSent,
+      RequestStage.verified => l.lookStageReceived,
+      _ => l.stage(s, mine: mine),
+    };
+
+/// The line under [plainStageTitle]. Hops and the server check are left to
+/// the Advanced section.
+String plainStageDetail(AppLocalizations l, RequestStage s, HelpRequest r) => switch (s) {
+      RequestStage.mesh => l.lookStageSentSub,
+      RequestStage.verified => l.lookStageReceivedSub,
+      _ => l.stageDetail(s, r),
+    };
 
 class _Header extends StatelessWidget {
   const _Header({required this.request});
@@ -142,130 +203,6 @@ class _Header extends StatelessWidget {
   }
 }
 
-/// The stages as a vertical line: done, current, and still to come.
-class _Timeline extends StatelessWidget {
-  const _Timeline({required this.request});
-
-  final HelpRequest request;
-
-  @override
-  Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context);
-    final theme = Theme.of(context);
-    final c = theme.colorScheme;
-    final r = request;
-    // Resolved is shown only once reached.
-    final stages = RequestStage.values
-        .where((s) => s != RequestStage.resolved || r.stage == s)
-        .toList();
-
-    return Column(
-      children: [
-        for (final (i, s) in stages.indexed)
-          IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                SizedBox(
-                  width: 48,
-                  child: Column(
-                    children: [
-                      _StageDot(
-                        icon: stageIcon(s),
-                        done: s.index < r.stage.index,
-                        current: s == r.stage,
-                      ),
-                      if (i < stages.length - 1)
-                        Expanded(
-                          child: Container(
-                            width: 4,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(2),
-                              color: s.index < r.stage.index ? c.primary : c.outlineVariant,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 8, bottom: 20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          l.stage(s, mine: r.mine),
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            color: s.index <= r.stage.index
-                                ? c.onSurface
-                                : c.onSurfaceVariant,
-                            fontWeight: s == r.stage ? FontWeight.w700 : null,
-                          ),
-                        ),
-                        Text(
-                          s.index <= r.stage.index
-                              ? [
-                                  l.stageDetail(s, r),
-                                  if (r.stageTimes[s] case final t?)
-                                    clockTime(t),
-                                ].join('  ·  ')
-                              : l.stageWaiting,
-                          style: theme.textTheme.bodyMedium
-                              ?.copyWith(color: c.onSurfaceVariant),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-class _StageDot extends StatelessWidget {
-  const _StageDot({
-    required this.icon,
-    required this.done,
-    required this.current,
-  });
-
-  final IconData icon;
-  final bool done;
-  final bool current;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = Theme.of(context).colorScheme;
-    final (bg, fg) = done
-        ? (c.primary, c.onPrimary)
-        : current
-            ? (c.primaryContainer, c.onPrimaryContainer)
-            : (c.surfaceContainerHighest, c.outline);
-
-    final dot = Container(
-      width: 40,
-      height: 40,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: bg,
-        border: current ? Border.all(color: c.primary, width: 2) : null,
-      ),
-      child: Icon(done ? Icons.check : icon, size: 20, color: fg),
-    );
-    // The current stage pulses while it waits on the network.
-    return SizedBox(
-      width: 48,
-      height: 48,
-      child: current ? Pulse(color: c.primary, size: 48, rings: 1, child: dot) : Center(child: dot),
-    );
-  }
-}
-
 /// One or two main actions, always at the bottom.
 class _Actions extends StatelessWidget {
   const _Actions({required this.request});
@@ -277,7 +214,7 @@ class _Actions extends StatelessWidget {
     final l = AppLocalizations.of(context);
     final r = request;
 
-    final (primary, secondary) = switch (r) {
+    final (Widget? primary, Widget? secondary) = switch (r) {
       HelpRequest(mine: true) => (
           FilledButton.icon(
             onPressed: () => context.push('${requestPath(r.id)}/card'),
@@ -287,7 +224,12 @@ class _Actions extends StatelessWidget {
           OutlinedButton(
             onPressed: () {
               cancelMyRequest(context, r);
-              context.go('/more/requests');
+              // Back to wherever the request was opened from.
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/more/requests');
+              }
             },
             child: Text(l.cancelRequest),
           ),
@@ -310,21 +252,6 @@ class _Actions extends StatelessWidget {
         ),
       _ => (null, null),
     };
-    if (primary == null) return const SizedBox.shrink();
-
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-        child: Row(
-          children: [
-            if (secondary != null) ...[
-              Expanded(child: secondary),
-              const SizedBox(width: 12),
-            ],
-            Expanded(flex: 2, child: primary),
-          ],
-        ),
-      ),
-    );
+    return ActionBar(primary: primary, secondary: secondary);
   }
 }

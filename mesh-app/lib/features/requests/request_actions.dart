@@ -87,8 +87,9 @@ Future<void> showRequestActions(
                 () => stopHelping(context, r)),
           if (onShowOnMap != null)
             action(sheet, Icons.place_outlined, l.showOnMap, onShowOnMap),
+          // Pushed, so Back returns to the map or list it was opened from.
           action(sheet, Icons.open_in_full, l.openDetails,
-              () => context.go(requestPath(r.id))),
+              () => context.push(requestPath(r.id))),
           if (r.mine)
             action(sheet, Icons.translate, l.showToResponder,
                 () => context.push('${requestPath(r.id)}/card')),
