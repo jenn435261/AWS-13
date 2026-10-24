@@ -7,6 +7,8 @@ environment:
   sdk: ^3.7.0
 
 dependencies:
+  # Unpacks offline map tiles (gzip or zstd), on phones and on the web.
+  archive: ^4.0.9
   cryptography: ^2.9.0
   flutter:
     sdk: flutter
@@ -20,6 +22,8 @@ dependencies:
   latlong2: ^0.10.1
   local_auth: ^3.0.2
   mobile_scanner: ^7.4.2
+  # Where the offline street map is kept on the phone.
+  path_provider: ^2.1.5
   qr_flutter: ^4.1.0
   shared_preferences: ^2.5.6
   skeletonizer: ^3.0.0

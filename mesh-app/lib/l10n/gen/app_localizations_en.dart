@@ -1735,4 +1735,128 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get privacyLocationBody =>
       'Your location stays on this phone. It is shared only while you carry a delivery, so the people waiting can see it coming, and it stops when the delivery ends. A help request or SOS carries only the place you chose to send with it.';
+
+  @override
+  String get mapAddHere => 'Add here';
+
+  @override
+  String get mapAddHint =>
+      'Tap Add here, or hold the map, to add water, food, shelter or a problem you see.';
+
+  @override
+  String get mapAddEmpty =>
+      'Tap to add water, food, shelter or a problem you see.';
+
+  @override
+  String get mapSetLocation => 'Set my location';
+
+  @override
+  String get mapSetLocationSub =>
+      'When GPS can\'t find you, move the map to where you are.';
+
+  @override
+  String get mapSetLocationTitle => 'Where are you?';
+
+  @override
+  String get mapSetLocationHint =>
+      'Drag the map until the pin is where you are.';
+
+  @override
+  String get mapLocationNote => 'What\'s here? (optional)';
+
+  @override
+  String get mapLocationNoteHint => 'For example: Library, 2nd floor';
+
+  @override
+  String get mapUseLocation => 'Use this location';
+
+  @override
+  String get mapLocationSaved => 'Your location is set';
+
+  @override
+  String get mapSetByYou => 'Set by you';
+
+  @override
+  String mapSetByYouNamed(String label) {
+    return 'Set by you: $label';
+  }
+
+  @override
+  String get mapYouAreHere => 'You are here';
+
+  @override
+  String get mapOpenDownloads => 'Opens Offline downloads';
+
+  @override
+  String get mapOfflineTitle => 'Offline street map';
+
+  @override
+  String get mapOsmCredit => '© OpenStreetMap contributors';
+
+  @override
+  String get mapOfflineAbout =>
+      'Streets for finding your way with no internet. Download it ahead of time from a Resilience Node on local Wi-Fi.';
+
+  @override
+  String get mapOfflineDownload => 'Download street map';
+
+  @override
+  String mapOfflineMegabytes(String size) {
+    return '$size MB';
+  }
+
+  @override
+  String mapOfflineOnPhone(String size, String time) {
+    return '$size on this phone. Downloaded $time';
+  }
+
+  @override
+  String mapOfflineProgress(String done, String total) {
+    return '$done of $total';
+  }
+
+  @override
+  String get mapOfflineCancel => 'Stop download';
+
+  @override
+  String get mapOfflineUpdate => 'Update';
+
+  @override
+  String get mapOfflineNewer =>
+      'A newer street map is ready on the Resilience Node.';
+
+  @override
+  String get mapOfflineDelete => 'Delete';
+
+  @override
+  String get mapOfflineDeleteTitle => 'Delete the offline street map?';
+
+  @override
+  String get mapOfflineDeleteBody =>
+      'Without it, streets show only with internet. You can download it again.';
+
+  @override
+  String get mapOfflineDeleted => 'Offline street map deleted';
+
+  @override
+  String get mapOfflineDone => 'Street map saved for offline use';
+
+  @override
+  String get mapOfflineUnreachable =>
+      'Can\'t reach the Resilience Node. Join its Wi-Fi, then try again.';
+
+  @override
+  String get mapOfflineNotFound =>
+      'The Resilience Node has no street map for this area yet.';
+
+  @override
+  String get mapOfflineNotAMap =>
+      'That download isn\'t a street map this app can read.';
+
+  @override
+  String get mapOfflineStorage =>
+      'This phone couldn\'t save the map. Free up some space, then try again.';
+
+  @override
+  String get mapCancel => 'Cancel';
 }

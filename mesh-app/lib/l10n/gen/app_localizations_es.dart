@@ -1746,4 +1746,128 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get privacyLocationBody =>
       'Tu ubicación se queda en este teléfono. Solo se comparte mientras llevas una entrega, para que quienes esperan te vean llegar, y deja de compartirse cuando la entrega termina. Un pedido de ayuda o un SOS lleva solo el lugar que elegiste enviar con él.';
+
+  @override
+  String get mapAddHere => 'Agregar aquí';
+
+  @override
+  String get mapAddHint =>
+      'Toca Agregar aquí, o mantén pulsado el mapa, para agregar agua, comida, refugio o un problema que veas.';
+
+  @override
+  String get mapAddEmpty =>
+      'Toca para agregar agua, comida, refugio o un problema que veas.';
+
+  @override
+  String get mapSetLocation => 'Fijar mi ubicación';
+
+  @override
+  String get mapSetLocationSub =>
+      'Si el GPS no te encuentra, mueve el mapa hasta donde estás.';
+
+  @override
+  String get mapSetLocationTitle => '¿Dónde estás?';
+
+  @override
+  String get mapSetLocationHint =>
+      'Arrastra el mapa hasta que el marcador quede donde estás.';
+
+  @override
+  String get mapLocationNote => '¿Qué hay aquí? (opcional)';
+
+  @override
+  String get mapLocationNoteHint => 'Por ejemplo: biblioteca, segundo piso';
+
+  @override
+  String get mapUseLocation => 'Usar esta ubicación';
+
+  @override
+  String get mapLocationSaved => 'Tu ubicación está fijada';
+
+  @override
+  String get mapSetByYou => 'Fijada por ti';
+
+  @override
+  String mapSetByYouNamed(String label) {
+    return 'Fijada por ti: $label';
+  }
+
+  @override
+  String get mapYouAreHere => 'Estás aquí';
+
+  @override
+  String get mapOpenDownloads => 'Abre Descargas sin conexión';
+
+  @override
+  String get mapOfflineTitle => 'Mapa de calles sin conexión';
+
+  @override
+  String get mapOsmCredit => '© colaboradores de OpenStreetMap';
+
+  @override
+  String get mapOfflineAbout =>
+      'Calles para orientarte sin internet. Descárgalo antes desde un nodo de resiliencia por wifi local.';
+
+  @override
+  String get mapOfflineDownload => 'Descargar mapa de calles';
+
+  @override
+  String mapOfflineMegabytes(String size) {
+    return '$size MB';
+  }
+
+  @override
+  String mapOfflineOnPhone(String size, String time) {
+    return '$size en este teléfono. Descargado $time';
+  }
+
+  @override
+  String mapOfflineProgress(String done, String total) {
+    return '$done de $total';
+  }
+
+  @override
+  String get mapOfflineCancel => 'Detener descarga';
+
+  @override
+  String get mapOfflineUpdate => 'Actualizar';
+
+  @override
+  String get mapOfflineNewer =>
+      'Hay un mapa de calles más nuevo en el nodo de resiliencia.';
+
+  @override
+  String get mapOfflineDelete => 'Borrar';
+
+  @override
+  String get mapOfflineDeleteTitle => '¿Borrar el mapa de calles sin conexión?';
+
+  @override
+  String get mapOfflineDeleteBody =>
+      'Sin él, las calles solo se ven con internet. Puedes descargarlo otra vez.';
+
+  @override
+  String get mapOfflineDeleted => 'Mapa de calles sin conexión borrado';
+
+  @override
+  String get mapOfflineDone => 'Mapa de calles guardado para usar sin conexión';
+
+  @override
+  String get mapOfflineUnreachable =>
+      'No se puede conectar con el nodo de resiliencia. Conéctate a su wifi e inténtalo otra vez.';
+
+  @override
+  String get mapOfflineNotFound =>
+      'El nodo de resiliencia todavía no tiene un mapa de calles de esta zona.';
+
+  @override
+  String get mapOfflineNotAMap =>
+      'Esa descarga no es un mapa de calles que esta app pueda leer.';
+
+  @override
+  String get mapOfflineStorage =>
+      'Este teléfono no pudo guardar el mapa. Libera espacio e inténtalo otra vez.';
+
+  @override
+  String get mapCancel => 'Cancelar';
 }

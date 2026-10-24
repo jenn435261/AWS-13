@@ -1693,4 +1693,117 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get privacyLocationBody =>
       '你的位置只保存在这部手机上。只有在你运送物资时才会共享，让等待的人看到你正在赶来，送达后就会停止共享。求助或 SOS 只附带你选择一起发送的地点。';
+
+  @override
+  String get mapAddHere => '在此添加';
+
+  @override
+  String get mapAddHint => '点按“在此添加”或长按地图，即可添加饮用水、食物、住处或你看到的问题。';
+
+  @override
+  String get mapAddEmpty => '点按即可添加饮用水、食物、住处或你看到的问题。';
+
+  @override
+  String get mapSetLocation => '设置我的位置';
+
+  @override
+  String get mapSetLocationSub => 'GPS 找不到你时，把地图移到你所在的地方。';
+
+  @override
+  String get mapSetLocationTitle => '你在哪里？';
+
+  @override
+  String get mapSetLocationHint => '拖动地图，直到图钉指向你所在的位置。';
+
+  @override
+  String get mapLocationNote => '这里是哪里？（可不填）';
+
+  @override
+  String get mapLocationNoteHint => '例如：图书馆二楼';
+
+  @override
+  String get mapUseLocation => '使用这个位置';
+
+  @override
+  String get mapLocationSaved => '已设置你的位置';
+
+  @override
+  String get mapSetByYou => '由你设置';
+
+  @override
+  String mapSetByYouNamed(String label) {
+    return '由你设置：$label';
+  }
+
+  @override
+  String get mapYouAreHere => '你在这里';
+
+  @override
+  String get mapOpenDownloads => '打开离线下载';
+
+  @override
+  String get mapOfflineTitle => '离线街道地图';
+
+  @override
+  String get mapOsmCredit => '© OpenStreetMap 贡献者';
+
+  @override
+  String get mapOfflineAbout => '没有网络时也能看街道、找路。请提前通过本地 Wi-Fi 从韧性节点下载。';
+
+  @override
+  String get mapOfflineDownload => '下载街道地图';
+
+  @override
+  String mapOfflineMegabytes(String size) {
+    return '$size MB';
+  }
+
+  @override
+  String mapOfflineOnPhone(String size, String time) {
+    return '本机占用 $size。下载于$time';
+  }
+
+  @override
+  String mapOfflineProgress(String done, String total) {
+    return '$done / $total';
+  }
+
+  @override
+  String get mapOfflineCancel => '停止下载';
+
+  @override
+  String get mapOfflineUpdate => '更新';
+
+  @override
+  String get mapOfflineNewer => '韧性节点上有更新的街道地图。';
+
+  @override
+  String get mapOfflineDelete => '删除';
+
+  @override
+  String get mapOfflineDeleteTitle => '删除离线街道地图？';
+
+  @override
+  String get mapOfflineDeleteBody => '删除后，只有联网时才能看到街道。你可以再次下载。';
+
+  @override
+  String get mapOfflineDeleted => '已删除离线街道地图';
+
+  @override
+  String get mapOfflineDone => '街道地图已保存，可离线使用';
+
+  @override
+  String get mapOfflineUnreachable => '无法连接韧性节点。请连接它的 Wi-Fi 后重试。';
+
+  @override
+  String get mapOfflineNotFound => '韧性节点还没有这个地区的街道地图。';
+
+  @override
+  String get mapOfflineNotAMap => '下载的文件不是本应用能读取的街道地图。';
+
+  @override
+  String get mapOfflineStorage => '这部手机无法保存地图。请释放一些空间后重试。';
+
+  @override
+  String get mapCancel => '取消';
 }

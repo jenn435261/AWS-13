@@ -1747,4 +1747,129 @@ class AppLocalizationsTl extends AppLocalizations {
   @override
   String get privacyLocationBody =>
       'Nananatili sa teleponong ito ang iyong lokasyon. Ibinabahagi lang ito habang may dala kang delivery, para makita ng mga naghihintay na papalapit ka na, at humihinto ito kapag tapos na ang delivery. Ang hiling ng tulong o SOS ay may kasama lang na lugar na pinili mong ipadala.';
+
+  @override
+  String get mapAddHere => 'Idagdag dito';
+
+  @override
+  String get mapAddHint =>
+      'I-tap ang Idagdag dito, o pindutin nang matagal ang mapa, para magdagdag ng tubig, pagkain, matutuluyan o problemang nakita mo.';
+
+  @override
+  String get mapAddEmpty =>
+      'I-tap para magdagdag ng tubig, pagkain, matutuluyan o problemang nakita mo.';
+
+  @override
+  String get mapSetLocation => 'Itakda ang lokasyon ko';
+
+  @override
+  String get mapSetLocationSub =>
+      'Kapag hindi ka mahanap ng GPS, ilipat ang mapa kung nasaan ka.';
+
+  @override
+  String get mapSetLocationTitle => 'Nasaan ka?';
+
+  @override
+  String get mapSetLocationHint =>
+      'I-drag ang mapa hanggang nasa kinaroroonan mo ang pin.';
+
+  @override
+  String get mapLocationNote => 'Ano ang nandito? (opsyonal)';
+
+  @override
+  String get mapLocationNoteHint => 'Halimbawa: aklatan, ikalawang palapag';
+
+  @override
+  String get mapUseLocation => 'Gamitin ang lokasyong ito';
+
+  @override
+  String get mapLocationSaved => 'Naitakda na ang lokasyon mo';
+
+  @override
+  String get mapSetByYou => 'Itinakda mo';
+
+  @override
+  String mapSetByYouNamed(String label) {
+    return 'Itinakda mo: $label';
+  }
+
+  @override
+  String get mapYouAreHere => 'Nandito ka';
+
+  @override
+  String get mapOpenDownloads => 'Binubuksan ang Mga download para sa offline';
+
+  @override
+  String get mapOfflineTitle => 'Mapa ng kalye para sa offline';
+
+  @override
+  String get mapOsmCredit => '© Mga nag-ambag sa OpenStreetMap';
+
+  @override
+  String get mapOfflineAbout =>
+      'Mga kalye para makahanap ng daan kahit walang internet. I-download ito nang maaga mula sa Resilience Node sa lokal na Wi-Fi.';
+
+  @override
+  String get mapOfflineDownload => 'I-download ang mapa ng kalye';
+
+  @override
+  String mapOfflineMegabytes(String size) {
+    return '$size MB';
+  }
+
+  @override
+  String mapOfflineOnPhone(String size, String time) {
+    return '$size sa teleponong ito. Na-download $time';
+  }
+
+  @override
+  String mapOfflineProgress(String done, String total) {
+    return '$done sa $total';
+  }
+
+  @override
+  String get mapOfflineCancel => 'Itigil ang pag-download';
+
+  @override
+  String get mapOfflineUpdate => 'I-update';
+
+  @override
+  String get mapOfflineNewer =>
+      'May mas bagong mapa ng kalye sa Resilience Node.';
+
+  @override
+  String get mapOfflineDelete => 'Burahin';
+
+  @override
+  String get mapOfflineDeleteTitle =>
+      'Burahin ang mapa ng kalye para sa offline?';
+
+  @override
+  String get mapOfflineDeleteBody =>
+      'Kung wala ito, makikita lang ang mga kalye kapag may internet. Puwede mo itong i-download ulit.';
+
+  @override
+  String get mapOfflineDeleted => 'Nabura ang mapa ng kalye para sa offline';
+
+  @override
+  String get mapOfflineDone => 'Na-save ang mapa ng kalye para sa offline';
+
+  @override
+  String get mapOfflineUnreachable =>
+      'Hindi maabot ang Resilience Node. Kumonekta sa Wi-Fi nito, saka subukan ulit.';
+
+  @override
+  String get mapOfflineNotFound =>
+      'Wala pang mapa ng kalye para sa lugar na ito ang Resilience Node.';
+
+  @override
+  String get mapOfflineNotAMap =>
+      'Hindi mapa ng kalye na kayang basahin ng app ang na-download na iyon.';
+
+  @override
+  String get mapOfflineStorage =>
+      'Hindi ma-save ng teleponong ito ang mapa. Magbakante ng espasyo, saka subukan ulit.';
+
+  @override
+  String get mapCancel => 'Kanselahin';
 }

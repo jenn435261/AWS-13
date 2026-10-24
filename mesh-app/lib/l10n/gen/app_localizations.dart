@@ -3085,6 +3085,216 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Your location stays on this phone. It is shared only while you carry a delivery, so the people waiting can see it coming, and it stops when the delivery ends. A help request or SOS carries only the place you chose to send with it.'**
   String get privacyLocationBody;
+
+  /// No description provided for @mapAddHere.
+  ///
+  /// In en, this message translates to:
+  /// **'Add here'**
+  String get mapAddHere;
+
+  /// No description provided for @mapAddHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap Add here, or hold the map, to add water, food, shelter or a problem you see.'**
+  String get mapAddHint;
+
+  /// No description provided for @mapAddEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to add water, food, shelter or a problem you see.'**
+  String get mapAddEmpty;
+
+  /// No description provided for @mapSetLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Set my location'**
+  String get mapSetLocation;
+
+  /// No description provided for @mapSetLocationSub.
+  ///
+  /// In en, this message translates to:
+  /// **'When GPS can\'t find you, move the map to where you are.'**
+  String get mapSetLocationSub;
+
+  /// No description provided for @mapSetLocationTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Where are you?'**
+  String get mapSetLocationTitle;
+
+  /// No description provided for @mapSetLocationHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Drag the map until the pin is where you are.'**
+  String get mapSetLocationHint;
+
+  /// No description provided for @mapLocationNote.
+  ///
+  /// In en, this message translates to:
+  /// **'What\'s here? (optional)'**
+  String get mapLocationNote;
+
+  /// No description provided for @mapLocationNoteHint.
+  ///
+  /// In en, this message translates to:
+  /// **'For example: Library, 2nd floor'**
+  String get mapLocationNoteHint;
+
+  /// No description provided for @mapUseLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Use this location'**
+  String get mapUseLocation;
+
+  /// No description provided for @mapLocationSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Your location is set'**
+  String get mapLocationSaved;
+
+  /// No description provided for @mapSetByYou.
+  ///
+  /// In en, this message translates to:
+  /// **'Set by you'**
+  String get mapSetByYou;
+
+  /// No description provided for @mapSetByYouNamed.
+  ///
+  /// In en, this message translates to:
+  /// **'Set by you: {label}'**
+  String mapSetByYouNamed(String label);
+
+  /// No description provided for @mapYouAreHere.
+  ///
+  /// In en, this message translates to:
+  /// **'You are here'**
+  String get mapYouAreHere;
+
+  /// No description provided for @mapOpenDownloads.
+  ///
+  /// In en, this message translates to:
+  /// **'Opens Offline downloads'**
+  String get mapOpenDownloads;
+
+  /// No description provided for @mapOfflineTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline street map'**
+  String get mapOfflineTitle;
+
+  /// No description provided for @mapOsmCredit.
+  ///
+  /// In en, this message translates to:
+  /// **'© OpenStreetMap contributors'**
+  String get mapOsmCredit;
+
+  /// No description provided for @mapOfflineAbout.
+  ///
+  /// In en, this message translates to:
+  /// **'Streets for finding your way with no internet. Download it ahead of time from a Resilience Node on local Wi-Fi.'**
+  String get mapOfflineAbout;
+
+  /// No description provided for @mapOfflineDownload.
+  ///
+  /// In en, this message translates to:
+  /// **'Download street map'**
+  String get mapOfflineDownload;
+
+  /// No description provided for @mapOfflineMegabytes.
+  ///
+  /// In en, this message translates to:
+  /// **'{size} MB'**
+  String mapOfflineMegabytes(String size);
+
+  /// No description provided for @mapOfflineOnPhone.
+  ///
+  /// In en, this message translates to:
+  /// **'{size} on this phone. Downloaded {time}'**
+  String mapOfflineOnPhone(String size, String time);
+
+  /// No description provided for @mapOfflineProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'{done} of {total}'**
+  String mapOfflineProgress(String done, String total);
+
+  /// No description provided for @mapOfflineCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop download'**
+  String get mapOfflineCancel;
+
+  /// No description provided for @mapOfflineUpdate.
+  ///
+  /// In en, this message translates to:
+  /// **'Update'**
+  String get mapOfflineUpdate;
+
+  /// No description provided for @mapOfflineNewer.
+  ///
+  /// In en, this message translates to:
+  /// **'A newer street map is ready on the Resilience Node.'**
+  String get mapOfflineNewer;
+
+  /// No description provided for @mapOfflineDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get mapOfflineDelete;
+
+  /// No description provided for @mapOfflineDeleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete the offline street map?'**
+  String get mapOfflineDeleteTitle;
+
+  /// No description provided for @mapOfflineDeleteBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Without it, streets show only with internet. You can download it again.'**
+  String get mapOfflineDeleteBody;
+
+  /// No description provided for @mapOfflineDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline street map deleted'**
+  String get mapOfflineDeleted;
+
+  /// No description provided for @mapOfflineDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Street map saved for offline use'**
+  String get mapOfflineDone;
+
+  /// No description provided for @mapOfflineUnreachable.
+  ///
+  /// In en, this message translates to:
+  /// **'Can\'t reach the Resilience Node. Join its Wi-Fi, then try again.'**
+  String get mapOfflineUnreachable;
+
+  /// No description provided for @mapOfflineNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'The Resilience Node has no street map for this area yet.'**
+  String get mapOfflineNotFound;
+
+  /// No description provided for @mapOfflineNotAMap.
+  ///
+  /// In en, this message translates to:
+  /// **'That download isn\'t a street map this app can read.'**
+  String get mapOfflineNotAMap;
+
+  /// No description provided for @mapOfflineStorage.
+  ///
+  /// In en, this message translates to:
+  /// **'This phone couldn\'t save the map. Free up some space, then try again.'**
+  String get mapOfflineStorage;
+
+  /// No description provided for @mapCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get mapCancel;
 }
 
 class _AppLocalizationsDelegate

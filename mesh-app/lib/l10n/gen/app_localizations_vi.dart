@@ -1719,4 +1719,127 @@ class AppLocalizationsVi extends AppLocalizations {
   @override
   String get privacyLocationBody =>
       'Vị trí của bạn ở lại trên điện thoại này. Vị trí chỉ được chia sẻ khi bạn đang chở một chuyến giao hàng, để người đang chờ thấy bạn đến, và sẽ ngừng khi chuyến giao kết thúc. Yêu cầu giúp đỡ hoặc SOS chỉ kèm theo địa điểm bạn đã chọn gửi.';
+
+  @override
+  String get mapAddHere => 'Thêm ở đây';
+
+  @override
+  String get mapAddHint =>
+      'Chạm Thêm ở đây, hoặc giữ ngón tay trên bản đồ, để thêm nước, thức ăn, chỗ trú hoặc sự cố bạn thấy.';
+
+  @override
+  String get mapAddEmpty =>
+      'Chạm để thêm nước, thức ăn, chỗ trú hoặc sự cố bạn thấy.';
+
+  @override
+  String get mapSetLocation => 'Đặt vị trí của tôi';
+
+  @override
+  String get mapSetLocationSub =>
+      'Khi GPS không tìm thấy bạn, kéo bản đồ tới chỗ bạn đang ở.';
+
+  @override
+  String get mapSetLocationTitle => 'Bạn đang ở đâu?';
+
+  @override
+  String get mapSetLocationHint =>
+      'Kéo bản đồ cho tới khi ghim nằm đúng chỗ bạn đang ở.';
+
+  @override
+  String get mapLocationNote => 'Ở đây là đâu? (không bắt buộc)';
+
+  @override
+  String get mapLocationNoteHint => 'Ví dụ: thư viện, tầng 2';
+
+  @override
+  String get mapUseLocation => 'Dùng vị trí này';
+
+  @override
+  String get mapLocationSaved => 'Đã đặt vị trí của bạn';
+
+  @override
+  String get mapSetByYou => 'Do bạn đặt';
+
+  @override
+  String mapSetByYouNamed(String label) {
+    return 'Do bạn đặt: $label';
+  }
+
+  @override
+  String get mapYouAreHere => 'Bạn đang ở đây';
+
+  @override
+  String get mapOpenDownloads => 'Mở mục Tải về để dùng khi mất mạng';
+
+  @override
+  String get mapOfflineTitle => 'Bản đồ đường phố khi mất mạng';
+
+  @override
+  String get mapOsmCredit => '© Những người đóng góp OpenStreetMap';
+
+  @override
+  String get mapOfflineAbout =>
+      'Đường phố để tìm đường khi không có internet. Hãy tải về trước từ một trạm Resilience qua Wi-Fi tại chỗ.';
+
+  @override
+  String get mapOfflineDownload => 'Tải bản đồ đường phố';
+
+  @override
+  String mapOfflineMegabytes(String size) {
+    return '$size MB';
+  }
+
+  @override
+  String mapOfflineOnPhone(String size, String time) {
+    return '$size trên điện thoại này. Đã tải $time';
+  }
+
+  @override
+  String mapOfflineProgress(String done, String total) {
+    return '$done trên $total';
+  }
+
+  @override
+  String get mapOfflineCancel => 'Dừng tải';
+
+  @override
+  String get mapOfflineUpdate => 'Cập nhật';
+
+  @override
+  String get mapOfflineNewer => 'Trạm Resilience có bản đồ đường phố mới hơn.';
+
+  @override
+  String get mapOfflineDelete => 'Xóa';
+
+  @override
+  String get mapOfflineDeleteTitle => 'Xóa bản đồ đường phố khi mất mạng?';
+
+  @override
+  String get mapOfflineDeleteBody =>
+      'Không có nó, đường phố chỉ hiện khi có internet. Bạn có thể tải lại.';
+
+  @override
+  String get mapOfflineDeleted => 'Đã xóa bản đồ đường phố khi mất mạng';
+
+  @override
+  String get mapOfflineDone => 'Đã lưu bản đồ đường phố để dùng khi mất mạng';
+
+  @override
+  String get mapOfflineUnreachable =>
+      'Không kết nối được trạm Resilience. Hãy vào Wi-Fi của trạm rồi thử lại.';
+
+  @override
+  String get mapOfflineNotFound =>
+      'Trạm Resilience chưa có bản đồ đường phố cho khu vực này.';
+
+  @override
+  String get mapOfflineNotAMap =>
+      'Tệp vừa tải không phải bản đồ đường phố mà ứng dụng đọc được.';
+
+  @override
+  String get mapOfflineStorage =>
+      'Điện thoại không lưu được bản đồ. Hãy giải phóng dung lượng rồi thử lại.';
+
+  @override
+  String get mapCancel => 'Hủy';
 }
