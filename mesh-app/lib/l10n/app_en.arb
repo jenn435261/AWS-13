@@ -863,5 +863,7 @@
   "mapSourceNote": "Needs internet. Pins, radios and requests still show when the street map can't load.",
   "mapNotSetUp": "Street map not set up",
   "mapOffline": "Street map needs internet",
-  "mapLoading": "Loading street map"
+  "mapLoading": "Loading street map",
+  "missionNotFound": "This delivery is no longer available.",
+  "resourceNotFound": "This place is no longer on the map."
 }

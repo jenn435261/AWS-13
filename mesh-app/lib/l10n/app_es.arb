@@ -457,5 +457,7 @@
   "mapSourceNote": "Necesita internet. Los marcadores, radios y solicitudes se siguen viendo cuando el mapa de calles no carga.",
   "mapNotSetUp": "Mapa de calles sin configurar",
   "mapOffline": "El mapa de calles necesita internet",
-  "mapLoading": "Cargando mapa de calles"
+  "mapLoading": "Cargando mapa de calles",
+  "missionNotFound": "Esta entrega ya no está disponible.",
+  "resourceNotFound": "Este lugar ya no está en el mapa."
 }

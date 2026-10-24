@@ -36,6 +36,10 @@ class NetworkStatus {
   /// Items waiting on this phone for a route.
   final int queued;
 
+  /// Something can carry data off this phone: internet, a node, LoRa or a
+  /// nearby phone. With none, messages and requests wait on the phone.
+  bool get hasRoute => internet || node || lora || peers > 0;
+
   NetworkStatus copyWith({bool? internet, int? queued, DateTime? lastSync}) =>
       NetworkStatus(
         internet: internet ?? this.internet,

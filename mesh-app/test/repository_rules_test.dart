@@ -5,6 +5,7 @@ import 'package:mesh_app/data/mock_mesh_repository.dart';
 import 'package:mesh_app/models/event.dart';
 import 'package:mesh_app/models/help.dart';
 import 'package:mesh_app/models/mesh_message.dart';
+import 'package:mesh_app/models/mission.dart';
 import 'package:mesh_app/models/network.dart';
 import 'package:mesh_app/models/resource.dart';
 import 'package:mesh_app/state/auth_controller.dart';
@@ -125,6 +126,33 @@ void main() {
       expect(resource(confirmations: 3, disputes: 1).confidence, Confidence.low);
       expect(resource(confirmations: 10).confidence, Confidence.high);
       expect(resource().confidence, Confidence.unconfirmed);
+    });
+  });
+
+  group('location', () {
+    test('a typed location replaces a missing fix and says it was typed', () async {
+      final r = await repo();
+      await r.setManualLocation(const LatLng(37.33, -121.88), label: ' Library, 2nd floor ');
+      final fix = r.location.value!;
+      expect((fix.source, fix.label), (LocationSource.manual, 'Library, 2nd floor'));
+    });
+
+    test('location is shared only while carrying a delivery', () async {
+      final r = await repo();
+      expect(r.sharingLocation.value, isFalse);
+      await r.acceptMission('2193', carrier: me);
+      expect(r.sharingLocation.value, isTrue);
+      await r.advanceMission('2193');
+      await r.advanceMission('2193');
+      expect(r.missions.value.firstWhere((m) => m.id == '2193').stage, MissionStage.delivered);
+      expect(r.sharingLocation.value, isFalse);
+    });
+
+    test('released deliveries stop sharing at once', () async {
+      final r = await repo();
+      await r.acceptMission('2193', carrier: me);
+      await r.releaseMission('2193');
+      expect(r.sharingLocation.value, isFalse);
     });
   });
 }

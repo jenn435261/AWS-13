@@ -1605,4 +1605,10 @@ class AppLocalizationsTl extends AppLocalizations {
 
   @override
   String get mapLoading => 'Nilo-load ang mapa ng kalye';
+
+  @override
+  String get missionNotFound => 'Wala na ang paghahatid na ito.';
+
+  @override
+  String get resourceNotFound => 'Wala na sa mapa ang lugar na ito.';
 }

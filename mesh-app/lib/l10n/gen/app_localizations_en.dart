@@ -1594,4 +1594,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mapLoading => 'Loading street map';
+
+  @override
+  String get missionNotFound => 'This delivery is no longer available.';
+
+  @override
+  String get resourceNotFound => 'This place is no longer on the map.';
 }

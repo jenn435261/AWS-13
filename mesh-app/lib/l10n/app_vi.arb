@@ -457,5 +457,7 @@
   "mapSourceNote": "Cần internet. Ghim, radio và yêu cầu vẫn hiện khi bản đồ đường phố không tải được.",
   "mapNotSetUp": "Chưa thiết lập bản đồ đường phố",
   "mapOffline": "Bản đồ đường phố cần internet",
-  "mapLoading": "Đang tải bản đồ đường phố"
+  "mapLoading": "Đang tải bản đồ đường phố",
+  "missionNotFound": "Chuyến giao hàng này không còn nữa.",
+  "resourceNotFound": "Địa điểm này không còn trên bản đồ."
 }

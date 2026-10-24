@@ -1579,4 +1579,10 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get mapLoading => 'Đang tải bản đồ đường phố';
+
+  @override
+  String get missionNotFound => 'Chuyến giao hàng này không còn nữa.';
+
+  @override
+  String get resourceNotFound => 'Địa điểm này không còn trên bản đồ.';
 }

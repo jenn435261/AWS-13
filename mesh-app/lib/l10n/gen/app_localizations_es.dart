@@ -1603,4 +1603,10 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get mapLoading => 'Cargando mapa de calles';
+
+  @override
+  String get missionNotFound => 'Esta entrega ya no está disponible.';
+
+  @override
+  String get resourceNotFound => 'Este lugar ya no está en el mapa.';
 }

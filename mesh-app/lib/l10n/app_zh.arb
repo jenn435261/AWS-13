@@ -457,5 +457,7 @@
   "mapSourceNote": "需要联网。街道地图无法加载时，标记、电台和求助仍会显示。",
   "mapNotSetUp": "街道地图尚未设置",
   "mapOffline": "街道地图需要联网",
-  "mapLoading": "正在加载街道地图"
+  "mapLoading": "正在加载街道地图",
+  "missionNotFound": "这个配送已不存在。",
+  "resourceNotFound": "这个地点已不在地图上。"
 }

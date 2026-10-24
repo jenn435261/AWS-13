@@ -190,9 +190,30 @@ class HelpOffer {
 }
 
 /// The phone's position. [accuracyMeters] is the radius it could be off by.
+/// Where a location fix came from.
+enum LocationSource {
+  /// The phone's GPS.
+  device,
+
+  /// Typed or dropped on the map by the person, when GPS can't help.
+  manual,
+
+  /// The fixed point the demo data is built around.
+  demo,
+}
+
 class LocationFix {
-  const LocationFix(this.point, this.accuracyMeters);
+  const LocationFix(
+    this.point,
+    this.accuracyMeters, {
+    this.source = LocationSource.device,
+    this.label = '',
+  });
 
   final LatLng point;
   final double accuracyMeters;
+  final LocationSource source;
+
+  /// What the person typed for a manual location, e.g. "Library, 2nd floor".
+  final String label;
 }

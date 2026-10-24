@@ -29,6 +29,7 @@ class MockMeshRepository implements MeshRepository {
     this.loadDelay = const Duration(milliseconds: 900),
     this.stageDelay = const Duration(seconds: 1),
   }) {
+    _missions.addListener(_updateSharing);
     _load();
     if (simulateTraffic) {
       _timer = Timer.periodic(const Duration(seconds: 15), (_) => _tick());
@@ -49,6 +50,7 @@ class MockMeshRepository implements MeshRepository {
   final _loading = ValueNotifier(true);
   final _network = ValueNotifier(_offlineStart());
   final _location = ValueNotifier<LocationFix?>(null);
+  final _sharingLocation = ValueNotifier(false);
   final _nodes = ValueNotifier<List<MeshNode>>(const []);
   final _users = ValueNotifier<List<AppUser>>(const []);
   final _requests = ValueNotifier<List<HelpRequest>>(const []);
@@ -77,6 +79,9 @@ class MockMeshRepository implements MeshRepository {
   ValueListenable<NetworkStatus> get network => _network;
   @override
   ValueListenable<LocationFix?> get location => _location;
+
+  @override
+  ValueListenable<bool> get sharingLocation => _sharingLocation;
   @override
   ValueListenable<List<MeshNode>> get nodes => _nodes;
   @override
@@ -131,10 +136,7 @@ class MockMeshRepository implements MeshRepository {
   LatLng _at(double north, double east) =>
       offsetMeters(demoCenter, north, east);
 
-  bool get _hasRoute {
-    final n = _network.value;
-    return n.internet || n.node || n.lora || n.peers > 0;
-  }
+  bool get _hasRoute => _network.value.hasRoute;
 
   /// Loads every kind of data at the same time, never one after another.
   Future<void> _load() async {
@@ -156,7 +158,8 @@ class MockMeshRepository implements MeshRepository {
     if (!_disposed) seed();
   }
 
-  void _seedLocation() => _location.value = LocationFix(_at(-90, -60), 25);
+  void _seedLocation() => _location.value =
+      LocationFix(_at(-90, -60), 25, source: LocationSource.demo);
 
   void _seedNodes() {
     final now = DateTime.now();
@@ -565,6 +568,24 @@ class MockMeshRepository implements MeshRepository {
       _requests.value = [request, ..._requests.value];
       _notices.add(NearbyRequestNotice(request));
     }
+  }
+
+  /// Location leaves the phone only while it carries a delivery.
+  void _updateSharing() => _sharingLocation.value = _missions.value.any(
+        (m) =>
+            m.carrierIsMe &&
+            m.stage != MissionStage.available &&
+            m.stage != MissionStage.delivered,
+      );
+
+  @override
+  Future<void> setManualLocation(LatLng point, {String label = ''}) async {
+    _location.value = LocationFix(
+      point,
+      50,
+      source: LocationSource.manual,
+      label: label.trim(),
+    );
   }
 
   /// Lets tests start from any mix of routes, e.g. no route at all.

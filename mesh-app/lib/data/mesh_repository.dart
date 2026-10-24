@@ -72,6 +72,10 @@ abstract class MeshRepository {
   /// Null when the phone has no location fix.
   ValueListenable<LocationFix?> get location;
 
+  /// True only while this phone is carrying a delivery: the only time its
+  /// location is shared.
+  ValueListenable<bool> get sharingLocation;
+
   ValueListenable<List<MeshNode>> get nodes;
 
   /// Only meaningful for admins; the backend should refuse it for anyone else.
@@ -167,6 +171,9 @@ abstract class MeshRepository {
 
   /// Downloads the readiness package from the cloud or a Resilience Node.
   Future<void> downloadReadiness();
+
+  /// Sets where this phone is when GPS can't: typed, or dropped on the map.
+  Future<void> setManualLocation(LatLng point, {String label = ''});
 
   /// DEMO: lets the preview show both offline and online behavior.
   void setInternet(bool on);

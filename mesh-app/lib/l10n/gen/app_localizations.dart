@@ -2851,6 +2851,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Loading street map'**
   String get mapLoading;
+
+  /// No description provided for @missionNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'This delivery is no longer available.'**
+  String get missionNotFound;
+
+  /// No description provided for @resourceNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'This place is no longer on the map.'**
+  String get resourceNotFound;
 }
 
 class _AppLocalizationsDelegate

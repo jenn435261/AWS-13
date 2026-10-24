@@ -1559,4 +1559,10 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get mapLoading => '正在加载街道地图';
+
+  @override
+  String get missionNotFound => '这个配送已不存在。';
+
+  @override
+  String get resourceNotFound => '这个地点已不在地图上。';
 }
