@@ -67,6 +67,10 @@ dependencies:
   # Networking (cloud transport)
   http: ^1.2.2
 
+  # Browser APIs (web-only online/offline events). Pure interop, web-safe; the
+  # native build never imports the web online detector (conditional import).
+  web: ^1.1.0
+
   # Secure storage for private keys (OS keystore / keychain)
   flutter_secure_storage: ^9.2.2
 

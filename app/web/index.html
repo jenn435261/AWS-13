@@ -42,5 +42,22 @@
     * https://docs.flutter.dev/platform-integration/web/initialization
   -->
   <script src="flutter_bootstrap.js" async></script>
+
+  <!--
+    Register the hand-written offline app-shell service worker (web/sw.js).
+    Flutter's own flutter_service_worker.js now unregisters itself and caches
+    nothing, so this provides the offline cold start: the shell (incl.
+    sqlite3.wasm + drift_worker.js for the local Drift DB) is cached cache-first
+    and app-config.json is network-first with a cache fallback.
+  -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('sw.js').catch(function (e) {
+          console.warn('Offline shell service worker registration failed:', e);
+        });
+      });
+    }
+  </script>
 </body>
 </html>
