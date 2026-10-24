@@ -250,6 +250,35 @@ class MessagingService {
   Future<Uint8List> fetchAttachment(Attachment a) =>
       MessageFlow.fetchAttachment(blob: blob, attachment: a);
 
+  /// An OUTBOUND 1:1 [SecureSession] toward [contactPubkey], establishing it
+  /// from the contact's published prekey bundle if one is not already present.
+  /// Returns null when the contact has not published a bundle yet (so a caller
+  /// can show an honest "cannot reach this contact" state instead of failing).
+  ///
+  /// Used by location sharing to E2E-encrypt the precise point to a chosen
+  /// contact, reusing the same durable Signal store and session as messaging.
+  Future<SecureSession?> outboundSessionFor(List<int> contactPubkey) async {
+    final signal = await _signalStore();
+    final remote = SignalProtocolAddress(_addrName(contactPubkey), 1);
+    if (!await signal.containsSession(remote)) {
+      final body = await _latestBundleBody(contactPubkey);
+      if (body == null) return null;
+      final bundle = SignalKeys.preKeyBundleFromBody(body);
+      final builder = SessionBuilder.fromSignalStore(signal, remote);
+      await builder.processPreKeyBundle(bundle);
+    }
+    return SecureSessionForAddress(signal, remote).session;
+  }
+
+  /// An INBOUND 1:1 [SecureSession] from [sharerPubkey] over our durable store,
+  /// used to decrypt a location share addressed to us. The first inbound
+  /// ciphertext completes the X3DH handshake automatically.
+  Future<SecureSession> inboundSessionFrom(List<int> sharerPubkey) async {
+    final signal = await _signalStore();
+    final remote = SignalProtocolAddress(_addrName(sharerPubkey), 1);
+    return SecureSessionForAddress(signal, remote).session;
+  }
+
   /// Record what we composed so the outbound bubble shows real content (we
   /// cannot decrypt our own ratchet ciphertext). Persisted locally only.
   Future<void> mirrorSent(String messageId, MessagePayload payload) async {

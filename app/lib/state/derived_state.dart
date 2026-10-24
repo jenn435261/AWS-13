@@ -156,6 +156,70 @@ class EmergencyAlertView {
       {required this.alertId, required this.author, required this.body});
 }
 
+/// A folded, still-active location share.
+///
+/// This is the fold's privacy-preserving projection of a `LOCATION_SHARE`: it
+/// carries only routing/visibility metadata (author, scope, expiry) and the
+/// OPAQUE `encryptedPoint`/coarse `publicPoint` exactly as they rode on the
+/// wire. The fold NEVER decrypts and NEVER logs a coordinate; resolving the
+/// precise point for an authorized viewer happens later in
+/// `ActiveShares.incomingFor` using that viewer's Signal sessions.
+///
+/// A share is present here only while it is active: `now < expiresMs` AND no
+/// `LOCATION_STOP` by the same author has superseded it (a stop for its
+/// `shareId`, or an author-wide stop with an empty `shareId`). Only the sharer
+/// (the event author) can stop or expire their own share — a `LOCATION_STOP`
+/// from anyone else is ignored because stops are folded per-author.
+class LocationShareView {
+  /// The sharer's (author) 32-byte Ed25519 public key.
+  final Uint8List author;
+
+  /// The share id, unique per author.
+  final String shareId;
+
+  /// The audience scope: `contact:<pubkeyhex>`, `channel:<id>`, or `public`.
+  final String scope;
+
+  /// Epoch millis at which this share self-expires.
+  final int expiresMs;
+
+  /// Opaque ciphertext of the precise point for contact/channel scopes (empty
+  /// for public beacons). The fold treats this as bytes and never decrypts it.
+  final Uint8List encryptedPoint;
+
+  /// The coarse, clear point for a public beacon (unset for contact/channel).
+  final GeoPoint? publicPoint;
+
+  /// Free-text note attached to the share (may be empty).
+  final String note;
+
+  /// Monotonic per-share sequence (latest wins when folding re-shares).
+  final int seq;
+
+  const LocationShareView({
+    required this.author,
+    required this.shareId,
+    required this.scope,
+    required this.expiresMs,
+    required this.encryptedPoint,
+    required this.publicPoint,
+    required this.note,
+    required this.seq,
+  });
+
+  /// True when this share's audience is the single contact [viewerHex]
+  /// (lowercase pubkey hex), i.e. `scope == 'contact:<viewerHex>'`.
+  bool isAddressedToContact(String viewerHex) =>
+      scope == 'contact:$viewerHex';
+
+  /// True when this share is a public beacon anyone may see.
+  bool get isPublic => scope == 'public';
+
+  /// True when this share targets the channel [channelId]
+  /// (`scope == 'channel:<channelId>'`).
+  bool isForChannel(String channelId) => scope == 'channel:$channelId';
+}
+
 /// A pure in-memory projection of the event log into queryable application
 /// state. It folds ALL events into resources, observations, help flows,
 /// shelters and alerts, and attaches a [TrustProfile] to each resource.
@@ -175,6 +239,10 @@ class WorldState {
   final List<TransportOfferView> transportOffers = <TransportOfferView>[];
   final List<ResourceView> shelters = <ResourceView>[];
   final List<EmergencyAlertView> emergencyAlerts = <EmergencyAlertView>[];
+
+  /// Active (non-expired, non-stopped) location shares across all authors.
+  /// Use [locationSharesVisibleTo] to filter to shares this device may see.
+  final List<LocationShareView> locationShares = <LocationShareView>[];
 
   // Raw folded log, retained so trust profiles (which scan the log) and
   // incremental updates can be recomputed consistently.
@@ -215,6 +283,7 @@ class WorldState {
     transportOffers.clear();
     shelters.clear();
     emergencyAlerts.clear();
+    locationShares.clear();
 
     final int now = clock();
     final TrustEngine engine =
@@ -230,6 +299,12 @@ class WorldState {
         <String, List<ReservationView>>{};
     final Map<String, List<ObservationView>> observations =
         <String, List<ObservationView>>{};
+
+    // Location sharing: latest share per (author, shareId) and per-author stop
+    // state. Stops are folded per-author so ONLY the sharer can revoke/expire
+    // their own share (an abuse rule enforced here, not by convention).
+    final Map<String, _ShareFold> shareByKey = <String, _ShareFold>{};
+    final Map<String, _StopFold> stopByAuthor = <String, _StopFold>{};
 
     for (final SignedEvent e in _log) {
       final EventHeader h = e.header;
@@ -358,6 +433,40 @@ class WorldState {
               alertId: body.alertId, author: author, body: body));
           break;
 
+        case EventType.EVENT_TYPE_LOCATION_SHARE:
+          final LocationShareBody body = _locationShare(e);
+          if (body.shareId.isEmpty) break;
+          final String authorHex = _hexOf(author);
+          final String key = '$authorHex/${body.shareId}';
+          final int seq = body.seq.toInt();
+          final int lamport = h.lamport.toInt();
+          final _ShareFold? prev = shareByKey[key];
+          // Latest re-share wins: higher seq, then higher lamport.
+          if (prev == null ||
+              seq > prev.seq ||
+              (seq == prev.seq && lamport > prev.lamport)) {
+            shareByKey[key] = _ShareFold(
+              author: author,
+              body: body,
+              seq: seq,
+              lamport: lamport,
+            );
+          }
+          break;
+
+        case EventType.EVENT_TYPE_LOCATION_STOP:
+          final LocationStopBody stop = _locationStop(e);
+          // Folded under the AUTHOR: a stop only affects that author's own
+          // shares, so a non-owner can never revoke someone else's share.
+          final _StopFold state =
+              stopByAuthor.putIfAbsent(_hexOf(author), () => _StopFold());
+          if (stop.shareId.isEmpty) {
+            state.stopAll = true;
+          } else {
+            state.stoppedIds.add(stop.shareId);
+          }
+          break;
+
         default:
           break;
       }
@@ -389,6 +498,53 @@ class WorldState {
         shelters.add(view);
       }
     }
+
+    // Materialize the still-active location shares. A share survives only while
+    // it has not expired AND the author has not stopped it (per-share or an
+    // author-wide stop). The fold carries ciphertext opaquely; it never
+    // decrypts or logs a coordinate.
+    for (final _ShareFold rec in shareByKey.values) {
+      final LocationShareBody body = rec.body;
+      final int expiresMs = body.expiresMs.toInt();
+      if (expiresMs <= now) continue; // self-expiry
+      final _StopFold? stop = stopByAuthor[_hexOf(rec.author)];
+      if (stop != null &&
+          (stop.stopAll || stop.stoppedIds.contains(body.shareId))) {
+        continue; // revoked by the sharer
+      }
+      locationShares.add(LocationShareView(
+        author: rec.author,
+        shareId: body.shareId,
+        scope: body.scope,
+        expiresMs: expiresMs,
+        encryptedPoint: Uint8List.fromList(body.encryptedPoint),
+        publicPoint: body.hasPublicPoint() ? body.publicPoint : null,
+        note: body.note,
+        seq: rec.seq,
+      ));
+    }
+    locationShares.sort((a, b) => b.seq.compareTo(a.seq));
+  }
+
+  /// Active location shares this device is the audience for: shares addressed
+  /// to [viewerPubkey] as a `contact:<hex>`, public beacons, and any channel in
+  /// [channelIds]. A non-audience contact never appears here, so the UI can
+  /// never surface a share (or attempt to decrypt a coordinate) it was not
+  /// addressed to.
+  List<LocationShareView> locationSharesVisibleTo(
+    List<int> viewerPubkey, {
+    Set<String> channelIds = const <String>{},
+    bool includePublic = true,
+  }) {
+    final String viewerHex = _hexOf(viewerPubkey);
+    return locationShares.where((LocationShareView s) {
+      if (s.isAddressedToContact(viewerHex)) return true;
+      if (includePublic && s.isPublic) return true;
+      if (s.scope.startsWith('channel:')) {
+        return channelIds.contains(s.scope.substring('channel:'.length));
+      }
+      return false;
+    }).toList(growable: false);
   }
 
   /// Whether [key] is a verified organization member under the trust roots this
@@ -499,6 +655,30 @@ class WorldState {
     }
   }
 
+  LocationShareBody _locationShare(SignedEvent e) {
+    try {
+      return LocationShareBody.fromBuffer(e.body);
+    } catch (_) {
+      return LocationShareBody();
+    }
+  }
+
+  LocationStopBody _locationStop(SignedEvent e) {
+    try {
+      return LocationStopBody.fromBuffer(e.body);
+    } catch (_) {
+      return LocationStopBody();
+    }
+  }
+
+  static String _hexOf(List<int> bytes) {
+    final StringBuffer sb = StringBuffer();
+    for (final int b in bytes) {
+      sb.write(b.toRadixString(16).padLeft(2, '0'));
+    }
+    return sb.toString();
+  }
+
   ObservationBody_Kind _kindFor(EventType type, ObservationBody body) {
     switch (type) {
       case EventType.EVENT_TYPE_RESOURCE_CONFIRMED:
@@ -513,4 +693,25 @@ class WorldState {
         return ObservationBody_Kind.KIND_UNSPECIFIED;
     }
   }
+}
+
+/// Fold accumulator for the latest `LOCATION_SHARE` per (author, shareId).
+class _ShareFold {
+  _ShareFold({
+    required this.author,
+    required this.body,
+    required this.seq,
+    required this.lamport,
+  });
+
+  final Uint8List author;
+  final LocationShareBody body;
+  final int seq;
+  final int lamport;
+}
+
+/// Fold accumulator for an author's `LOCATION_STOP` state.
+class _StopFold {
+  bool stopAll = false;
+  final Set<String> stoppedIds = <String>{};
 }

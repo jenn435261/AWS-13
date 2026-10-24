@@ -11,6 +11,7 @@ import 'package:resilience/location/location_share.dart';
 import 'package:resilience/location/location_state.dart';
 import 'package:resilience/messaging/secure_session.dart';
 import 'package:resilience/messaging/signal_keys.dart';
+import 'package:resilience/state/derived_state.dart';
 
 String hex(List<int> bytes) {
   final StringBuffer sb = StringBuffer();
@@ -236,6 +237,134 @@ void main() {
       final List<IncomingShare> carolIncoming =
           await view.incomingFor(carolSessions);
       expect(carolIncoming, isEmpty);
+    });
+  });
+
+  // The WorldState fold is the authoritative read-model the UI uses. These
+  // tests drive the fold's active-shares view (and its injected clock) exactly
+  // as the map/list do: A shares with B for 15m, B sees A; A stops -> gone;
+  // the share self-expires once the clock passes expiresMs; a non-audience
+  // contact C never sees it and can never obtain the plaintext coordinate.
+  group('WorldState location fold (A->B)', () {
+    // Author events at a fixed wall clock so expiresMs is deterministic.
+    final DateTime shareAt = DateTime.utc(2024, 1, 1, 12);
+    final int shareAtMs = shareAt.millisecondsSinceEpoch;
+    final int fifteenMinMs = const Duration(minutes: 15).inMilliseconds;
+
+    Future<SignedEvent> buildShare({
+      required SecureSession outbound,
+      String shareId = 'A1',
+    }) async {
+      final sharer = LocationSharer(
+        selfKeyPair: aliceKp,
+        clock: LamportClock(),
+        now: () => shareAt,
+      );
+      return sharer.shareWithContact(
+        RecipientIdentity(pubkey: bobKp.publicKey, session: outbound),
+        exactPoint(),
+        ttl: const Duration(minutes: 15),
+        note: 'at the north plaza',
+        shareId: shareId,
+      );
+    }
+
+    test('A shares with B for 15m: B sees it, C (non-audience) does not',
+        () async {
+      final sessions = await pairAliceToBob();
+      final SignedEvent share = await buildShare(outbound: sessions.outbound);
+
+      // Fold with the clock just after the share was authored (still active).
+      final WorldState world =
+          WorldState(clock: () => shareAtMs + 1000);
+      world.rebuildFromEvents([share]);
+
+      expect(world.locationShares, hasLength(1));
+      expect(world.locationShares.first.scope,
+          'contact:${hex(bobKp.publicKey)}');
+
+      // B is the audience.
+      final bobVisible =
+          world.locationSharesVisibleTo(bobKp.publicKey);
+      expect(bobVisible, hasLength(1));
+      expect(bobVisible.first.shareId, 'A1');
+
+      // C is NOT the audience: the fold never surfaces the share to her.
+      final carolVisible =
+          world.locationSharesVisibleTo(carolKp.publicKey);
+      expect(carolVisible, isEmpty);
+
+      // Even holding Alice's own share ciphertext, C cannot decrypt it: no
+      // plaintext coordinate can leak to a non-audience contact.
+      final carolPair = await pairAliceToBob(bobName: 'carol');
+      await expectLater(
+        carolPair.inbound.decrypt(
+            Uint8List.fromList(world.locationShares.first.encryptedPoint)),
+        throwsA(isA<Object>()),
+      );
+
+      // B, the audience, decrypts the exact point via the sharer's session.
+      final clear = await sessions.inbound
+          .decrypt(Uint8List.fromList(world.locationShares.first.encryptedPoint));
+      final got = GeoPoint.fromBuffer(clear);
+      expect(got.exactLat, closeTo(37.335480, 1e-9));
+      expect(got.exactLon, closeTo(-121.885790, 1e-9));
+    });
+
+    test('A stops: the share disappears from the fold', () async {
+      final sessions = await pairAliceToBob();
+      final SignedEvent share = await buildShare(outbound: sessions.outbound);
+      final SignedEvent stop = await LocationSharer(
+        selfKeyPair: aliceKp,
+        clock: LamportClock(),
+        now: () => shareAt,
+      ).stop(shareId: 'A1');
+
+      final WorldState world =
+          WorldState(clock: () => shareAtMs + 1000);
+      world.rebuildFromEvents([share, stop]);
+
+      expect(world.locationShares, isEmpty);
+      expect(world.locationSharesVisibleTo(bobKp.publicKey), isEmpty);
+    });
+
+    test('expiry without a stop: the share disappears once the clock passes '
+        'expiresMs', () async {
+      final sessions = await pairAliceToBob();
+      final SignedEvent share = await buildShare(outbound: sessions.outbound);
+
+      // Active while now < expiresMs.
+      final WorldState active =
+          WorldState(clock: () => shareAtMs + fifteenMinMs - 1000);
+      active.rebuildFromEvents([share]);
+      expect(active.locationSharesVisibleTo(bobKp.publicKey), hasLength(1));
+
+      // Advance the injected clock PAST expiresMs: gone, no stop needed.
+      final WorldState expired =
+          WorldState(clock: () => shareAtMs + fifteenMinMs + 1000);
+      expired.rebuildFromEvents([share]);
+      expect(expired.locationShares, isEmpty);
+      expect(expired.locationSharesVisibleTo(bobKp.publicKey), isEmpty);
+    });
+
+    test('abuse: C cannot stop A\'s share (only the sharer can revoke)',
+        () async {
+      final sessions = await pairAliceToBob();
+      final SignedEvent share = await buildShare(outbound: sessions.outbound);
+      // Carol forges a LOCATION_STOP for Alice's shareId. Because stops fold
+      // per-author, Carol's stop only affects Carol's (nonexistent) shares.
+      final SignedEvent carolStop = await LocationSharer(
+        selfKeyPair: carolKp,
+        clock: LamportClock(),
+        now: () => shareAt,
+      ).stop(shareId: 'A1');
+
+      final WorldState world =
+          WorldState(clock: () => shareAtMs + 1000);
+      world.rebuildFromEvents([share, carolStop]);
+
+      // Alice's share is still active and still visible to B.
+      expect(world.locationSharesVisibleTo(bobKp.publicKey), hasLength(1));
     });
   });
 }

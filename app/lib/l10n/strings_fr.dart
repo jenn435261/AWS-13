@@ -331,4 +331,17 @@ const Map<String, String> kStringsFr = {
   'attach_photo': 'Envoyer une photo',
   'hold_to_record': 'Maintenez pour enregistrer une note vocale',
   'mic_unavailable': 'Microphone indisponible. Vérifiez les autorisations.',
+  // Partage de position (FEAT-004)
+  'share_choose_contacts': 'Choisissez avec qui partager',
+  'share_no_contacts_hint': "Ajoutez d'abord un contact pour partager votre position en privé avec lui.",
+  'share_pick_one': 'Choisissez au moins un contact avec qui partager.',
+  'share_not_delivered': "Aucun contact n'a pu être joint pour l'instant. Ils doivent se connecter une fois pour échanger les clés.",
+  'share_some_unreachable': "Partagé. Certains contacts n'ont pas encore pu être joints.",
+  'people_sharing_with_you': 'Personnes qui partagent avec vous',
+  'no_one_sharing': 'Personne ne partage sa position avec vous pour le moment.',
+  'shared_as_exact': 'Partagé comme votre position exacte',
+  'shared_as_approx': 'Partagé comme zone approximative (~110 m)',
+  'share_expires_label': 'expire',
+  'share_now': 'Partager maintenant',
+  'sharing_count': 'en partage',
 };

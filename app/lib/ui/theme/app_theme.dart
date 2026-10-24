@@ -25,6 +25,11 @@ class AppTheme {
   static const Color verified = Color(0xFF1B7F3B);
   static const Color communityAccent = Color(0xFF6B4EFF);
 
+  /// People actively sharing their location WITH this device — a distinct
+  /// teal so these markers never read as supplies (blue/green) or requests
+  /// (red).
+  static const Color sharing = Color(0xFF00897B);
+
   static ThemeData light() => _build(Brightness.light);
   static ThemeData dark() => _build(Brightness.dark);
 

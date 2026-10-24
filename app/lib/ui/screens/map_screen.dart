@@ -3,7 +3,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
+import '../../identity/identity_card.dart';
 import '../../l10n/strings.dart';
+import '../../location/location_providers.dart';
+import '../../location/location_state.dart';
 import '../../location/position_service.dart';
 import '../../state/derived_state.dart';
 import '../components/toast.dart';
@@ -87,6 +90,27 @@ class MapScreen extends ConsumerWidget {
       }
     }
 
+    // People sharing their location WITH this device (decrypted locally).
+    final incoming =
+        ref.watch(incomingSharesProvider).valueOrNull ?? const <IncomingShare>[];
+    final contacts = ref.watch(contactsProvider).valueOrNull;
+    for (final s in incoming) {
+      final pos = latLngOf(s.point);
+      if (pos == null) {
+        unplaced++;
+        continue;
+      }
+      final name = _sharerName(contacts, s.sharerPubkey);
+      markers.add(MapMarker(
+        id: 'share-${s.shareId}',
+        icon: Icons.person_pin_circle_rounded,
+        color: AppTheme.sharing,
+        position: pos,
+        label: name,
+        onTap: () => _shareSheet(context, l, s, name),
+      ));
+    }
+
     final alerts = w?.emergencyAlerts
             .where((a) =>
                 a.body.expiresMs == 0 ||
@@ -118,6 +142,19 @@ class MapScreen extends ConsumerWidget {
                         label: Text('$unplaced ${l.t('without_location')}'),
                       ),
                     ),
+                  if (incoming.isNotEmpty)
+                    Positioned(
+                      top: unplaced > 0 ? 52 : 8,
+                      left: 12,
+                      child: ActionChip(
+                        avatar: const Icon(Icons.person_pin_circle_rounded,
+                            size: 18, color: AppTheme.sharing),
+                        label: Text(
+                            '${incoming.length} ${l.t('sharing_count')}'),
+                        onPressed: () =>
+                            _sharingListSheet(context, l, incoming, contacts),
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -130,6 +167,128 @@ class MapScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  /// A display name for a sharer: their saved contact name, else a short id.
+  static String _sharerName(
+      List<IdentityCard>? contacts, List<int> pubkey) {
+    if (contacts != null) {
+      for (final c in contacts) {
+        if (_bytesEqual(c.signingPublicKey, pubkey)) return c.displayName;
+      }
+    }
+    final hex = _hex(pubkey);
+    return hex.length <= 10 ? hex : '${hex.substring(0, 10)}…';
+  }
+
+  static bool _bytesEqual(List<int> a, List<int> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+
+  static String _hex(List<int> bytes) {
+    final sb = StringBuffer();
+    for (final b in bytes) {
+      sb.write(b.toRadixString(16).padLeft(2, '0'));
+    }
+    return sb.toString();
+  }
+
+  void _shareSheet(
+      BuildContext context, L10n l, IncomingShare s, String name) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (_) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
+                const Icon(Icons.person_pin_circle_rounded,
+                    color: AppTheme.sharing),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(name,
+                      style: const TextStyle(
+                          fontFamily: 'Roboto',
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700)),
+                ),
+              ]),
+              const SizedBox(height: 8),
+              Text(
+                '${l.t('expires_in')} ${_fmtRemaining(s.freshness)}',
+                style: const TextStyle(fontFamily: 'Roboto', fontSize: 16),
+              ),
+              if (s.note.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text(s.note,
+                    style:
+                        const TextStyle(fontFamily: 'Roboto', fontSize: 16)),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _sharingListSheet(
+      BuildContext context, L10n l, List<IncomingShare> shares,
+      List<IdentityCard>? contacts) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (_) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(l.t('people_sharing_with_you'),
+                  style: const TextStyle(
+                      fontFamily: 'Roboto',
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700)),
+              const SizedBox(height: 8),
+              if (shares.isEmpty)
+                Text(l.t('no_one_sharing'),
+                    style:
+                        const TextStyle(fontFamily: 'Roboto', fontSize: 16))
+              else
+                for (final s in shares)
+                  ListTile(
+                    leading: const Icon(Icons.person_pin_circle_rounded,
+                        color: AppTheme.sharing),
+                    title: Text(_sharerName(contacts, s.sharerPubkey),
+                        style: const TextStyle(
+                            fontFamily: 'Roboto', fontSize: 16)),
+                    subtitle: Text(
+                        '${l.t('share_expires_label')} ${_fmtRemaining(s.freshness)}'
+                        '${s.note.isEmpty ? '' : ' · ${s.note}'}',
+                        style: const TextStyle(
+                            fontFamily: 'Roboto', fontSize: 14)),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  static String _fmtRemaining(Duration left) {
+    if (left.isNegative || left == Duration.zero) return '0m';
+    final m = left.inMinutes;
+    if (m >= 1440) return '${m ~/ 1440}d';
+    return m >= 60 ? '${m ~/ 60}h ${m % 60}m' : '${m}m';
   }
 
   void _requestSheet(BuildContext context, L10n l, HelpRequestView q) {

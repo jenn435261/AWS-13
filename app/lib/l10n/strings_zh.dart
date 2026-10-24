@@ -329,4 +329,17 @@ const Map<String, String> kStringsZh = {
   'attach_photo': '发送照片',
   'hold_to_record': '按住录制语音留言',
   'mic_unavailable': '麦克风不可用。请检查权限。',
+  // 位置共享 (FEAT-004)
+  'share_choose_contacts': '选择共享对象',
+  'share_no_contacts_hint': '请先添加联系人，才能私密地与其共享您的位置。',
+  'share_pick_one': '请至少选择一个共享联系人。',
+  'share_not_delivered': '暂时无法联系到任何联系人。他们需要上线一次以交换密钥。',
+  'share_some_unreachable': '已共享。部分联系人暂时无法联系到。',
+  'people_sharing_with_you': '正在与您共享位置的人',
+  'no_one_sharing': '目前没有人在与您共享位置。',
+  'shared_as_exact': '已按您的精确位置共享',
+  'shared_as_approx': '已按大致区域共享（约 110 米）',
+  'share_expires_label': '到期',
+  'share_now': '立即共享',
+  'sharing_count': '正在共享',
 };
