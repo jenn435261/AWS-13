@@ -11,6 +11,7 @@ import '../components/common.dart';
 import '../components/reveal_gate.dart';
 import '../components/toast.dart';
 import 'qr_scan_screen.dart';
+import 'qr_transfer_screen.dart';
 
 /// Contacts: people / organizations / verified. Contacts are public identity
 /// cards saved on this device. A single expandable "Add contact" button at the
@@ -264,6 +265,8 @@ class _AddContactMenuState extends ConsumerState<_AddContactMenu> {
           mini(Icons.qr_code_rounded, l.t('my_qr'), () => _showMyQr(context)),
           mini(Icons.qr_code_scanner_rounded, l.t('scan_qr'),
               () => _scan(context)),
+          mini(Icons.sync_alt_rounded, l.t('transfer_by_qr'),
+              () => _transferByQr(context)),
         ],
         FloatingActionButton.extended(
           heroTag: 'add_contact',
@@ -281,6 +284,11 @@ class _AddContactMenuState extends ConsumerState<_AddContactMenu> {
     if (code == null || !context.mounted) return;
     if (code == QrScanScreen.manualEntry) return _enterCode(context);
     await _addFromCode(context, code);
+  }
+
+  Future<void> _transferByQr(BuildContext context) async {
+    await Navigator.of(context).push<void>(
+        MaterialPageRoute(builder: (_) => const QrTransferScreen()));
   }
 
   Future<void> _showMyQr(BuildContext context) async {
