@@ -13,6 +13,8 @@ package main
 
 import (
 	"context"
+	"crypto/ed25519"
+	"encoding/hex"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -92,6 +94,18 @@ func main() {
 	if keys := getenv("CLIENT_API_KEYS", ""); keys != "" {
 		opts = append(opts, api.WithClientTokens(splitCSV(keys)))
 		log.Info("client api key gate enabled")
+	}
+
+	// The cloud feed signing key's PUBLIC hex, so /v1/alerts serves feed alerts
+	// and /app-config.json advertises it as the trusted feed root. This is the
+	// public half only; the private FEED_SIGNING_KEY lives with the feedworker.
+	if pub := getenv("FEED_PUBKEY", ""); pub != "" {
+		if raw, derr := hex.DecodeString(strings.TrimSpace(pub)); derr == nil && len(raw) == ed25519.PublicKeySize {
+			opts = append(opts, api.WithFeedPubkey(raw))
+			log.Info("feed pubkey configured (official-feed alerts enabled)")
+		} else {
+			log.Warn("FEED_PUBKEY set but not a 32-byte hex ed25519 key; ignoring")
+		}
 	}
 
 	if dir := getenv("WEB_DIR", ""); dir != "" {
