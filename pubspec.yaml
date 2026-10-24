@@ -1,0 +1,35 @@
+name: mesh_app
+description: Minimal cross-platform front end for a LoRa mesh network.
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.7.0
+
+dependencies:
+  cryptography: ^2.9.0
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  flutter_map: ^8.3.2
+  geolocator: ^14.0.0
+  go_router: ^16.0.0
+  intl: ^0.20.3
+  latlong2: ^0.10.1
+  local_auth: ^3.0.2
+  mobile_scanner: ^7.4.2
+  qr_flutter: ^4.1.0
+  shared_preferences: ^2.5.6
+  skeletonizer: ^3.0.0
+  url_launcher: ^6.3.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+  # Builds lib/l10n/gen from the .arb translation files.
+  generate: true
