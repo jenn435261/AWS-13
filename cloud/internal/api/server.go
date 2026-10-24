@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	resiliencev1 "github.com/resilience-network/aws13/cloud/gen/resilience/v1"
 	"github.com/resilience-network/aws13/cloud/internal/ai"
@@ -30,6 +31,16 @@ const (
 
 	// defaultMaxBodyBytes limits request bodies to guard against abuse.
 	defaultMaxBodyBytes = 16 << 20 // 16 MiB
+
+	// maxBlobBytes caps a single encrypted attachment blob (ciphertext).
+	maxBlobBytes = 2 << 20 // 2 MiB
+
+	// blobTTL is how long an encrypted blob is retained before purge.
+	blobTTL = 7 * 24 * time.Hour
+
+	// blobRateLimit is the max blob writes per caller per blobRateWindow.
+	blobRateLimit  = 120
+	blobRateWindow = time.Minute
 )
 
 // Server is the HTTP API. It owns a Store and exposes the sync endpoints plus
@@ -64,6 +75,13 @@ type Server struct {
 	// /app-config.json. webDir is the Flutter web bundle directory (see web.go).
 	webKey string
 	webDir string
+
+	// blobs holds opaque, content-addressed encrypted attachment blobs
+	// (photos/audio). The server only ever sees ciphertext. blobLimiter rate
+	// limits writes. maxBlobBytes caps a single blob.
+	blobs        *blobStore
+	blobLimiter  *rateLimiter
+	maxBlobBytes int64
 }
 
 // Option configures a Server.
@@ -145,6 +163,15 @@ func NewServer(st store.Store, opts ...Option) *Server {
 	if s.aggregator == nil && st != nil {
 		s.aggregator = org.NewAggregator(st)
 	}
+	if s.maxBlobBytes <= 0 {
+		s.maxBlobBytes = maxBlobBytes
+	}
+	if s.blobs == nil {
+		s.blobs = newBlobStore(blobTTL)
+	}
+	if s.blobLimiter == nil {
+		s.blobLimiter = newRateLimiter(blobRateLimit, blobRateWindow)
+	}
 	return s
 }
 
@@ -153,6 +180,7 @@ func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/v1/events", s.clientGate(s.handlePush))
 	mux.HandleFunc("/v1/events/pull", s.clientGate(s.handlePull))
+	mux.HandleFunc("/v1/blobs/", s.clientGate(s.handleBlob))
 	mux.HandleFunc("/v1/ai/structure", s.clientGate(s.handleAIStructure))
 	mux.HandleFunc("/v1/ai/translate", s.clientGate(s.handleAITranslate))
 	mux.HandleFunc("/v1/ai/summarize", s.clientGate(s.handleAISummarize))
@@ -247,6 +275,75 @@ func (s *Server) handlePull(w http.ResponseWriter, r *http.Request) {
 		Batch: &resiliencev1.EventBatch{Events: evs, More: false},
 	}
 	s.writeMessage(w, r, resp, useJSON, http.StatusOK)
+}
+
+// handleBlob implements PUT/GET /v1/blobs/{sha256}: a content-addressed store
+// for opaque, end-to-end-encrypted attachment blobs. The server only ever sees
+// ciphertext; the decryption key rides inside the E2E message and never
+// reaches here. The {sha256} path segment is the lowercase hex SHA-256 of the
+// stored bytes and is verified on PUT (mismatch => 400) so the address always
+// matches its content. A 2 MiB cap, a per-caller rate limit, and a 7-day purge
+// guard against abuse.
+func (s *Server) handleBlob(w http.ResponseWriter, r *http.Request) {
+	hash := strings.TrimPrefix(r.URL.Path, "/v1/blobs/")
+	if !isHexSHA256(hash) {
+		s.writeError(w, http.StatusBadRequest, "blob id must be a hex sha256")
+		return
+	}
+	switch r.Method {
+	case http.MethodPut, http.MethodPost:
+		caller := s.blobCaller(r)
+		if !s.blobLimiter.allow(caller) {
+			s.writeError(w, http.StatusTooManyRequests, "blob rate limit exceeded")
+			return
+		}
+		data, err := io.ReadAll(http.MaxBytesReader(w, r.Body, s.maxBlobBytes))
+		if err != nil {
+			s.writeError(w, http.StatusRequestEntityTooLarge, "blob exceeds size cap")
+			return
+		}
+		if _, ok := s.blobs.put(hash, data); !ok {
+			s.writeError(w, http.StatusBadRequest, "blob content does not match sha256")
+			return
+		}
+		w.Header().Set("Content-Type", contentTypeJSON)
+		w.WriteHeader(http.StatusCreated)
+		_, _ = io.WriteString(w, fmt.Sprintf(`{"sha256":%q,"size":%d}`, hash, len(data)))
+	case http.MethodGet:
+		data, ok := s.blobs.get(hash)
+		if !ok {
+			s.writeError(w, http.StatusNotFound, "blob not found")
+			return
+		}
+		w.Header().Set("Content-Type", "application/octet-stream")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(data)
+	default:
+		s.writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+	}
+}
+
+// blobCaller identifies the rate-limit bucket: the client key when present,
+// otherwise the remote address.
+func (s *Server) blobCaller(r *http.Request) string {
+	if k := strings.TrimSpace(r.Header.Get("X-Api-Key")); k != "" {
+		return "key:" + k
+	}
+	return "addr:" + r.RemoteAddr
+}
+
+// isHexSHA256 reports whether s is exactly 64 lowercase hex characters.
+func isHexSHA256(s string) bool {
+	if len(s) != 64 {
+		return false
+	}
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')) {
+			return false
+		}
+	}
+	return true
 }
 
 // decode reads the request body into msg, selecting protobuf or JSON based on
