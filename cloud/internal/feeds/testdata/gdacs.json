@@ -1,0 +1,43 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [120.98, 14.60] },
+      "properties": {
+        "eventid": 1001234,
+        "eventtype": "TC",
+        "eventname": "MAWAR-26",
+        "name": "Tropical Cyclone MAWAR",
+        "alertlevel": "Red",
+        "fromdate": "2026-05-20T00:00:00Z",
+        "todate": "2026-05-27T00:00:00Z",
+        "htmldescription": "<b>Tropical Cyclone</b> affecting the Philippines with strong winds."
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [35.25, 31.05] },
+      "properties": {
+        "eventid": 1005678,
+        "eventtype": "FL",
+        "eventname": "",
+        "name": "Flood in Jordan Valley",
+        "alertlevel": "Orange",
+        "fromdate": "2026-03-01T00:00:00Z",
+        "todate": "2026-03-05T00:00:00Z",
+        "htmldescription": "Flash flooding expected."
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [0, 0] },
+      "properties": {
+        "eventid": "",
+        "eventtype": "",
+        "name": "Missing id/type, must be skipped",
+        "alertlevel": "Green"
+      }
+    }
+  ]
+}

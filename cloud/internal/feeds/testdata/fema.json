@@ -1,0 +1,34 @@
+{
+  "DisasterDeclarationsSummaries": [
+    {
+      "disasterNumber": 4800,
+      "femaDeclarationString": "DR-4800-CA",
+      "state": "CA",
+      "declarationType": "DR",
+      "declarationTitle": "SEVERE WINTER STORMS AND FLOODING",
+      "incidentType": "Flood",
+      "incidentBeginDate": "2026-01-15T00:00:00.000Z",
+      "incidentEndDate": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "disasterNumber": 3600,
+      "femaDeclarationString": "EM-3600-FL",
+      "state": "FL",
+      "declarationType": "EM",
+      "declarationTitle": "HURRICANE EVACUATION",
+      "incidentType": "Hurricane",
+      "incidentBeginDate": "2026-09-01T00:00:00.000Z",
+      "incidentEndDate": ""
+    },
+    {
+      "disasterNumber": 9999,
+      "femaDeclarationString": "DR-9999-ZZ",
+      "state": "ZZ",
+      "declarationType": "DR",
+      "declarationTitle": "UNKNOWN STATE, MUST BE SKIPPED",
+      "incidentType": "Other",
+      "incidentBeginDate": "2026-01-01T00:00:00.000Z",
+      "incidentEndDate": ""
+    }
+  ]
+}

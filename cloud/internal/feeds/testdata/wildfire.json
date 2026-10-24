@@ -1,0 +1,40 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [-120.55, 39.10] },
+      "properties": {
+        "IrwinID": "A1B2C3D4-0001",
+        "UniqueFireIdentifier": "2026-CASNF-000123",
+        "IncidentName": "Donner",
+        "FireDiscoveryDateTime": 1769050000000,
+        "DailyAcres": 14250.0,
+        "PercentContained": 10.0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [-111.90, 40.76] },
+      "properties": {
+        "IrwinID": "",
+        "UniqueFireIdentifier": "2026-UTUWF-000456",
+        "IncidentName": "Wasatch",
+        "FireDiscoveryDateTime": 1769060000000,
+        "DailyAcres": 1200.0,
+        "PercentContained": 45.0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [-100.0, 35.0] },
+      "properties": {
+        "IrwinID": "",
+        "UniqueFireIdentifier": "",
+        "IncidentName": "No id, must be skipped",
+        "DailyAcres": 50.0,
+        "PercentContained": 0.0
+      }
+    }
+  ]
+}
