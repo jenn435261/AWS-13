@@ -344,3 +344,30 @@ The v1 semantic review (`.agents/tasks/task-overnight-resilience/2026-10-24-1031
 - `cd node && go vet ./... && go test ./...` → all `ok` (incl. the two new manifest cases).
 - `cd proto && buf generate` + copy to `node/gen` → **no diff** in `app/lib/gen` / `cloud/gen` / `node/gen` (no proto change was needed for any of the three fixes).
 - `cd app && flutter build web --release` → `✓ Built build/web`.
+
+## Round 2 — FEAT-002 (offline/connectivity/refresh + location without GPS)
+
+### Offline cold-start test procedure (service worker / app shell)
+
+The app now registers a hand-written cache-first service worker (`app/web/sw.js`) from `web/index.html`. After `flutter build web --release`, the build output contains `sw.js`, `sqlite3.wasm`, `drift_worker.js`, `flutter_service_worker.js`, `index.html` and `main.dart.js` (confirmed present). To verify the offline cold start:
+
+1. Serve the release bundle from the cloud: run the API with `--web-dir app/build/web` (or deploy) and open the page once while online so the service worker installs and caches the shell (incl. `sqlite3.wasm` + `drift_worker.js`) and `app-config.json`.
+2. In the browser devtools → Application → Service Workers, confirm `sw.js` is "activated and running" and the `resilience-shell-v1` cache lists the shell assets.
+3. Go offline: devtools → Network → "Offline" (or disconnect the network / block the host).
+4. Reload the page (cold start). Expected: the app boots from cache, the local Drift DB loads from the cached `sqlite3.wasm` + `drift_worker.js`, the map and local data render, and the connectivity banner flips to **Offline (local data only)** live (it reacts to the browser `offline` event without a reload).
+5. Go back online: the banner returns to **Online** / **Node connected** after the next sync round, again without a reload.
+
+**Run-or-human honesty:** this procedure was NOT executed in this sandbox. It requires a real browser with a live service-worker lifecycle and network toggling; the headless Flutter harness here publishes no aria-label semantics and does not exercise the browser service-worker cache, so interaction/offline-boot driving is not achievable headlessly. It is a **human verification step**. What WAS verified headlessly: `sw.js` and the shell assets (`sqlite3.wasm`, `drift_worker.js`) are emitted into `build/web` and `sw.js` references them and `app-config.json`; the cloud serves the shell cacheable (no `no-store`) with `app-config.json` `no-store` and `sw.js`/entry points `no-cache` (Go `web_test.go`); the connectivity state machine flips across online/offline/reachability transitions (Dart `location_fallback_test.dart`).
+
+### Device-radio / sensor honesty
+
+- **Estimated position (dead-reckoning)** needs device motion sensors (`sensors_plus`, accelerometer). It is **native-only**; on web it is honestly unavailable (the UI says so). The uncertainty-radius growth is pure logic and unit-tested (`location_fallback_test.dart`), but the real sensor fusion **needs a real device** and was not exercised here.
+- **Live GPS** (`geolocator`) requires a real device/browser permission prompt; the cache/age-label/`location_source` logic is unit-tested, but an actual fresh fix needs a device.
+
+### Verification (all green this run)
+
+- `cd app && flutter analyze` → `No issues found!`
+- `cd app && flutter test $(ls test/*.dart | grep -v screenshots_test.dart)` → **188 passed** (167 prior + 21 new across `location_fallback_test.dart`, `map_fold_invalidation_test.dart`, `location_source_event_test.dart`).
+- `cd cloud && go vet ./... && go test ./...` → all `ok` (incl. new `web_test.go`).
+- `cd node && go vet ./... && go test ./...` → all `ok`.
+- `cd app && flutter build web --release` → `✓ Built build/web` (passes after adding `web` and `sensors_plus`; `sensors_plus` is behind a native-only conditional import).
