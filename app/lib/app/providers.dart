@@ -7,6 +7,9 @@ import 'package:http/http.dart' as http;
 import '../ai/ai_assist.dart';
 import '../ai/bedrock_ai_client.dart';
 import '../ai/local_rules_ai.dart';
+import '../auth/authenticator.dart';
+import '../core/haptics/haptics.dart';
+import 'settings_store.dart';
 import '../core/event_factory.dart';
 import '../core/event_store.dart';
 import '../core/lamport_clock.dart';
@@ -168,6 +171,49 @@ final showDeliveriesProvider = StateProvider<bool>((ref) => false);
 
 /// The current app locale (for the language switcher). Null = system default.
 final localeProvider = StateProvider<Locale?>((ref) => null);
+
+// --- Settings (local, device-only preferences + optional identity) -----------
+
+/// Persists user settings in the local KeyValue table.
+final settingsStoreProvider = Provider<SettingsStore>((ref) =>
+    SettingsStore(JsonStore(ref.watch(databaseProvider), 'settings:')));
+
+/// Bumped after settings change so [settingsProvider] reloads.
+final settingsRevisionProvider = StateProvider<int>((ref) => 0);
+
+/// The current [AppSettings]. While loading, callers see the safe defaults
+/// (haptics ON, unlock-requirement OFF, anonymous), so the UI never blocks.
+final settingsProvider = FutureProvider<AppSettings>((ref) async {
+  ref.watch(settingsRevisionProvider);
+  return ref.watch(settingsStoreProvider).load();
+});
+
+/// Synchronous view of settings for call sites (haptics) that fire during a
+/// gesture. Falls back to defaults until the async load completes.
+final settingsValueProvider = Provider<AppSettings>((ref) {
+  return ref.watch(settingsProvider).valueOrNull ?? const AppSettings();
+});
+
+/// Writes [next] and triggers a reload.
+Future<void> updateSettings(WidgetRef ref, AppSettings next) async {
+  await ref.read(settingsStoreProvider).save(next);
+  ref.read(settingsRevisionProvider.notifier).state++;
+}
+
+/// The haptics helper (platform-appropriate backend). Stateless; gating is done
+/// per-call against the Settings "Haptic feedback" toggle.
+final hapticsProvider = Provider<Haptics>((ref) => const Haptics());
+
+/// Fires a haptic gated by the current setting. Safe to call from any widget.
+void fireHaptic(WidgetRef ref, HapticKind kind) {
+  final enabled = ref.read(settingsValueProvider).hapticsEnabled;
+  ref.read(hapticsProvider).fire(kind, enabled: enabled);
+}
+
+/// The device unlock authenticator (local_auth on native, honest "unavailable"
+/// on web). Overridden with a FakeAuthenticator in tests.
+final authenticatorProvider =
+    Provider<Authenticator>((ref) => defaultAuthenticator());
 
 
 /// Saved contacts (public identity cards), persisted in the local database.
