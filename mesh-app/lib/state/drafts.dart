@@ -75,6 +75,9 @@ class RequestDraft extends ChangeNotifier {
   /// Lets the text field update the note and refresh the suggestion.
   void setNote(String value) => _set(() => note = value);
 
+  /// Lets the typed location enable Send as soon as there is one.
+  void setLocationNote(String value) => _set(() => locationNote = value);
+
   void _set(VoidCallback change) {
     change();
     notifyListeners();

@@ -1609,4 +1609,155 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get resourceNotFound => 'Este lugar ya no está en el mapa.';
+
+  @override
+  String get navNewMessage => 'Mensaje nuevo';
+
+  @override
+  String get navChannels => 'Canales';
+
+  @override
+  String get navNoDirectChats =>
+      'Todavía no hay nadie a quien escribir directamente. Escanea el código QR de alguien para agregarlo.';
+
+  @override
+  String get navAddDetails => 'Agregar detalles';
+
+  @override
+  String get navAddDetailsSub => 'Una nota y cuántas personas';
+
+  @override
+  String get navAdvanced => 'Avanzado';
+
+  @override
+  String get navRequestTakenBack => 'Pedido retirado';
+
+  @override
+  String get navChangeOffer => 'Cambiar lo que ofrezco';
+
+  @override
+  String get navHoldForMore => 'Mantén presionado para ver más acciones';
+
+  @override
+  String navLocationTyped(String place) {
+    return 'Tu ubicación: $place';
+  }
+
+  @override
+  String get sosContactsTitle => 'Contactos de emergencia';
+
+  @override
+  String sosContactsCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count personas',
+      one: '1 persona',
+      zero: 'Ninguno todavía',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get sosContactsIntro =>
+      'Si un SOS no llega a ninguna red, Mesh te ayuda a enviar un mensaje de texto a estas personas desde la app de mensajes de tu teléfono.';
+
+  @override
+  String get sosContactsEmpty => 'Todavía no tienes contactos de emergencia.';
+
+  @override
+  String get sosAddContact => 'Agregar contacto de emergencia';
+
+  @override
+  String get sosEditContact => 'Editar contacto de emergencia';
+
+  @override
+  String get sosContactName => 'Nombre';
+
+  @override
+  String get sosContactPhone => 'Número de teléfono';
+
+  @override
+  String get sosContactPhoneHint => 'Por ejemplo: +1 408 555 0100';
+
+  @override
+  String get sosContactPhoneInvalid =>
+      'Revisa el número: usa dígitos y + antes del código de país';
+
+  @override
+  String get sosSaveContact => 'Guardar';
+
+  @override
+  String sosContactSaved(String name) {
+    return 'Se guardó a $name';
+  }
+
+  @override
+  String sosContactRemoved(String name) {
+    return 'Se quitó a $name';
+  }
+
+  @override
+  String sosRemoveContact(String name) {
+    return 'Quitar a $name';
+  }
+
+  @override
+  String sosContactsFull(int count) {
+    return 'Puedes guardar hasta $count contactos de emergencia.';
+  }
+
+  @override
+  String get sosNoNetworkTitle => 'No se llegó a ninguna red';
+
+  @override
+  String get sosNoNetworkBody =>
+      'Tu SOS está guardado en este teléfono y saldrá en cuanto Mesh encuentre una red. Envía un mensaje a tus contactos de emergencia o llama al 911 ahora.';
+
+  @override
+  String get sosNoNetworkBodyNoContacts =>
+      'Tu SOS está guardado en este teléfono y saldrá en cuanto Mesh encuentre una red. Llama al 911 ahora si puedes.';
+
+  @override
+  String sosTextContacts(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Enviar SMS a $count contactos de emergencia',
+      one: 'Enviar SMS a 1 contacto de emergencia',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get sosCall911 => 'Llamar al 911';
+
+  @override
+  String get sosNotNow => 'Ahora no';
+
+  @override
+  String get sosDone => 'Listo';
+
+  @override
+  String get sosAddContacts => 'Agregar contactos de emergencia';
+
+  @override
+  String get sosMessageLabel => 'Tu mensaje de texto';
+
+  @override
+  String get sosLaunchFailed =>
+      'Este teléfono no pudo abrirlo. Inténtalo de nuevo o usa la app de tu teléfono.';
+
+  @override
+  String sosTextBody(String name, String location, String time) {
+    return 'SOS de $name. Necesito ayuda. Ubicación: $location. Hora: $time.';
+  }
+
+  @override
+  String sosTextBodyGuest(String location, String time) {
+    return 'SOS. Necesito ayuda. Ubicación: $location. Hora: $time.';
+  }
+
+  @override
+  String get sosLocationUnknown => 'desconocida';
 }

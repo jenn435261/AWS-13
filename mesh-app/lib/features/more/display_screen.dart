@@ -4,6 +4,7 @@ import '../../l10n/labels.dart';
 import '../../state/app_scope.dart';
 import '../../state/settings_controller.dart';
 import '../../ui/feedback.dart';
+import '../../ui/surfaces.dart';
 import '../../ui/theme.dart';
 
 class DisplayScreen extends StatelessWidget {
@@ -28,37 +29,33 @@ class DisplayScreen extends StatelessWidget {
           padding: EdgeInsets.only(bottom: bottomClearance(context)),
           children: [
             label(l.theme),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: SegmentedButton<ThemeMode>(
-                segments: [
-                  ButtonSegment(
-                    value: ThemeMode.system,
-                    icon: const Icon(Icons.brightness_auto),
-                    label: Text(l.themeAuto),
+            // A list, not a segmented row: "Automático" at 150% needs the
+            // whole width, and no word should break in any language.
+            GroupCard(children: [
+              for (final (mode, icon, name) in [
+                (ThemeMode.system, Icons.brightness_auto, l.themeAuto),
+                (ThemeMode.light, Icons.light_mode_outlined, l.themeLight),
+                (ThemeMode.dark, Icons.dark_mode_outlined, l.themeDark),
+              ])
+                Semantics(
+                  inMutuallyExclusiveGroup: true,
+                  selected: settings.themeMode == mode,
+                  child: GroupTile(
+                    icon: icon,
+                    title: name,
+                    trailing: settings.themeMode == mode
+                        ? Icon(Icons.check_circle, color: theme.colorScheme.primary)
+                        : const SizedBox.shrink(),
+                    onTap: () => settings.themeMode = mode,
                   ),
-                  ButtonSegment(
-                    value: ThemeMode.light,
-                    icon: const Icon(Icons.light_mode_outlined),
-                    label: Text(l.themeLight),
-                  ),
-                  ButtonSegment(
-                    value: ThemeMode.dark,
-                    icon: const Icon(Icons.dark_mode_outlined),
-                    label: Text(l.themeDark),
-                  ),
-                ],
-                selected: {settings.themeMode},
-                onSelectionChanged: (s) {
-                  Haptics.tick();
-                  settings.themeMode = s.first;
-                },
-              ),
-            ),
+                ),
+            ]),
             label(l.textSize),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: SegmentedButton<double>(
+                // The check would squeeze "150%" onto two lines.
+                showSelectedIcon: false,
                 segments: [
                   for (final scale in textScales)
                     ButtonSegment(

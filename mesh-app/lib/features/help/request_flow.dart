@@ -14,8 +14,9 @@ import '../../ui/visuals.dart';
 import '../shell/help_button.dart';
 
 /// Asking for help in two taps plus optional detail (Spec sections 4 and 5):
-/// pick a category (that moves on by itself), then send. The category
-/// travels first as a few bytes; the free text follows when there is room.
+/// pick a category (that moves on by itself), then say how urgent and send.
+/// The category travels first as a few bytes; the free text follows when
+/// there is room.
 
 const _steps = ['/help', '/help/details'];
 
@@ -36,7 +37,12 @@ void _reopen(GoRouter router, int step) {
   }
 }
 
-/// Closes the flow. A started request can be brought back with Undo.
+/// Back to the screen the flow was opened from.
+void _leave(GoRouter router, String returnTo) =>
+    leaveFlow(router, _steps.first, fallback: returnTo);
+
+/// Closes the flow. A started request can be brought back with Undo, and
+/// discarded again with Redo.
 void _close(BuildContext context, int step) {
   final scope = AppScope.of(context);
   final l = AppLocalizations.of(context);
@@ -44,15 +50,25 @@ void _close(BuildContext context, int step) {
   final draft = scope.requestDraft;
   final saved = draft.copy()..lastStep = step;
 
-  router.go(draft.returnTo);
-  if (saved.isEmpty) return;
-  draft.reset();
-  scope.feedback.toast(
-    l.requestDiscarded,
+  if (saved.isEmpty) {
+    _leave(router, saved.returnTo);
+    return;
+  }
+  // False once a newer request was started: Undo never overwrites it.
+  var ours = true;
+  scope.undoable(
+    context,
+    message: l.requestDiscarded,
+    undone: l.requestRestored,
     icon: Icons.delete_outline,
-    actionLabel: l.undo,
-    onAction: () {
-      if (!draft.isEmpty) return;
+    run: () async {
+      if (!ours) return;
+      _leave(router, saved.returnTo);
+      draft.reset();
+    },
+    revert: () async {
+      ours = draft.isEmpty;
+      if (!ours) return;
       draft.restoreFrom(saved);
       _reopen(router, step);
     },
@@ -119,7 +135,13 @@ class _SosStrip extends StatelessWidget {
       semanticsLabel: l.holdForSos,
       semanticsHint: l.holdForSosSub,
       onTap: () => scope.feedback.toast(l.keepHolding, icon: Icons.touch_app_outlined),
-      onHeld: () => sendSos(context),
+      onHeld: () {
+        final router = GoRouter.of(context);
+        // The SOS takes the place of the request being filled in: its
+        // screen opens over the one the flow was opened from.
+        sendSos(context);
+        _leave(router, scope.requestDraft.returnTo);
+      },
       builder: (context, progress) => Container(
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
@@ -179,7 +201,9 @@ class _SosStrip extends StatelessWidget {
   }
 }
 
-/// Step 2: the note first, then everything else already filled in.
+/// Step 2 asks one thing: how urgent. The location field shows only when
+/// the phone has no location, and is required then. The note and the number
+/// of people wait behind "Add details".
 class HelpDetailsStep extends StatefulWidget {
   const HelpDetailsStep({super.key});
 
@@ -203,30 +227,49 @@ class _HelpDetailsStepState extends State<HelpDetailsStep> {
     final scope = AppScope.of(context);
     final l = AppLocalizations.of(context);
     final router = GoRouter.of(context);
-    final saved = _draft.copy()..lastStep = 2;
+    final draft = _draft;
+    final saved = draft.copy()..lastStep = 2;
 
     final HelpRequest request;
     try {
-      request = await scope.repository.submitRequest(_draft, from: scope.auth.me);
+      request = await scope.repository.submitRequest(draft, from: scope.auth.me);
     } on DraftRejected catch (e) {
       scope.feedback.toast(l.problem(e.problems.first), icon: Icons.error_outline, strong: true);
       return;
     }
+    if (!mounted) return;
 
-    _draft.reset();
-    router.go(requestPath(request.id));
-    scope.feedback.toast(
-      l.requestSent,
+    // Undo takes the request back and reopens it for changes, unless a new
+    // request has been started since. Redo sends it again.
+    var sent = true;
+    var ours = true;
+    await scope.undoable(
+      context,
+      message: l.requestSent,
+      undone: l.navRequestTakenBack,
       icon: Icons.send,
-      actionLabel: l.undo,
-      onAction: () async {
-        // Undo takes the request back and reopens it for changes, unless a
-        // new request has been started since.
-        if (!_draft.isEmpty) return;
+      run: () async {
+        if (!sent) {
+          await scope.repository.restoreRequest(request);
+          sent = true;
+        }
+        if (!ours) return;
+        // Pushed over the screen the flow was opened from, so Back
+        // returns there.
+        _leave(router, saved.returnTo);
+        router.push(requestPath(request.id));
+        draft.reset();
+      },
+      revert: () async {
         await scope.repository.cancelRequest(request.id);
-        _draft.restoreFrom(saved);
-        router.go(saved.returnTo);
-        WidgetsBinding.instance.addPostFrameCallback((_) => _reopen(router, 2));
+        sent = false;
+        ours = draft.isEmpty;
+        if (!ours) return;
+        draft.restoreFrom(saved);
+        if (router.state.uri.path == requestPath(request.id) && router.canPop()) {
+          router.pop();
+        }
+        _reopen(router, 2);
       },
     );
   }
@@ -234,33 +277,27 @@ class _HelpDetailsStepState extends State<HelpDetailsStep> {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
-    final theme = Theme.of(context);
-    final c = theme.colorScheme;
-    final fix = AppScope.of(context).repository.location.value;
-
-    Widget question(String text) => Padding(
-          padding: const EdgeInsets.only(top: 8, bottom: 10),
-          child: Text(text, style: theme.textTheme.titleMedium),
-        );
+    final c = Theme.of(context).colorScheme;
+    final location = AppScope.of(context).repository.location;
 
     return ListenableBuilder(
-      listenable: _draft,
+      listenable: Listenable.merge([_draft, location]),
       builder: (context, _) {
         final kind = _draft.kind;
-        final suggested = suggestKind(_draft.note);
+        final fix = location.value;
         final problems = _draft.problems(hasLocation: fix != null);
 
         return StepScaffold(
           step: 2,
           total: 2,
-          title: l.helpStep2Title,
+          title: l.urgencyQuestion,
           actionLabel: l.sendRequest,
           actionIcon: Icons.send,
           actionColor: sosRed,
           onAction: problems.isEmpty ? _send : null,
           onClose: () => _close(context, 2),
           children: [
-            if (kind != null)
+            if (kind != null) ...[
               Card(
                 child: ListTile(
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -272,43 +309,8 @@ class _HelpDetailsStepState extends State<HelpDetailsStep> {
                   ),
                 ),
               ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _note,
-              maxLength: maxNoteLength,
-              minLines: 2,
-              maxLines: 4,
-              onChanged: _draft.setNote,
-              decoration: InputDecoration(
-                labelText: l.noteLabel,
-                hintText: l.noteExampleHint,
-                prefixIcon: const Icon(Icons.notes),
-              ),
-            ),
-            if (suggested != null && suggested != kind)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
-                  children: [
-                    Icon(Icons.lightbulb_outline, color: c.primary),
-                    const SizedBox(width: 8),
-                    Expanded(child: Text(l.suggestion(l.helpKind(suggested)))),
-                    TextButton(
-                      onPressed: () {
-                        Haptics.tick();
-                        _draft.kind = suggested;
-                      },
-                      child: Text(l.useSuggestion),
-                    ),
-                  ],
-                ),
-              ),
-            Text(
-              l.structuredFirst,
-              style: TextStyle(color: c.onSurfaceVariant),
-            ),
-            const SizedBox(height: 16),
-            question(l.urgencyQuestion),
+              const SizedBox(height: 16),
+            ],
             for (final u in Urgency.values) ...[
               ChoiceTile(
                 icon: urgencyIcon(u),
@@ -323,50 +325,125 @@ class _HelpDetailsStepState extends State<HelpDetailsStep> {
               ),
               const SizedBox(height: 8),
             ],
-            const SizedBox(height: 12),
-            question(l.peopleQuestion),
-            _PeopleStepper(
-              value: _draft.people,
-              onChanged: (v) {
-                Haptics.tick();
-                _draft.people = v;
-              },
-            ),
-            const SizedBox(height: 20),
-            question(l.locationTitle),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Icon(
-                fix == null ? Icons.location_off_outlined : Icons.my_location,
-                color: fix == null ? c.error : c.primary,
-              ),
-              title: Text(
-                fix == null ? l.locationMissing : l.locationAuto(fix.accuracyMeters.round()),
-              ),
-            ),
             const SizedBox(height: 8),
-            TextField(
-              controller: _locationNote,
-              maxLength: maxNoteLength,
-              onChanged: (v) {
-                _draft.locationNote = v;
-                if (fix == null) setState(() {});
-              },
-              decoration: InputDecoration(
-                labelText: l.locationNoteLabel,
-                hintText: l.locationNoteHint,
-                prefixIcon: const Icon(Icons.edit_location_alt_outlined),
-              ),
-            ),
-            for (final p in problems)
+            if (fix == null) ...[
+              // The manual fallback: with no location, the person says where.
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: Icon(Icons.error_outline, color: c.error),
-                title: Text(l.problem(p), style: TextStyle(color: c.error)),
+                leading: Icon(Icons.location_off_outlined, color: c.error),
+                title: Text(l.locationMissing),
               ),
+              TextField(
+                key: const ValueKey('request-location'),
+                controller: _locationNote,
+                maxLength: maxNoteLength,
+                onChanged: _draft.setLocationNote,
+                decoration: InputDecoration(
+                  labelText: l.locationNoteLabel,
+                  hintText: l.locationNoteHint,
+                  prefixIcon: const Icon(Icons.edit_location_alt_outlined),
+                ),
+              ),
+            ] else
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(Icons.my_location, color: c.primary),
+                title: Text(
+                  fix.source == LocationSource.manual && fix.label.isNotEmpty
+                      ? l.navLocationTyped(fix.label)
+                      : l.locationAuto(fix.accuracyMeters.round()),
+                ),
+              ),
+            const SizedBox(height: 8),
+            _MoreDetails(draft: _draft, note: _note),
+            // The location field already says what is missing there.
+            for (final p in problems)
+              if (p != DraftProblem.missingLocation)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(Icons.error_outline, color: c.error),
+                  title: Text(l.problem(p), style: TextStyle(color: c.error)),
+                ),
           ],
         );
       },
+    );
+  }
+}
+
+/// The optional parts of a request, folded away until asked for: a note
+/// (which can suggest a better category) and how many people need help.
+class _MoreDetails extends StatelessWidget {
+  const _MoreDetails({required this.draft, required this.note});
+
+  final RequestDraft draft;
+  final TextEditingController note;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final c = theme.colorScheme;
+    final kind = draft.kind;
+    final suggested = suggestKind(draft.note);
+
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: ExpansionTile(
+        // Already open when a restored request has details in it.
+        initiallyExpanded: draft.note.isNotEmpty || draft.people != 1,
+        leading: const Icon(Icons.add_comment_outlined),
+        title: Text(l.navAddDetails),
+        subtitle: Text(l.navAddDetailsSub),
+        shape: const Border(),
+        collapsedShape: const Border(),
+        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        expandedCrossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          TextField(
+            key: const ValueKey('request-note'),
+            controller: note,
+            maxLength: maxNoteLength,
+            minLines: 2,
+            maxLines: 4,
+            onChanged: draft.setNote,
+            decoration: InputDecoration(
+              labelText: l.noteLabel,
+              hintText: l.noteExampleHint,
+              prefixIcon: const Icon(Icons.notes),
+            ),
+          ),
+          if (suggested != null && suggested != kind)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                children: [
+                  Icon(Icons.lightbulb_outline, color: c.primary),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text(l.suggestion(l.helpKind(suggested)))),
+                  TextButton(
+                    onPressed: () {
+                      Haptics.tick();
+                      draft.kind = suggested;
+                    },
+                    child: Text(l.useSuggestion),
+                  ),
+                ],
+              ),
+            ),
+          Text(l.structuredFirst, style: TextStyle(color: c.onSurfaceVariant)),
+          const SizedBox(height: 20),
+          Text(l.peopleQuestion, style: theme.textTheme.titleMedium),
+          const SizedBox(height: 10),
+          _PeopleStepper(
+            value: draft.people,
+            onChanged: (v) {
+              Haptics.tick();
+              draft.people = v;
+            },
+          ),
+        ],
+      ),
     );
   }
 }

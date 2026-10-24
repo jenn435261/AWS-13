@@ -8,14 +8,17 @@ import '../../l10n/labels.dart';
 import '../../models/help.dart';
 import '../../router.dart';
 import '../../state/app_scope.dart';
+import '../../ui/surfaces.dart';
 import '../../ui/theme.dart';
 import '../../ui/visuals.dart';
 import '../../utils/format.dart';
 import '../help/offer_flow.dart';
-import '../help/request_flow.dart';
+import '../shell/bottom_actions.dart';
 import 'request_actions.dart';
 
-/// Requests near you and your own, as two tabs you can swipe between.
+/// Requests near you and your own, as two tabs you can swipe between. One
+/// main action at the bottom: offering help. A request opens with a tap;
+/// holding it shows quick actions, such as "I can help".
 class RequestsScreen extends StatelessWidget {
   const RequestsScreen({super.key});
 
@@ -67,13 +70,15 @@ class RequestsScreen extends StatelessWidget {
                   requests: mine,
                   here: here,
                   empty: l.noMine,
-                  emptyAction: FilledButton.icon(
-                    onPressed: () => openRequestFlow(context),
-                    icon: const Icon(Icons.sos),
-                    label: Text(l.needHelp),
-                  ),
                 ),
               ],
+            ),
+            bottomNavigationBar: BottomActions(
+              main: MainButton(
+                label: repo.offer.value == null ? l.canHelp : l.navChangeOffer,
+                icon: Icons.volunteer_activism,
+                onPressed: () => openOfferFlow(context),
+              ),
             ),
           ),
         );
@@ -93,7 +98,6 @@ class _RequestList extends StatelessWidget {
     required this.here,
     required this.empty,
     this.header,
-    this.emptyAction,
   });
 
   final bool loading;
@@ -101,7 +105,6 @@ class _RequestList extends StatelessWidget {
   final LatLng here;
   final String empty;
   final Widget? header;
-  final Widget? emptyAction;
 
   @override
   Widget build(BuildContext context) {
@@ -146,10 +149,6 @@ class _RequestList extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 Text(empty, textAlign: TextAlign.center),
-                if (emptyAction != null) ...[
-                  const SizedBox(height: 16),
-                  emptyAction!,
-                ],
               ],
             ),
           ),
@@ -187,10 +186,11 @@ class RequestTile extends StatelessWidget {
       l.timeAgo(r.createdAt),
     ].join('  ·  ');
 
-    return Card(
+    final card = Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: () => context.go(requestPath(r.id)),
+        // Pushed, so Back returns to this list.
+        onTap: () => context.push(requestPath(r.id)),
         onLongPress: () => showRequestActions(context, r),
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -235,17 +235,6 @@ class RequestTile extends StatelessWidget {
                   _Badge(icon: stageIcon(r.stage), text: l.stage(r.stage, mine: r.mine)),
                 ],
               ),
-              if (!r.mine && r.isOpen) ...[
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton.tonalIcon(
-                    onPressed: () => acceptRequest(context, r),
-                    icon: const Icon(Icons.volunteer_activism),
-                    label: Text(l.iCanHelp),
-                  ),
-                ),
-              ],
               if (r.mine) ...[
                 const SizedBox(height: 12),
                 LinearProgressIndicator(
@@ -257,6 +246,12 @@ class RequestTile extends StatelessWidget {
           ),
         ),
       ),
+    );
+    // "I can help" is a hold away, not a button on every card.
+    return Semantics(
+      onTapHint: l.openDetails,
+      onLongPressHint: l.navHoldForMore,
+      child: card,
     );
   }
 }
@@ -290,7 +285,8 @@ class _Badge extends StatelessWidget {
   }
 }
 
-/// Shows what you're offering, or invites you to offer help.
+/// Says what you're offering, or invites you to offer help with the main
+/// action below. Stopping an offer is the one small action here.
 class _OfferCard extends StatelessWidget {
   const _OfferCard();
 
@@ -304,36 +300,19 @@ class _OfferCard extends StatelessWidget {
     return Card(
       color: c.primaryContainer,
       child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+        padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+        child: Row(
           children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.volunteer_activism,
-                  color: c.onPrimaryContainer,
-                  size: 32,
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Text(
-                    offer == null
-                        ? l.offerPrompt
-                        : l.offeringList(l.supplies(offer.kinds)),
-                    style: TextStyle(color: c.onPrimaryContainer),
-                  ),
-                ),
-              ],
+            Icon(Icons.volunteer_activism, color: c.onPrimaryContainer, size: 32),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Text(
+                offer == null ? l.offerPrompt : l.offeringList(l.supplies(offer.kinds)),
+                style: TextStyle(color: c.onPrimaryContainer),
+              ),
             ),
-            const SizedBox(height: 12),
-            if (offer == null)
-              FilledButton(
-                onPressed: () => openOfferFlow(context),
-                child: Text(l.canHelp),
-              )
-            else
-              OutlinedButton(
+            if (offer != null)
+              TextButton(
                 onPressed: () => scope.undoable(
                   context,
                   message: l.offerStopped,

@@ -12,6 +12,7 @@ import '../../ui/surfaces.dart';
 import '../../ui/visuals.dart';
 import '../help/offer_flow.dart';
 import '../help/request_flow.dart';
+import '../sos/no_network_sos_screen.dart';
 
 /// The red Help button in the middle of the bottom bar.
 ///  * Tap: choose "I need help" or "I can help".
@@ -103,10 +104,14 @@ class _HoldRing extends CustomPainter {
 }
 
 /// Sends an SOS and shows its progress, with undo in case it was a mistake.
+/// When no network was reached, the next step offers to text the person's
+/// emergency contacts or call 911. On the lock screen only that step shows,
+/// on the lock screen's own navigator.
 Future<void> sendSos(BuildContext context) async {
   final scope = AppScope.of(context);
   final l = AppLocalizations.of(context);
   final router = GoRouter.of(context);
+  final lockNavigator = scope.lock.locked ? Navigator.maybeOf(context) : null;
   String? id;
 
   await scope.undoable(
@@ -117,7 +122,21 @@ Future<void> sendSos(BuildContext context) async {
     run: () async => id = (await scope.repository.sendSos(from: scope.auth.me)).id,
     revert: () => scope.repository.cancelRequest(id!),
   );
-  if (id != null && !scope.lock.locked) router.go(requestPath(id!));
+  final sent = id;
+  if (sent == null) return;
+  final reachedNetwork = scope.repository.network.value.hasRoute;
+
+  if (scope.lock.locked) {
+    if (!reachedNetwork) {
+      lockNavigator?.push(MaterialPageRoute<void>(
+        builder: (_) => NoNetworkSosScreen(requestId: sent, onLockScreen: true),
+      ));
+    }
+    return;
+  }
+  // Pushed, so Back returns to wherever the SOS was sent from.
+  router.push(requestPath(sent));
+  if (!reachedNetwork) router.push(sosNoNetworkPath(sent));
 }
 
 Future<void> showHelpMenu(BuildContext context) {

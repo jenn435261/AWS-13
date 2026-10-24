@@ -865,5 +865,115 @@
   "mapOffline": "Street map needs internet",
   "mapLoading": "Loading street map",
   "missionNotFound": "This delivery is no longer available.",
-  "resourceNotFound": "This place is no longer on the map."
+  "resourceNotFound": "This place is no longer on the map.",
+  "navNewMessage": "New message",
+  "navChannels": "Channels",
+  "navNoDirectChats": "Nobody to message directly yet. Scan someone's QR code to add them.",
+  "navAddDetails": "Add details",
+  "navAddDetailsSub": "A note, and how many people",
+  "navAdvanced": "Advanced",
+  "navRequestTakenBack": "Request taken back",
+  "navChangeOffer": "Change what I offer",
+  "navHoldForMore": "Hold for more actions",
+  "navLocationTyped": "Your location: {place}",
+  "@navLocationTyped": {
+    "placeholders": {
+      "place": {
+        "type": "String"
+      }
+    }
+  },
+  "sosContactsTitle": "Emergency contacts",
+  "sosContactsCount": "{count, plural, =0{None yet} =1{1 person} other{{count} people}}",
+  "@sosContactsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sosContactsIntro": "If an SOS can't reach a network, Mesh helps you text these people from your phone's Messages app.",
+  "sosContactsEmpty": "No emergency contacts yet.",
+  "sosAddContact": "Add emergency contact",
+  "sosEditContact": "Edit emergency contact",
+  "sosContactName": "Name",
+  "sosContactPhone": "Phone number",
+  "sosContactPhoneHint": "For example: +1 408 555 0100",
+  "sosContactPhoneInvalid": "Check the number: use digits, and + before a country code",
+  "sosSaveContact": "Save",
+  "sosContactSaved": "{name} saved",
+  "@sosContactSaved": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "sosContactRemoved": "{name} removed",
+  "@sosContactRemoved": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "sosRemoveContact": "Remove {name}",
+  "@sosRemoveContact": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "sosContactsFull": "You can save up to {count} emergency contacts.",
+  "@sosContactsFull": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sosNoNetworkTitle": "No network reached",
+  "sosNoNetworkBody": "Your SOS is saved on this phone and goes out as soon as Mesh finds a network. Text your emergency contacts or call 911 now.",
+  "sosNoNetworkBodyNoContacts": "Your SOS is saved on this phone and goes out as soon as Mesh finds a network. Call 911 now if you can.",
+  "sosTextContacts": "{count, plural, =1{Text 1 emergency contact} other{Text {count} emergency contacts}}",
+  "@sosTextContacts": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sosCall911": "Call 911",
+  "sosNotNow": "Not now",
+  "sosDone": "Done",
+  "sosAddContacts": "Add emergency contacts",
+  "sosMessageLabel": "Your text message",
+  "sosLaunchFailed": "This phone couldn't open that. Try again, or use your phone's own app.",
+  "sosTextBody": "SOS from {name}. I need help. Location: {location}. Time: {time}.",
+  "@sosTextBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "location": {
+        "type": "String"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "sosTextBodyGuest": "SOS. I need help. Location: {location}. Time: {time}.",
+  "@sosTextBodyGuest": {
+    "placeholders": {
+      "location": {
+        "type": "String"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "sosLocationUnknown": "unknown"
 }

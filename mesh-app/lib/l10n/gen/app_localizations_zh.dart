@@ -1565,4 +1565,149 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get resourceNotFound => '这个地点已不在地图上。';
+
+  @override
+  String get navNewMessage => '新消息';
+
+  @override
+  String get navChannels => '频道';
+
+  @override
+  String get navNoDirectChats => '还没有可以私信的人。扫描对方的二维码来添加。';
+
+  @override
+  String get navAddDetails => '补充详情';
+
+  @override
+  String get navAddDetailsSub => '说明和人数';
+
+  @override
+  String get navAdvanced => '高级';
+
+  @override
+  String get navRequestTakenBack => '求助已撤回';
+
+  @override
+  String get navChangeOffer => '修改我能提供的';
+
+  @override
+  String get navHoldForMore => '长按查看更多操作';
+
+  @override
+  String navLocationTyped(String place) {
+    return '你的位置：$place';
+  }
+
+  @override
+  String get sosContactsTitle => '紧急联系人';
+
+  @override
+  String sosContactsCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count 人',
+      zero: '还没有',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get sosContactsIntro => '如果 SOS 连不上任何网络，Mesh 会帮你用手机的短信应用给这些人发短信。';
+
+  @override
+  String get sosContactsEmpty => '还没有紧急联系人。';
+
+  @override
+  String get sosAddContact => '添加紧急联系人';
+
+  @override
+  String get sosEditContact => '修改紧急联系人';
+
+  @override
+  String get sosContactName => '姓名';
+
+  @override
+  String get sosContactPhone => '电话号码';
+
+  @override
+  String get sosContactPhoneHint => '例如：+1 408 555 0100';
+
+  @override
+  String get sosContactPhoneInvalid => '请检查号码：只用数字，国家代码前加 +';
+
+  @override
+  String get sosSaveContact => '保存';
+
+  @override
+  String sosContactSaved(String name) {
+    return '已保存 $name';
+  }
+
+  @override
+  String sosContactRemoved(String name) {
+    return '已删除 $name';
+  }
+
+  @override
+  String sosRemoveContact(String name) {
+    return '删除 $name';
+  }
+
+  @override
+  String sosContactsFull(int count) {
+    return '最多可以保存 $count 位紧急联系人。';
+  }
+
+  @override
+  String get sosNoNetworkTitle => '没有连上任何网络';
+
+  @override
+  String get sosNoNetworkBody =>
+      '你的 SOS 已保存在这部手机上，Mesh 一找到网络就会发出。现在就给紧急联系人发短信，或拨打 911。';
+
+  @override
+  String get sosNoNetworkBodyNoContacts =>
+      '你的 SOS 已保存在这部手机上，Mesh 一找到网络就会发出。如果可以，现在就拨打 911。';
+
+  @override
+  String sosTextContacts(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '给 $count 位紧急联系人发短信',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get sosCall911 => '拨打 911';
+
+  @override
+  String get sosNotNow => '暂不';
+
+  @override
+  String get sosDone => '完成';
+
+  @override
+  String get sosAddContacts => '添加紧急联系人';
+
+  @override
+  String get sosMessageLabel => '你的短信';
+
+  @override
+  String get sosLaunchFailed => '这部手机打不开。请重试，或使用手机自带的应用。';
+
+  @override
+  String sosTextBody(String name, String location, String time) {
+    return '来自$name的 SOS。我需要帮助。位置：$location。时间：$time。';
+  }
+
+  @override
+  String sosTextBodyGuest(String location, String time) {
+    return 'SOS。我需要帮助。位置：$location。时间：$time。';
+  }
+
+  @override
+  String get sosLocationUnknown => '未知';
 }

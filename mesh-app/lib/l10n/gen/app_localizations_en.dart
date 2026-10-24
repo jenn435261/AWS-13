@@ -1600,4 +1600,155 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get resourceNotFound => 'This place is no longer on the map.';
+
+  @override
+  String get navNewMessage => 'New message';
+
+  @override
+  String get navChannels => 'Channels';
+
+  @override
+  String get navNoDirectChats =>
+      'Nobody to message directly yet. Scan someone\'s QR code to add them.';
+
+  @override
+  String get navAddDetails => 'Add details';
+
+  @override
+  String get navAddDetailsSub => 'A note, and how many people';
+
+  @override
+  String get navAdvanced => 'Advanced';
+
+  @override
+  String get navRequestTakenBack => 'Request taken back';
+
+  @override
+  String get navChangeOffer => 'Change what I offer';
+
+  @override
+  String get navHoldForMore => 'Hold for more actions';
+
+  @override
+  String navLocationTyped(String place) {
+    return 'Your location: $place';
+  }
+
+  @override
+  String get sosContactsTitle => 'Emergency contacts';
+
+  @override
+  String sosContactsCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count people',
+      one: '1 person',
+      zero: 'None yet',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get sosContactsIntro =>
+      'If an SOS can\'t reach a network, Mesh helps you text these people from your phone\'s Messages app.';
+
+  @override
+  String get sosContactsEmpty => 'No emergency contacts yet.';
+
+  @override
+  String get sosAddContact => 'Add emergency contact';
+
+  @override
+  String get sosEditContact => 'Edit emergency contact';
+
+  @override
+  String get sosContactName => 'Name';
+
+  @override
+  String get sosContactPhone => 'Phone number';
+
+  @override
+  String get sosContactPhoneHint => 'For example: +1 408 555 0100';
+
+  @override
+  String get sosContactPhoneInvalid =>
+      'Check the number: use digits, and + before a country code';
+
+  @override
+  String get sosSaveContact => 'Save';
+
+  @override
+  String sosContactSaved(String name) {
+    return '$name saved';
+  }
+
+  @override
+  String sosContactRemoved(String name) {
+    return '$name removed';
+  }
+
+  @override
+  String sosRemoveContact(String name) {
+    return 'Remove $name';
+  }
+
+  @override
+  String sosContactsFull(int count) {
+    return 'You can save up to $count emergency contacts.';
+  }
+
+  @override
+  String get sosNoNetworkTitle => 'No network reached';
+
+  @override
+  String get sosNoNetworkBody =>
+      'Your SOS is saved on this phone and goes out as soon as Mesh finds a network. Text your emergency contacts or call 911 now.';
+
+  @override
+  String get sosNoNetworkBodyNoContacts =>
+      'Your SOS is saved on this phone and goes out as soon as Mesh finds a network. Call 911 now if you can.';
+
+  @override
+  String sosTextContacts(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Text $count emergency contacts',
+      one: 'Text 1 emergency contact',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get sosCall911 => 'Call 911';
+
+  @override
+  String get sosNotNow => 'Not now';
+
+  @override
+  String get sosDone => 'Done';
+
+  @override
+  String get sosAddContacts => 'Add emergency contacts';
+
+  @override
+  String get sosMessageLabel => 'Your text message';
+
+  @override
+  String get sosLaunchFailed =>
+      'This phone couldn\'t open that. Try again, or use your phone\'s own app.';
+
+  @override
+  String sosTextBody(String name, String location, String time) {
+    return 'SOS from $name. I need help. Location: $location. Time: $time.';
+  }
+
+  @override
+  String sosTextBodyGuest(String location, String time) {
+    return 'SOS. I need help. Location: $location. Time: $time.';
+  }
+
+  @override
+  String get sosLocationUnknown => 'unknown';
 }
