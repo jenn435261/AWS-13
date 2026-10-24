@@ -92,9 +92,12 @@ class ConnectivityInputs {
       return Connectivity.cloudUnreachable;
     }
 
-    // Cloud configured, browser online (or unknown), no error yet (first round
-    // in flight): we have not confirmed reachability, so do not claim online.
-    return neverSynced ? Connectivity.cloudUnreachable : Connectivity.online;
+    // Cloud configured, browser online (or unknown), no current error. We only
+    // ever reach here when [lastSyncOk] is false (the clean-round branch above
+    // returned already), so we have NOT confirmed reachability on the latest
+    // round — whether that is a first round in flight or a stale-but-errorless
+    // state. Be honest and never claim "online" without a confirmed clean sync.
+    return Connectivity.cloudUnreachable;
   }
 }
 

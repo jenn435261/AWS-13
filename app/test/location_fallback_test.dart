@@ -180,5 +180,33 @@ void main() {
       final online = inputs(browser: true, ok: true, never: false);
       expect(online.resolve(), Connectivity.online);
     });
+
+    test('stale cloud state (no error, not clean) never claims online', () {
+      // Previously synced at least once (never: false), no recorded error, but
+      // the latest round was not clean (ok: false). This must NOT be reported
+      // as "online" — only a confirmed clean sync earns that. The honest answer
+      // is cloud-unreachable until the next clean round.
+      final stale = inputs(
+        cloud: true,
+        browser: true,
+        ok: false,
+        err: false,
+        never: false,
+      );
+      expect(stale.resolve(), Connectivity.cloudUnreachable);
+      expect(stale.resolve(), isNot(Connectivity.online));
+    });
+
+    test('first round in flight (never synced, no error) is cloud unreachable',
+        () {
+      final pending = inputs(
+        cloud: true,
+        browser: true,
+        ok: false,
+        err: false,
+        never: true,
+      );
+      expect(pending.resolve(), Connectivity.cloudUnreachable);
+    });
   });
 }
