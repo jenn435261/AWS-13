@@ -58,4 +58,11 @@ class DriftChunkStore implements ChunkStore {
     final pfx = _entryPrefix(packId, entryName);
     await (_db.delete(_db.keyValue)..where((t) => t.key.like('$pfx%'))).go();
   }
+
+  /// Deletes EVERY chunk of a pack (all entries). Used by an explicit
+  /// user-initiated "delete pack" on the storage screen.
+  Future<void> deletePack(String packId) async {
+    final pfx = '$_prefix$packId\u0000';
+    await (_db.delete(_db.keyValue)..where((t) => t.key.like('$pfx%'))).go();
+  }
 }

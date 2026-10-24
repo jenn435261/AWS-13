@@ -11,9 +11,11 @@ import '../../l10n/strings.dart';
 import '../../nodes/node_store.dart';
 import '../../nodes/package_manifest.dart';
 import '../../nodes/package_store.dart';
+import '../../packages/pack_source.dart';
 import '../components/common.dart';
 import '../components/toast.dart';
 import 'nodes_screen.dart';
+import 'storage_screen.dart';
 
 /// One item a node reports in its /node/v1/packages catalog.
 class _CatalogItem {
@@ -93,6 +95,28 @@ class _State extends ConsumerState<OfflineDownloadsScreen> {
   List<_CatalogItem> _catalog = const [];
   _Manifest _manifestState = _Manifest.none;
   PackageManifest? _manifest;
+
+  /// The resolved preferred source (node on LAN else cloud), shown so the user
+  /// always knows which is in use. Resolved honestly by probing reachability.
+  PackSource _preferredSource = PackSource.none;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _resolveSource());
+  }
+
+  Future<void> _resolveSource() async {
+    final cloudBase =
+        ref.read(cloudBaseUrlProvider).replaceAll(RegExp(r'/+$'), '');
+    final node = await ref.read(activeNodeProvider.future);
+    final src = await resolvePackSource(
+      nodeBaseUrl: node?.url,
+      cloudBaseUrl: cloudBase,
+      reachable: defaultNodeReachable,
+    );
+    if (mounted) setState(() => _preferredSource = src);
+  }
 
   SavedNode? _selected(List<SavedNode> nodes, String? active) {
     if (nodes.isEmpty) return null;
@@ -338,6 +362,34 @@ class _State extends ConsumerState<OfflineDownloadsScreen> {
             Text(l.t('downloads_explainer'),
                 style: TextStyle(
                     fontFamily: 'Roboto', fontSize: 16, color: outline)),
+            const SizedBox(height: 12),
+            // First-run prompt: how to download the offline map + the storage
+            // screen for region packs, with the honest Cloud/Node source in use.
+            Card(
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+              child: ListTile(
+                leading: const Icon(Icons.download_for_offline_rounded),
+                title: Text(l.t('how_to_download_title'),
+                    style: const TextStyle(
+                        fontFamily: 'Roboto',
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700)),
+                subtitle: Text([
+                  l.t('how_to_download_body'),
+                  if (_preferredSource != PackSource.none)
+                    l.t('using_source').replaceAll('{source}',
+                        _preferredSource == PackSource.node
+                            ? l.t('source_node')
+                            : l.t('source_cloud')),
+                ].join('\n\n'),
+                    style: TextStyle(
+                        fontFamily: 'Roboto', fontSize: 16, color: outline)),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                isThreeLine: true,
+                onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) => const StorageScreen())),
+              ),
+            ),
             const SizedBox(height: 16),
             Text(l.t('from_a_node'), style: head),
             const SizedBox(height: 8),

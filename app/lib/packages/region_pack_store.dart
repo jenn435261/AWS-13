@@ -111,4 +111,10 @@ class RegionPackStore {
   Future<void> upsert(RegionPack pack) => _store.put(pack.id, pack.toJson());
 
   Future<void> remove(String id) => _store.delete(id);
+
+  /// Stores a small sidecar JSON snapshot for a region (e.g. a count of cached
+  /// alerts/safe-places). This is dynamic convenience data, NOT manifest-signed,
+  /// kept under a distinct `sidecar:` sub-key so it never appears in [list].
+  Future<void> upsertSidecar(String regionId, Map<String, dynamic> data) =>
+      _store.put('sidecar:$regionId', {...data, '_sidecar': regionId});
 }

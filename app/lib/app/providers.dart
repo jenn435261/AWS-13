@@ -19,6 +19,8 @@ import '../db/json_store.dart';
 import '../gen/resilience/v1/event.pb.dart' show ProvenanceKind;
 import '../nodes/node_store.dart';
 import '../nodes/package_store.dart';
+import '../packages/drift_chunk_store.dart';
+import '../packages/region_pack_store.dart';
 import '../supplies/supply_service.dart';
 import '../trust/root_repo.dart';
 import 'package:latlong2/latlong.dart' show LatLng;
@@ -355,6 +357,24 @@ final nodePmtilesUrlProvider = FutureProvider<String?>((ref) async {
 
 final packageStoreProvider = Provider<PackageStore>((ref) =>
     PackageStore(JsonStore(ref.watch(databaseProvider), 'pkg:')));
+
+/// Store of downloaded region packs (metadata) for the storage/downloads
+/// screens. The chunk bytes live in [regionChunkStoreProvider].
+final regionPackStoreProvider = Provider<RegionPackStore>((ref) =>
+    RegionPackStore(JsonStore(ref.watch(databaseProvider), 'regionpack:')));
+
+/// The Drift-backed chunk store (verified download chunks; survives restart on
+/// native and web via IndexedDB/OPFS).
+final regionChunkStoreProvider = Provider<DriftChunkStore>(
+    (ref) => DriftChunkStore(ref.watch(databaseProvider)));
+
+/// Bumped after a region pack changes so the downloads/storage screens reload.
+final regionPacksRevisionProvider = StateProvider<int>((ref) => 0);
+
+final regionPacksProvider = FutureProvider<List<RegionPack>>((ref) async {
+  ref.watch(regionPacksRevisionProvider);
+  return ref.watch(regionPackStoreProvider).list();
+});
 
 final packagesRevisionProvider = StateProvider<int>((ref) => 0);
 

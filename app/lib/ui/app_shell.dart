@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../alerts/alert_providers.dart';
 import '../app/providers.dart';
 import '../l10n/strings.dart';
+import 'components/alert_banner.dart';
 import 'screens/contacts_screen.dart';
 import 'screens/deliveries_screen.dart';
 import 'screens/map_screen.dart';
@@ -21,6 +23,16 @@ class AppShell extends ConsumerStatefulWidget {
 
 class _AppShellState extends ConsumerState<AppShell> {
   int _index = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // Start polling the cloud alert feed while the app is open. Null (fully
+    // offline build) is a no-op.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(alertPollerProvider)?.start();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -42,16 +54,24 @@ class _AppShellState extends ConsumerState<AppShell> {
     final safeIndex = _index.clamp(0, tabs.length - 1);
 
     return Scaffold(
-      // IndexedStack keeps each tab alive with its own Navigator state.
-      body: IndexedStack(
-        index: safeIndex,
+      // IndexedStack keeps each tab alive with its own Navigator state; the
+      // severe-alert banner sits above it so it is visible on every tab.
+      body: Column(
         children: [
-          for (final t in tabs)
-            Navigator(
-              key: ValueKey(t.id),
-              onGenerateRoute: (settings) =>
-                  MaterialPageRoute(builder: (_) => t.screen),
+          const AlertBanner(),
+          Expanded(
+            child: IndexedStack(
+              index: safeIndex,
+              children: [
+                for (final t in tabs)
+                  Navigator(
+                    key: ValueKey(t.id),
+                    onGenerateRoute: (settings) =>
+                        MaterialPageRoute(builder: (_) => t.screen),
+                  ),
+              ],
             ),
+          ),
         ],
       ),
       bottomNavigationBar: NavigationBar(
