@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../app/providers.dart';
+import '../../core/haptics/haptics.dart';
 import '../../gen/resilience/v1/event.pb.dart';
 import '../../l10n/strings.dart';
 import '../../location/location_providers.dart';
 import '../../location/position_service.dart';
+import '../../supplies/supply_catalog.dart';
 import '../components/common.dart';
 import '../components/location_field.dart';
 import '../components/toast.dart';
-import '../components/trust_badges.dart';
 
 /// The core emergency action: "I NEED HELP" (request) or "OFFER HELP" (offer).
 ///
@@ -31,7 +31,9 @@ class HelpFlowScreen extends ConsumerStatefulWidget {
 }
 
 class _HelpFlowScreenState extends ConsumerState<HelpFlowScreen> {
-  final Set<ResourceCategory> _selected = {};
+  /// Selected picker item keys (multi-select). Mapped to proto categories on
+  /// send (several items can map to the same category — deduped there).
+  final Set<String> _selected = {};
   final TextEditingController _note = TextEditingController();
   AmountBand _amount = AmountBand.AMOUNT_BAND_UNSPECIFIED;
   Availability _availability = Availability.AVAILABILITY_NOW;
@@ -40,17 +42,9 @@ class _HelpFlowScreenState extends ConsumerState<HelpFlowScreen> {
   LocationSource _whereSource = LocationSource.LOCATION_SOURCE_UNSPECIFIED;
   bool _sending = false;
 
-  static const _categories = <ResourceCategory>[
-    ResourceCategory.RESOURCE_CATEGORY_WATER,
-    ResourceCategory.RESOURCE_CATEGORY_FOOD,
-    ResourceCategory.RESOURCE_CATEGORY_MEDICINE,
-    ResourceCategory.RESOURCE_CATEGORY_SHELTER,
-    ResourceCategory.RESOURCE_CATEGORY_POWER,
-    ResourceCategory.RESOURCE_CATEGORY_TRANSPORTATION,
-    ResourceCategory.RESOURCE_CATEGORY_MEDICAL_HELP,
-    ResourceCategory.RESOURCE_CATEGORY_COMMUNICATION,
-    ResourceCategory.RESOURCE_CATEGORY_OTHER,
-  ];
+  /// The set of proto categories implied by the selected picker items.
+  Set<ResourceCategory> get _selectedCategories =>
+      _selected.map((k) => supplyItemByKey(k)!.category).toSet();
 
   @override
   void initState() {
@@ -84,13 +78,15 @@ class _HelpFlowScreenState extends ConsumerState<HelpFlowScreen> {
     final ai = ref.read(aiAssistProvider);
     final result = await ai.structure(text);
     if (!mounted) return;
-    // Map the suggested category name back to the enum and pre-select it.
-    final match = _categories.firstWhere(
-      (c) => c.name.replaceFirst('RESOURCE_CATEGORY_', '') == result.category,
-      orElse: () => ResourceCategory.RESOURCE_CATEGORY_OTHER,
+    // Map the suggested category name back to a picker item and pre-select it.
+    final match = kSupplyItems.firstWhere(
+      (it) =>
+          it.category.name.replaceFirst('RESOURCE_CATEGORY_', '') ==
+          result.category,
+      orElse: () => kSupplyItems.last, // "other"
     );
     setState(() {
-      _selected.add(match);
+      _selected.add(match.key);
       _aiBusy = false;
     });
     Toast.show(
@@ -145,7 +141,7 @@ class _HelpFlowScreenState extends ConsumerState<HelpFlowScreen> {
     final note = _note.text.trim();
     if (note.isNotEmpty) return note;
     final l = L10n.of(context);
-    return _selected.map((c) => categoryLabel(l, c)).join(', ');
+    return _selected.map((k) => supplyItemByKey(k)!.label(l)).join(', ');
   }
 
   Future<void> _showDedupWarning(String existingText) async {
@@ -207,12 +203,14 @@ class _HelpFlowScreenState extends ConsumerState<HelpFlowScreen> {
 
       final SignedEvent event;
       if (widget.isRequest) {
+        final cats = _selectedCategories;
         final body = HelpRequestBody(
           requestId: const Uuid().v4(),
-          categories: _selected,
+          categories: cats,
           freeform: _note.text.trim(),
-          priority: _selected
-                  .contains(ResourceCategory.RESOURCE_CATEGORY_MEDICAL_HELP)
+          priority: cats.contains(
+                      ResourceCategory.RESOURCE_CATEGORY_MEDICAL_HELP) ||
+                  cats.contains(ResourceCategory.RESOURCE_CATEGORY_MEDICINE)
               ? Priority.PRIORITY_HIGH
               : Priority.PRIORITY_NORMAL,
           location: _where == null
@@ -228,7 +226,7 @@ class _HelpFlowScreenState extends ConsumerState<HelpFlowScreen> {
       } else {
         final body = HelpOfferBody(
           offerId: const Uuid().v4(),
-          categories: _selected,
+          categories: _selectedCategories,
           amount: _amount,
           availability: _availability,
           notes: _note.text.trim(),
@@ -247,7 +245,10 @@ class _HelpFlowScreenState extends ConsumerState<HelpFlowScreen> {
       final result = await store.apply(event);
       bumpWorld(ref);
       if (!mounted) return;
-      HapticFeedback.mediumImpact();
+      // A sent help request is the SOS-grade success pattern; an offer is a
+      // standard confirm.
+      fireHaptic(
+          ref, widget.isRequest ? HapticKind.success : HapticKind.confirm);
       Toast.show(
         context,
         widget.isRequest ? l.t('request_sent') : l.t('offer_sent'),
@@ -290,24 +291,24 @@ class _HelpFlowScreenState extends ConsumerState<HelpFlowScreen> {
                   Wrap(
                     spacing: 10,
                     runSpacing: 10,
-                    children: _categories.map((c) {
-                      final selected = _selected.contains(c);
+                    children: kSupplyItems.map((it) {
+                      final selected = _selected.contains(it.key);
                       return FilterChip(
-                        avatar: Icon(iconForCategory(c),
+                        avatar: Icon(it.icon,
                             size: 22,
                             color: selected
                                 ? Theme.of(context).colorScheme.onPrimary
                                 : null),
-                        label: Text(categoryLabel(l, c)),
+                        label: Text(it.label(l)),
                         selected: selected,
                         showCheckmark: false,
                         onSelected: (v) {
-                          HapticFeedback.selectionClick();
+                          fireHaptic(ref, HapticKind.selection);
                           setState(() {
                             if (v) {
-                              _selected.add(c);
+                              _selected.add(it.key);
                             } else {
-                              _selected.remove(c);
+                              _selected.remove(it.key);
                             }
                           });
                         },
@@ -422,7 +423,7 @@ class _HelpFlowScreenState extends ConsumerState<HelpFlowScreen> {
       label: Text(label),
       selected: selected,
       onSelected: (_) {
-        HapticFeedback.selectionClick();
+        fireHaptic(ref, HapticKind.selection);
         onTap();
       },
     );

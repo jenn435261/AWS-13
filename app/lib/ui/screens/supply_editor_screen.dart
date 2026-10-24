@@ -4,19 +4,27 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../app/providers.dart';
+import '../../core/haptics/haptics.dart';
 import '../../gen/resilience/v1/event.pb.dart';
 import '../../l10n/strings.dart';
 import '../../location/location_providers.dart';
 import '../../location/position_service.dart';
 import '../../state/derived_state.dart';
+import '../../supplies/supply_catalog.dart';
 import '../../supplies/supply_service.dart';
 import '../components/location_field.dart';
 import '../components/toast.dart';
-import '../components/trust_badges.dart';
 
 /// Create or edit a supply: what it is, how much (a number and a free-text
 /// unit), when it is available, and where it is. Saving publishes signed
 /// events; editing re-publishes under the same id (owner only).
+///
+/// When creating, the user can multi-select from the Round-2 item list (water,
+/// food, medical, shelter, power, fuel, transport, hygiene, comms, tools, baby,
+/// pets, other). Each selected item becomes its own signed supply (one event
+/// per item), carrying the shared quantity/unit/notes/location and a free-text
+/// title. Extra items (fuel/hygiene/comms/baby/pets) map onto existing proto
+/// categories plus the item label (see supply_catalog.dart / DECISIONS.md).
 class SupplyEditorScreen extends ConsumerStatefulWidget {
   /// Null => new supply.
   final ResourceView? editing;
@@ -27,23 +35,14 @@ class SupplyEditorScreen extends ConsumerStatefulWidget {
 }
 
 class _SupplyEditorState extends ConsumerState<SupplyEditorScreen> {
-  static const _categories = <ResourceCategory>[
-    ResourceCategory.RESOURCE_CATEGORY_WATER,
-    ResourceCategory.RESOURCE_CATEGORY_FOOD,
-    ResourceCategory.RESOURCE_CATEGORY_MEDICINE,
-    ResourceCategory.RESOURCE_CATEGORY_SHELTER,
-    ResourceCategory.RESOURCE_CATEGORY_POWER,
-    ResourceCategory.RESOURCE_CATEGORY_TRANSPORTATION,
-    ResourceCategory.RESOURCE_CATEGORY_MEDICAL_HELP,
-    ResourceCategory.RESOURCE_CATEGORY_COMMUNICATION,
-    ResourceCategory.RESOURCE_CATEGORY_OTHER,
-  ];
-
   final _title = TextEditingController();
   final _qty = TextEditingController();
   final _unit = TextEditingController();
   final _notes = TextEditingController();
-  ResourceCategory? _category;
+
+  /// Selected item keys (multi-select) when creating. When editing we keep a
+  /// single selection derived from the existing category.
+  final Set<String> _items = <String>{};
   AmountBand _amount = AmountBand.AMOUNT_BAND_UNSPECIFIED;
   Availability _availability = Availability.AVAILABILITY_NOW;
   DateTime? _until;
@@ -53,6 +52,8 @@ class _SupplyEditorState extends ConsumerState<SupplyEditorScreen> {
   bool _saving = false;
   String? _error;
 
+  bool get _isEditing => widget.editing != null;
+
   @override
   void initState() {
     super.initState();
@@ -61,9 +62,13 @@ class _SupplyEditorState extends ConsumerState<SupplyEditorScreen> {
       final r = e.resource;
       _title.text = r.title;
       _notes.text = r.notes;
-      _category = r.category == ResourceCategory.RESOURCE_CATEGORY_UNSPECIFIED
-          ? null
-          : r.category;
+      // Map the existing category back to a picker item (first match).
+      for (final it in kSupplyItems) {
+        if (it.category == r.category) {
+          _items.add(it.key);
+          break;
+        }
+      }
       _amount = r.amount;
       _availability = r.availability == Availability.AVAILABILITY_UNSPECIFIED
           ? Availability.AVAILABILITY_NOW
@@ -119,6 +124,22 @@ class _SupplyEditorState extends ConsumerState<SupplyEditorScreen> {
     });
   }
 
+  void _toggleItem(String key) {
+    fireHaptic(ref, HapticKind.selection);
+    setState(() {
+      if (_isEditing) {
+        // Editing stays a single item.
+        _items
+          ..clear()
+          ..add(key);
+      } else if (_items.contains(key)) {
+        _items.remove(key);
+      } else {
+        _items.add(key);
+      }
+    });
+  }
+
   Future<void> _save() async {
     final l = L10n.of(context);
     final title = _title.text.trim();
@@ -130,7 +151,14 @@ class _SupplyEditorState extends ConsumerState<SupplyEditorScreen> {
         return;
       }
     }
-    if (title.isEmpty || _category == null) {
+    if (_items.isEmpty) {
+      setState(() => _error = l.t('supply_needs_category'));
+      return;
+    }
+    // A free-text title is optional when at least one item is picked (the item
+    // label stands in), but required if the user picked only "other".
+    final onlyOther = _items.length == 1 && _items.first == 'other';
+    if (onlyOther && title.isEmpty) {
       setState(() => _error = l.t('supply_needs_name'));
       return;
     }
@@ -141,30 +169,41 @@ class _SupplyEditorState extends ConsumerState<SupplyEditorScreen> {
     try {
       final svc = await ref.read(supplyServiceProvider.future);
       final until = _availability == Availability.AVAILABILITY_TODAY
-          ? DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day, 23, 59)
+          ? DateTime(DateTime.now().year, DateTime.now().month,
+              DateTime.now().day, 23, 59)
           : (_availability == Availability.AVAILABILITY_CUSTOM ? _until : null);
-      await svc.save(SupplyDraft(
-        resourceId: widget.editing?.resourceId,
-        category: _category!,
-        title: title,
-        notes: _notes.text,
-        quantity: qty,
-        unit: _unit.text.trim(),
-        amount: _amount,
-        availability: _availability,
-        availableUntil: until,
-        location: _where == null
-            ? null
-            : geoPointFor(_where!, source: _whereSource),
-        isShelter: _shelter || _category == ResourceCategory.RESOURCE_CATEGORY_SHELTER,
-      ));
+      final location =
+          _where == null ? null : geoPointFor(_where!, source: _whereSource);
+
+      // One signed supply event per selected item (the fold keys each by its
+      // own resource id). The title defaults to the item label when the user
+      // left the free-text field empty, so each supply is self-describing.
+      for (final key in _items) {
+        final item = supplyItemByKey(key)!;
+        final itemLabel = title.isNotEmpty ? title : item.label(l);
+        await svc.save(SupplyDraft(
+          resourceId: _isEditing ? widget.editing!.resourceId : null,
+          category: item.category,
+          title: itemLabel,
+          notes: _notes.text,
+          quantity: qty,
+          unit: _unit.text.trim(),
+          amount: _amount,
+          availability: _availability,
+          availableUntil: until,
+          location: location,
+          isShelter: _shelter ||
+              item.category == ResourceCategory.RESOURCE_CATEGORY_SHELTER,
+        ));
+      }
       bumpWorld(ref);
       if (!mounted) return;
-      HapticFeedback.mediumImpact();
+      fireHaptic(ref, HapticKind.confirm);
       Toast.show(context, l.t('supply_saved'));
       Navigator.of(context).pop(true);
     } catch (_) {
       if (mounted) {
+        fireHaptic(ref, HapticKind.error);
         setState(() {
           _saving = false;
           _error = l.t('supply_save_failed');
@@ -181,26 +220,31 @@ class _SupplyEditorState extends ConsumerState<SupplyEditorScreen> {
         fontFamily: 'Roboto', fontSize: 16, fontWeight: FontWeight.w600);
     return Scaffold(
       appBar: AppBar(
-          title: Text(widget.editing == null
-              ? l.t('add_supply')
-              : l.t('edit_supply'))),
+          title: Text(_isEditing ? l.t('edit_supply') : l.t('add_supply'))),
       body: SafeArea(
         child: Column(children: [
           Expanded(
             child: ListView(padding: const EdgeInsets.all(16), children: [
               Text(l.t('supply_type'), style: label),
+              const SizedBox(height: 4),
+              if (!_isEditing)
+                Text(l.t('supply_type_multi_hint'),
+                    style: TextStyle(
+                        fontFamily: 'Roboto',
+                        fontSize: 16,
+                        color: scheme.outline)),
               const SizedBox(height: 8),
               Wrap(
                 spacing: 10,
                 runSpacing: 10,
                 children: [
-                  for (final c in _categories)
-                    ChoiceChip(
-                      avatar: Icon(iconForCategory(c), size: 20),
-                      label: Text(categoryLabel(l, c)),
-                      selected: _category == c,
+                  for (final it in kSupplyItems)
+                    FilterChip(
+                      avatar: Icon(it.icon, size: 20),
+                      label: Text(it.label(l)),
+                      selected: _items.contains(it.key),
                       showCheckmark: false,
-                      onSelected: (_) => setState(() => _category = c),
+                      onSelected: (_) => _toggleItem(it.key),
                     ),
                 ],
               ),
