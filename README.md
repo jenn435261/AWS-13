@@ -9,7 +9,7 @@ cloud infrastructure become available.
 
 Built for the SJSU AI Hackathon (Oct 2026). AI is powered by **Amazon Bedrock**.
 
-Team: Chris Luk, Shruti Nath, Jennelle Dabu, Bryan Cruz.
+Team: Chris Luk, Shruti Nath, Jennelle Dabu, Bryan Cruz, Nathan Taladua.
 
 ## Why it's different
 
