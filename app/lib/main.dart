@@ -35,10 +35,17 @@ Future<List<Override>> _webOverrides() async {
     final base = (j['baseUrl'] as String?)?.isNotEmpty == true
         ? j['baseUrl'] as String
         : origin;
-    return [
+    final overrides = <Override>[
       cloudBaseUrlProvider.overrideWithValue(base),
       cloudApiKeyProvider.overrideWithValue((j['apiKey'] as String?) ?? ''),
     ];
+    // The cloud advertises its feed/packages signing public key so the app can
+    // trust it as a root (label feed alerts "Official", verify cloud packs).
+    final feed = (j['feedPubkey'] as String?)?.trim() ?? '';
+    if (feed.isNotEmpty) {
+      overrides.add(cloudFeedPubkeyProvider.overrideWithValue(feed));
+    }
+    return overrides;
   } catch (_) {
     return const [];
   }

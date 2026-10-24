@@ -65,6 +65,18 @@ const kDefaultPackagesTrustedRoot =
 final packagesTrustedRootProvider =
     Provider<String>((ref) => kDefaultPackagesTrustedRoot);
 
+/// The cloud feed signing key's PUBLIC hex, learned at startup from the cloud's
+/// `/app-config.json` (web) or passed with `--dart-define=FEED_PUBKEY=...`
+/// (native). It is the trusted root the app verifies official-feed alerts AND
+/// the cloud package manifest against. Empty => the app cannot label a cloud
+/// alert/pack Official and shows an honest unverified state.
+const kDefaultFeedPubkey = String.fromEnvironment('FEED_PUBKEY');
+
+/// The trusted cloud feed/packages root (lowercase hex Ed25519). See
+/// [kDefaultFeedPubkey]. Overridden by main() on web from /app-config.json.
+final cloudFeedPubkeyProvider =
+    Provider<String>((ref) => kDefaultFeedPubkey);
+
 /// The local Drift database. Overridden in tests with AppDatabase.memory().
 final databaseProvider = Provider<AppDatabase>((ref) {
   final db = AppDatabase.open();
