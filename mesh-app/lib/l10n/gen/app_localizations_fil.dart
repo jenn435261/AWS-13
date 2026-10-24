@@ -4,9 +4,9 @@ import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
 
-/// The translations for Tagalog (`tl`).
-class AppLocalizationsTl extends AppLocalizations {
-  AppLocalizationsTl([String locale = 'tl']) : super(locale);
+/// The translations for Filipino Pilipino (`fil`).
+class AppLocalizationsFil extends AppLocalizations {
+  AppLocalizationsFil([String locale = 'fil']) : super(locale);
 
   @override
   String get appTitle => 'Mesh';

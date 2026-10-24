@@ -175,7 +175,7 @@ const _nameFields = {
   'es': ['name:es'],
   'vi': ['name:vi'],
   'zh': ['name:zh-Hans', 'name:zh'],
-  'tl': ['name:tl', 'name:fil'],
+  'fil': ['name:fil', 'name:tl'],
 };
 
 /// Changes the downloaded style in place: hides busy place labels, rewrites

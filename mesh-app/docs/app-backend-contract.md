@@ -76,7 +76,7 @@ point at it.
 | vote withdrawn | 18 | proposed, no proto name yet |
 | help request, SOS | 20 | `EVENT_TYPE_HELP_REQUESTED` (an SOS uses priority critical) |
 | offer | 21 | `EVENT_TYPE_HELP_OFFERED` |
-| help cancelled | 24 | proposed, no proto name yet |
+| help cancelled | 24 | `EVENT_TYPE_HELP_REQUEST_CLOSED` (body: field 1 = request id) |
 | help accepted | 25 | proposed, no proto name yet |
 | help released | 26 | proposed, no proto name yet |
 | offer withdrawn | 27 | proposed, no proto name yet |

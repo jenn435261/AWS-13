@@ -49,7 +49,7 @@ const supportedLanguages = <String, String>{
   'es': 'Español',
   'vi': 'Tiếng Việt',
   'zh': '中文（简体）',
-  'tl': 'Tagalog',
+  'fil': 'Filipino (Tagalog)',
 };
 
 const textScales = [1.0, 1.25, 1.5];
@@ -184,7 +184,8 @@ class SettingsController extends ChangeNotifier {
     try {
       final v = await _store.readAll();
       _themeMode = ThemeMode.values.asNameMap()[v['theme']] ?? _themeMode;
-      final lang = v['language'];
+      // 'tl' was this language's old code; Flutter's own widgets use 'fil'.
+      final lang = v['language'] == 'tl' ? 'fil' : v['language'];
       _language = supportedLanguages.containsKey(lang) ? lang as String : null;
       final scale = v['textScale'];
       _textScale = textScales.contains(scale) ? scale as double : 1.0;

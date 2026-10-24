@@ -29,11 +29,13 @@ abstract final class WireType {
   static const emergencyAlert = 50;
   static const locationStop = 61;
 
+  /// EVENT_TYPE_HELP_REQUEST_CLOSED. Body field 1 is the request id.
+  static const helpCancelled = 24;
+
   // PROPOSED: the app needs these and event.proto has no number for them
   // yet. The Node stores them today (it checks signatures, not types).
   // See docs/app-backend-contract.md; change them here in one place.
   static const resourceVoteWithdrawn = 18;
-  static const helpCancelled = 24;
   static const helpAccepted = 25;
   static const helpReleased = 26;
   static const offerWithdrawn = 27;
@@ -57,6 +59,7 @@ abstract final class WireType {
     'EVENT_TYPE_HELP_OFFERED': 21,
     'EVENT_TYPE_SHELTER_CREATED': 22,
     'EVENT_TYPE_TRANSPORT_OFFERED': 23,
+    'EVENT_TYPE_HELP_REQUEST_CLOSED': 24,
     'EVENT_TYPE_MESSAGE_SENT': 30,
     'EVENT_TYPE_MESSAGE_DELIVERED': 31,
     'EVENT_TYPE_MESSAGE_READ': 32,

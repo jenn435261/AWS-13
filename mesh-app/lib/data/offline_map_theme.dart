@@ -130,7 +130,7 @@ const _names = {
   'es': ['name:es'],
   'vi': ['name:vi'],
   'zh': ['name:zh-Hans', 'name:zh'],
-  'tl': ['name:tl', 'name:fil'],
+  'fil': ['name:fil', 'name:tl'],
 };
 
 /// Grows a line with the zoom, from [at12] wide at zoom 12 to [at18] at 18.
