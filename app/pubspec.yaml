@@ -49,6 +49,11 @@ dependencies:
   # P2P transport: Wi-Fi Direct (Android) / Multipeer (iOS)
   nearby_service: ^0.2.1
 
+  # BLE GATT transport (central role, Android<->iOS). NATIVE-ONLY: it is kept
+  # out of the web-reachable import graph (the web build never imports the
+  # native BLE adapter) so `flutter build web --release` keeps working.
+  flutter_blue_plus: ^1.32.12
+
   # QR codes for identity + logistics
   qr_flutter: ^4.1.0
   mobile_scanner: ^5.2.3

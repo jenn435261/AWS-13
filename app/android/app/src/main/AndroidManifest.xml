@@ -1,4 +1,22 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- BLE GATT transport (spec §6.2). Android 12+ (API 31) splits Bluetooth
+         into the new runtime BLUETOOTH_SCAN / BLUETOOTH_CONNECT / _ADVERTISE
+         permissions; the legacy BLUETOOTH / BLUETOOTH_ADMIN cover API <= 30.
+         usesPermissionFlags="neverForLocation" means our scan does not derive
+         physical location, so no fine-location grant is forced on newer OSes. -->
+    <uses-permission android:name="android.permission.BLUETOOTH"
+        android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"
+        android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"
+        android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
+    <uses-feature android:name="android.hardware.bluetooth_le"
+        android:required="false" />
+
     <application
         android:label="resilience"
         android:name="${applicationName}"
