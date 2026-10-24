@@ -1,0 +1,26 @@
+{
+  "name": "resilience-network-infra",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AWS CDK app (us-east-1) for the Resilience Network cloud: S3 + Bedrock-enabled Go API Lambda, optional RDS/SQS data stack.",
+  "bin": {
+    "resilience-infra": "bin/app.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "synth": "cdk synth",
+    "deploy": "cdk deploy --all --require-approval never",
+    "destroy": "cdk destroy --all"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "aws-cdk": "^2.173.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.0"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "^2.173.0",
+    "constructs": "^10.4.0"
+  }
+}

@@ -1,0 +1,11 @@
+# Heroku container deploy for the Resilience Network Go API.
+#   heroku stack:set container -a <app>
+#   heroku config:set AWS_REGION=us-east-1 AWS_ACCESS_KEY_ID=... \
+#       AWS_SECRET_ACCESS_KEY=... AWS_SESSION_TOKEN=... \
+#       BEDROCK_MODEL_ID=us.anthropic.claude-sonnet-4-5-20250929-v1:0 -a <app>
+#   git push heroku <branch>:main   (or: heroku container:push web && heroku container:release web)
+#
+# Never commit credentials — set them as Heroku config vars.
+build:
+  docker:
+    web: Dockerfile

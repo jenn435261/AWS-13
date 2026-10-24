@@ -1,0 +1,65 @@
+# Toolchain (installed in-workspace, never committed)
+/.toolchain/
+
+# Flutter / Dart
+app/.dart_tool/
+app/.flutter-plugins
+app/.flutter-plugins-dependencies
+app/build/
+app/.pub-cache/
+app/pubspec.lock
+**/*.g.dart.bak
+app/ios/Pods/
+app/ios/.symlinks/
+app/android/.gradle/
+app/android/local.properties
+app/android/app/debug/
+app/android/app/profile/
+app/android/app/release/
+app/.idea/
+
+# Go
+cloud/bin/
+cloud/build/
+node/bin/
+*.test
+*.out
+
+# CDK / Node (infra)
+infra/node_modules/
+infra/cdk.out/
+infra/package-lock.json
+infra/cdk.context.json
+infra/cdk-outputs.json
+infra/dist/
+
+# Generated protobuf (regenerated via buf generate)
+# NOTE: we DO commit generated code so the app builds without codegen step.
+# Uncomment to exclude:
+# **/gen/
+
+# Infra
+infra/.terraform/
+infra/*.tfstate
+infra/*.tfstate.backup
+infra/.terraform.lock.hcl
+
+# OS / editor
+.DS_Store
+*.swp
+*.log
+
+# Orchestrator task scratch (not part of deliverable)
+/.tasks/
+
+# agent scratch + local secrets (never commit)
+.agents/
+*.env
+.env
+.env.*
+aws-credentials*
+*.credentials
+
+# Flutter web bundle staged for Heroku (built by scripts/deploy-heroku.ps1)
+cloud/web/*
+!cloud/web/index.html
