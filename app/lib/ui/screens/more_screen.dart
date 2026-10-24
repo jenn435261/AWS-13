@@ -9,6 +9,8 @@ import '../../app/providers.dart';
 import 'location_share_screen.dart';
 import 'my_posts_screen.dart';
 import 'network_status_screen.dart';
+import 'nodes_screen.dart';
+import 'provider_screen.dart';
 import 'offline_downloads_screen.dart';
 import 'settings_screen.dart';
 import 'trusted_orgs_screen.dart';
@@ -28,7 +30,7 @@ class MoreScreen extends ConsumerWidget {
         child: ListView(
           children: [
             _tile(context, Icons.my_location_rounded, l.t('share_location'),
-                subtitle: l.t('sharing_active'), onTap: () {
+                onTap: () {
               Navigator.of(context).push(MaterialPageRoute(
                   builder: (_) => const LocationShareScreen()));
             }),
@@ -36,6 +38,13 @@ class MoreScreen extends ConsumerWidget {
                 onTap: () => _open(context, const MyPostsScreen(requests: false))),
             _tile(context, Icons.help_outline_rounded, l.t('my_requests'),
                 onTap: () => _open(context, const MyPostsScreen(requests: true))),
+            _tile(context, Icons.admin_panel_settings_outlined, l.t('provider_tools'),
+                subtitle: ref.watch(isVerifiedProviderProvider)
+                    ? l.t('you_are_provider')
+                    : l.t('you_are_community'),
+                onTap: () => _open(context, const ProviderScreen())),
+            _tile(context, Icons.router_outlined, l.t('saved_nodes'),
+                onTap: () => _open(context, const NodesScreen())),
             _tile(context, Icons.download_outlined, l.t('offline_downloads'),
                 onTap: () => _open(context, const OfflineDownloadsScreen())),
             _tile(context, Icons.network_check_rounded, l.t('network_status'),
@@ -106,6 +115,13 @@ class MoreScreen extends ConsumerWidget {
       await IdentityStore(ref.read(secretStoreProvider)).clear();
       ref.invalidate(identityProvider);
       ref.invalidate(contactsProvider);
+      ref.invalidate(nodesProvider);
+      ref.invalidate(activeNodeIdProvider);
+      ref.invalidate(packagesProvider);
+      ref.invalidate(trustRootsProvider);
+      ref.invalidate(trustRootsLoadedProvider);
+      ref.invalidate(trustedRootsListProvider);
+      ref.invalidate(myPositionProvider);
       ref.invalidate(worldStateProvider);
       bumpWorld(ref);
       if (context.mounted) {

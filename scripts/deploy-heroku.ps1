@@ -11,27 +11,34 @@ $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
 
 Write-Host '==> flutter build web'
-Push-Location app; flutter build web --release; Pop-Location
+Push-Location app; flutter build web --release --no-wasm-dry-run; if ($LASTEXITCODE -ne 0) { Pop-Location; throw "flutter build failed" }; Pop-Location
 if ($LASTEXITCODE -ne 0) { throw 'flutter build failed' }
 
 Write-Host '==> staging bundle into cloud/web'
 Get-ChildItem cloud\web -Exclude index.html -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force
 Copy-Item app\build\web\* cloud\web -Recurse -Force
 
-$branch = git branch --show-current
+# git writes harmless warnings (e.g. CRLF) to stderr; under PowerShell 5.1 with
+# 'Stop' those become terminating errors, so run git with 'Continue' and check
+# exit codes explicitly.
+$ErrorActionPreference = 'Continue'
+function Invoke-Git { & git @args; if ($LASTEXITCODE -ne 0) { throw "git $($args -join ' ') failed ($LASTEXITCODE)" } }
+
+$branch = (git branch --show-current)
 $tmp = 'heroku-deploy-tmp'
-git checkout -q -B $tmp
+Invoke-Git checkout -q -B $tmp
 try {
-  git add -f cloud/web
-  git commit -q -m 'deploy: web bundle' --allow-empty
-  git subtree split --prefix=cloud -b heroku-deploy | Out-Null
-  if (-not (git remote | Select-String -SimpleMatch heroku)) { git remote add heroku "https://git.heroku.com/$App.git" }
+  Invoke-Git add -f cloud/web
+  Invoke-Git commit -q -m 'deploy: web bundle' --allow-empty
+  Invoke-Git subtree split --prefix=cloud -b heroku-deploy | Out-Null
+  if (-not (git remote | Select-String -SimpleMatch heroku)) { Invoke-Git remote add heroku "https://git.heroku.com/$App.git" }
   Write-Host '==> git push heroku'
-  git push heroku heroku-deploy:main --force
+  Invoke-Git push heroku heroku-deploy:main --force
 } finally {
-  git checkout -q $branch
-  git branch -D heroku-deploy 2>$null | Out-Null
-  git branch -D $tmp 2>$null | Out-Null
-  git checkout -- cloud/web 2>$null
+  git checkout -q -f $branch
+  git branch -D heroku-deploy 2>&1 | Out-Null
+  git branch -D $tmp 2>&1 | Out-Null
+  git reset -q cloud/web 2>&1 | Out-Null
+  git checkout -- cloud/web 2>&1 | Out-Null
 }
 Write-Host "==> done: https://$App.herokuapp.com/healthz"

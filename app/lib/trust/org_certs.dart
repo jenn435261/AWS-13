@@ -17,6 +17,14 @@ import 'trust_roots.dart';
 /// We never collapse this into a numeric score; it is one of the three
 /// independent dimensions the UI surfaces.
 class OrgCertGraph {
+  /// Maximum certificate chain depth (hops from a trusted root) that still
+  /// confers the verified-org badge. A trusted root is depth 0; a key the root
+  /// certifies directly is depth 1; a key certified by that key is depth 2. A
+  /// chain deeper than this (depth 3+) does NOT confer the badge. This bounds
+  /// how far delegation can travel from an out-of-band trusted anchor and is
+  /// recorded in docs/DECISIONS.md.
+  static const int maxChainDepth = 2;
+
   /// subject pubkey -> the set of issuer pubkeys that certified it.
   final Map<AuthorKey, Set<AuthorKey>> _issuers =
       <AuthorKey, Set<AuthorKey>>{};
@@ -105,35 +113,39 @@ class OrgCertGraph {
       return ProvenanceKind.PROVENANCE_KIND_COMMUNITY;
     }
 
-    // A trusted root certifies itself.
+    // A trusted root certifies itself (depth 0).
     if (roots.isTrustedRoot(authorPubkey)) {
       return ProvenanceKind.PROVENANCE_KIND_VERIFIED_ORG;
     }
 
-    // Walk issuer edges upward from the author looking for a trusted root.
-    // Depth-first with a visited set to defeat cycles.
-    final Set<AuthorKey> visited = <AuthorKey>{};
-    final List<AuthorKey> stack = <AuthorKey>[AuthorKey(authorPubkey)];
+    // Walk issuer edges upward from the author looking for a trusted root,
+    // bounded to [maxChainDepth] hops. Breadth-first by depth so the SHORTEST
+    // chain to a root decides: each step up the issuer graph is one hop, and a
+    // root reachable within `maxChainDepth` hops confers the badge. A root only
+    // reachable at depth > maxChainDepth does NOT (abuse/over-delegation guard).
+    // A visited set defeats cycles; a revoked key breaks its path.
+    final Set<AuthorKey> visited = <AuthorKey>{AuthorKey(authorPubkey)};
+    List<AuthorKey> frontier = <AuthorKey>[AuthorKey(authorPubkey)];
 
-    while (stack.isNotEmpty) {
-      final AuthorKey current = stack.removeLast();
-      if (!visited.add(current)) continue;
-
-      // A key on the chain that is revoked breaks that path.
-      if (revocations.isRevoked(current.bytes)) continue;
-
-      final Set<AuthorKey>? issuers = _issuers[current];
-      if (issuers == null) continue;
-
-      for (final AuthorKey issuer in issuers) {
-        if (revocations.isRevoked(issuer.bytes)) continue;
-        if (roots.isTrustedRoot(issuer.bytes)) {
-          return ProvenanceKind.PROVENANCE_KIND_VERIFIED_ORG;
-        }
-        if (!visited.contains(issuer)) {
-          stack.add(issuer);
+    for (int depth = 1; depth <= maxChainDepth && frontier.isNotEmpty; depth++) {
+      final List<AuthorKey> next = <AuthorKey>[];
+      for (final AuthorKey current in frontier) {
+        // A key on the chain that is revoked breaks that path.
+        if (revocations.isRevoked(current.bytes)) continue;
+        final Set<AuthorKey>? issuers = _issuers[current];
+        if (issuers == null) continue;
+        for (final AuthorKey issuer in issuers) {
+          if (revocations.isRevoked(issuer.bytes)) continue;
+          // Reaching a trusted root at this depth (<= maxChainDepth) verifies.
+          if (roots.isTrustedRoot(issuer.bytes)) {
+            return ProvenanceKind.PROVENANCE_KIND_VERIFIED_ORG;
+          }
+          if (visited.add(issuer)) {
+            next.add(issuer);
+          }
         }
       }
+      frontier = next;
     }
 
     return ProvenanceKind.PROVENANCE_KIND_COMMUNITY;

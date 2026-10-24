@@ -2,7 +2,9 @@ import 'dart:typed_data';
 
 import 'package:libsignal_protocol_dart/libsignal_protocol_dart.dart';
 
+import '../db/signal_dao.dart';
 import '../gen/resilience/v1/event.pb.dart';
+import 'drift_signal_store.dart';
 
 /// Install-time Signal Protocol key material for a device.
 ///
@@ -51,7 +53,8 @@ class SignalKeys {
   }
 
   /// Install this device's key material into an in-memory protocol store and
-  /// return it. Later waves swap this for a Drift-backed store.
+  /// return it. Used by unit tests and ephemeral sessions; production uses the
+  /// durable [DriftSignalProtocolStore] (see [loadDurableStore]).
   Future<InMemorySignalProtocolStore> buildStore() async {
     final store =
         InMemorySignalProtocolStore(identityKeyPair, registrationId);
@@ -60,6 +63,29 @@ class SignalKeys {
     }
     await store.storeSignedPreKey(signedPreKey.id, signedPreKey);
     return store;
+  }
+
+  /// Package this key material as the first-run input for a durable store.
+  FreshSignalKeys toFreshKeys() => FreshSignalKeys(
+        identityKeyPair: identityKeyPair,
+        registrationId: registrationId,
+        signedPreKey: signedPreKey,
+        preKeys: preKeys,
+      );
+
+  /// Load (or create on first run) the durable Drift-backed Signal store. On
+  /// first run a fresh [SignalKeys] is generated and persisted; afterwards the
+  /// stored identity/prekeys/sessions are re-hydrated so a session survives a
+  /// restart.
+  static Future<DriftSignalProtocolStore> loadDurableStore(
+    SignalDao dao, {
+    int preKeyCount = 110,
+  }) {
+    return DriftSignalProtocolStore.load(
+      dao,
+      onFirstRun: () async =>
+          (await SignalKeys.generate(preKeyCount: preKeyCount)).toFreshKeys(),
+    );
   }
 
   /// Export a publishable prekey bundle. By default it advertises the first

@@ -1,58 +1,275 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../../l10n/strings.dart';
+import '../../location/position_service.dart';
 import '../theme/app_theme.dart';
+import 'pmtiles_tile_provider.dart';
 
-/// A platform-safe map surface.
+/// A real, pannable, zoomable map with markers at their true coordinates.
 ///
-/// The real MapLibre + PMTiles map is a mobile-native plugin that does not run
-/// on web or in widget tests. To keep the whole app compilable as a web boot
-/// gate (and testable), the map lives behind this widget: on
-/// unsupported platforms it renders a schematic fallback that still shows the
-/// user position and resource markers, so the map-first layout is always
-/// present. On Android/iOS a later build swaps in the MapLibre implementation
-/// behind the same widget contract.
-class MapView extends StatelessWidget {
-  /// Resource markers to plot (approximate positions in a 0..1 unit space for
-  /// the schematic fallback).
+/// Base tiles come from one of two sources, in priority order:
+///  1. Offline PMTiles served by a Resilience Node ([pmtilesUrl], raster only)
+///     — streamed tile-by-tile over HTTP Range requests, so the map works with
+///     no internet as long as the node is reachable.
+///  2. OpenStreetMap raster tiles over the internet (the online fallback).
+///
+/// When neither is available the markers and the user dot still draw on a plain
+/// background and an honest banner says tiles are unavailable. We never add
+/// maplibre_gl (it breaks `flutter build web --release`); the PMTiles path is
+/// pure-Dart and web-safe. See docs/SPEC_PROVIDER_AND_FEATURES.md, "Map".
+///
+/// Pass [onPick] to turn the map into a point picker: a tap reports the
+/// position and shows a pin there ([picked]).
+class MapView extends StatefulWidget {
   final List<MapMarker> markers;
-  const MapView({super.key, this.markers = const []});
+
+  /// The user's own position, drawn as a dot. Null => no dot is drawn (we never
+  /// invent a "you are here").
+  final LatLng? me;
+
+  /// Initial centre; defaults to [me], then the markers' centre, then
+  /// [kDefaultMapCenter].
+  final LatLng? center;
+  final double zoom;
+  final ValueChanged<LatLng>? onPick;
+  final LatLng? picked;
+  final VoidCallback? onLocateMe;
+
+  /// Full URL of a node's PMTiles archive
+  /// (`<node>/node/v1/map/<region>.pmtiles`). When set and the archive is a
+  /// raster archive, it replaces the OSM online layer. Null => OSM only.
+  final String? pmtilesUrl;
+
+  const MapView({
+    super.key,
+    this.markers = const [],
+    this.me,
+    this.center,
+    this.zoom = 13,
+    this.onPick,
+    this.picked,
+    this.onLocateMe,
+    this.pmtilesUrl,
+  });
+
+  @override
+  State<MapView> createState() => _MapViewState();
+}
+
+class _MapViewState extends State<MapView> {
+  final _controller = MapController();
+  bool _tilesFailed = false;
+
+  /// The active PMTiles provider (raster) once opened, or null if none / still
+  /// loading / unsupported (vector) / unreachable.
+  PmTilesTileProvider? _pmtiles;
+
+  @override
+  void initState() {
+    super.initState();
+    _maybeLoadPmtiles();
+  }
+
+  @override
+  void dispose() {
+    _pmtiles?.dispose();
+    super.dispose();
+  }
+
+  Future<void> _maybeLoadPmtiles() async {
+    final url = widget.pmtilesUrl;
+    if (url == null || url.isEmpty) return;
+    final provider = await PmTilesTileProvider.openRaster(url);
+    if (!mounted) {
+      provider?.dispose();
+      return;
+    }
+    if (provider == null) return; // keep OSM fallback
+    setState(() => _pmtiles = provider);
+  }
+
+  LatLng get _initialCenter {
+    if (widget.center != null) return widget.center!;
+    if (widget.me != null) return widget.me!;
+    if (widget.markers.isNotEmpty) {
+      final lat = widget.markers.map((m) => m.position.latitude).reduce(
+              (a, b) => a + b) /
+          widget.markers.length;
+      final lon = widget.markers.map((m) => m.position.longitude).reduce(
+              (a, b) => a + b) /
+          widget.markers.length;
+      return LatLng(lat, lon);
+    }
+    return kDefaultMapCenter;
+  }
+
+  @override
+  void didUpdateWidget(MapView old) {
+    super.didUpdateWidget(old);
+    // Follow the user when a new position arrives (e.g. after "locate me").
+    if (widget.me != null && widget.me != old.me) {
+      _controller.move(widget.me!, widget.zoom);
+    }
+    // Re-open the archive if the node / region changed.
+    if (widget.pmtilesUrl != old.pmtilesUrl) {
+      _pmtiles?.dispose();
+      _pmtiles = null;
+      _tilesFailed = false;
+      _maybeLoadPmtiles();
+    }
+  }
+
+  void _zoom(double delta) {
+    final cam = _controller.camera;
+    _controller.move(cam.center, (cam.zoom + delta).clamp(2, 19));
+  }
+
+  /// The base map layer: node PMTiles (raster) when loaded, else OSM raster.
+  Widget _baseTileLayer() {
+    final pm = _pmtiles;
+    if (pm != null) {
+      // Offline PMTiles from the active node. No errorTileCallback-driven
+      // banner: tiles outside the archive bounds render transparent, which is
+      // expected for a regional offline map.
+      return TileLayer(
+        tileProvider: pm,
+        minNativeZoom: pm.minZoom,
+        maxNativeZoom: pm.maxZoom,
+        minZoom: pm.minZoom.toDouble(),
+      );
+    }
+    return TileLayer(
+      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+      userAgentPackageName: 'live.chrisccluk.resilience',
+      maxNativeZoom: 19,
+      errorTileCallback: (tile, error, stack) {
+        if (!_tilesFailed && mounted) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) setState(() => _tilesFailed = true);
+          });
+        }
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final l = L10n.of(context);
     final scheme = Theme.of(context).colorScheme;
     return Semantics(
-      label: 'Offline map',
-      child: Container(
-        color: scheme.surfaceContainerHighest,
-        child: Stack(
-          children: [
-            // Schematic "map" grid so the surface reads as a map even in the
-            // fallback (web/test). Real tiles replace this on mobile.
-            Positioned.fill(child: CustomPaint(painter: _GridPainter(scheme))),
-            // Markers.
-            ...markers.map((m) => _MarkerDot(marker: m)),
-            // "You are here" center dot.
-            const Center(child: _YouDot()),
+      label: 'Map',
+      child: Stack(
+        children: [
+          FlutterMap(
+            mapController: _controller,
+            options: MapOptions(
+              initialCenter: _initialCenter,
+              initialZoom: widget.zoom,
+              minZoom: 2,
+              maxZoom: 19,
+              onTap: widget.onPick == null
+                  ? null
+                  : (_, p) => widget.onPick!(p),
+            ),
+            children: [
+              _baseTileLayer(),
+              MarkerLayer(markers: [
+                for (final m in widget.markers)
+                  Marker(
+                    point: m.position,
+                    width: 44,
+                    height: 44,
+                    child: _MarkerDot(marker: m),
+                  ),
+                if (widget.me != null)
+                  Marker(
+                      point: widget.me!,
+                      width: 26,
+                      height: 26,
+                      child: const _YouDot()),
+                if (widget.picked != null)
+                  Marker(
+                      point: widget.picked!,
+                      width: 44,
+                      height: 44,
+                      alignment: Alignment.topCenter,
+                      child: Icon(Icons.location_on_rounded,
+                          size: 44, color: scheme.error)),
+              ]),
+              RichAttributionWidget(
+                alignment: AttributionAlignment.bottomLeft,
+                attributions: [
+                  TextSourceAttribution(_pmtiles != null
+                      ? l.t('map_offline_source')
+                      : '© OpenStreetMap contributors'),
+                ],
+              ),
+            ],
+          ),
+          if (_tilesFailed)
             Positioned(
+              top: 8,
               left: 12,
-              bottom: 12,
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: scheme.surface.withValues(alpha: 0.85),
-                  borderRadius: BorderRadius.circular(10),
+              right: 12,
+              child: Material(
+                color: scheme.surface.withValues(alpha: 0.92),
+                borderRadius: BorderRadius.circular(10),
+                child: Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: Text(l.t('map_tiles_offline'),
+                      style:
+                          const TextStyle(fontFamily: 'Roboto', fontSize: 16)),
                 ),
-                child: Text(l.t('you_are_here'),
-                    style: const TextStyle(fontFamily: 'Roboto', 
-                        fontSize: 16, fontWeight: FontWeight.w600)),
               ),
             ),
-          ],
-        ),
+          Positioned(
+            right: 12,
+            bottom: 36,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _MapButton(
+                    icon: Icons.add_rounded,
+                    tooltip: l.t('zoom_in'),
+                    onPressed: () => _zoom(1)),
+                const SizedBox(height: 8),
+                _MapButton(
+                    icon: Icons.remove_rounded,
+                    tooltip: l.t('zoom_out'),
+                    onPressed: () => _zoom(-1)),
+                if (widget.onLocateMe != null) ...[
+                  const SizedBox(height: 8),
+                  _MapButton(
+                      icon: Icons.my_location_rounded,
+                      tooltip: l.t('locate_me'),
+                      onPressed: widget.onLocateMe!),
+                ],
+              ],
+            ),
+          ),
+        ],
       ),
+    );
+  }
+}
+
+class _MapButton extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onPressed;
+  const _MapButton(
+      {required this.icon, required this.tooltip, required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Theme.of(context).colorScheme.surface,
+      elevation: 2,
+      shape: const CircleBorder(),
+      child: IconButton(
+          tooltip: tooltip, icon: Icon(icon), onPressed: onPressed),
     );
   }
 }
@@ -61,16 +278,14 @@ class MapMarker {
   final String id;
   final IconData icon;
   final Color color;
-  final double x; // 0..1 fractional position
-  final double y;
+  final LatLng position;
   final String label;
   final VoidCallback? onTap;
   const MapMarker({
     required this.id,
     required this.icon,
     required this.color,
-    required this.x,
-    required this.y,
+    required this.position,
     required this.label,
     this.onTap,
   });
@@ -82,31 +297,22 @@ class _MarkerDot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(builder: (context, c) {
-      return Positioned(
-        left: (marker.x * c.maxWidth).clamp(0, c.maxWidth - 48),
-        top: (marker.y * c.maxHeight).clamp(0, c.maxHeight - 48),
-        child: Semantics(
-          button: marker.onTap != null,
-          label: marker.label,
-          child: GestureDetector(
-            onTap: marker.onTap,
-            child: Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: marker.color,
-                shape: BoxShape.circle,
-                boxShadow: const [
-                  BoxShadow(color: Colors.black26, blurRadius: 4)
-                ],
-              ),
-              child: Icon(marker.icon, color: Colors.white, size: 26),
-            ),
+    return Semantics(
+      button: marker.onTap != null,
+      label: marker.label,
+      child: GestureDetector(
+        onTap: marker.onTap,
+        child: Container(
+          decoration: BoxDecoration(
+            color: marker.color,
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white, width: 2),
+            boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 4)],
           ),
+          child: Icon(marker.icon, color: Colors.white, size: 24),
         ),
-      );
-    });
+      ),
+    );
   }
 }
 
@@ -114,35 +320,16 @@ class _YouDot extends StatelessWidget {
   const _YouDot();
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 22,
-      height: 22,
-      decoration: BoxDecoration(
-        color: AppTheme.verified,
-        shape: BoxShape.circle,
-        border: Border.all(color: Colors.white, width: 3),
+    return Semantics(
+      label: 'You',
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppTheme.verified,
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.white, width: 3),
+          boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 4)],
+        ),
       ),
     );
   }
-}
-
-class _GridPainter extends CustomPainter {
-  final ColorScheme scheme;
-  _GridPainter(this.scheme);
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = scheme.outline.withValues(alpha: 0.15)
-      ..strokeWidth = 1;
-    const step = 48.0;
-    for (double x = 0; x < size.width; x += step) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
-    }
-    for (double y = 0; y < size.height; y += step) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(_GridPainter old) => false;
 }

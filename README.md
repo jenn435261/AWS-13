@@ -54,7 +54,7 @@ Toolchain: Flutter (Dart 3.11+), Go 1.26, protoc/buf.
 
 ```bash
 # App
-cd app && flutter pub get && flutter test            # 107 tests (excluding screenshots_test, which needs the original author's sandbox font path)
+cd app && flutter pub get && flutter test            # 164 tests (excluding screenshots_test, which needs the original author's sandbox font path)
 
 # Cloud (Go)
 cd cloud && go test ./...                            # events/store/api/ai/org
@@ -122,14 +122,22 @@ event account (`WSParticipantRole`) denies `iam:CreateRole`/`PassRole`, so
 |------|-------|
 | Signed event log, local DB (SQLite-WASM on web, SQLite on mobile) | Working. "I Need Help"/"Offer Help" create signed events, persisted locally; My Requests / My Supplies read them back |
 | Contacts | Working: add by QR scan (camera), by pasted code, show/copy my QR; saved locally; remove with undo |
-| AI assist (Bedrock via the Go API) | Working when the API is reachable and AWS credentials are valid; otherwise local rules (`degraded`) |
-| Network status | Real: probes the cloud `/healthz` (latency, last checked). Nearby peers unavailable in browsers; node and LoRa not set up |
-| Offline downloads | Probes a Resilience Node address you enter and lists only what it confirms |
-| Trusted organizations | Shows installed trust roots (empty until a readiness package installs one) |
+| AI assist (Bedrock via the Go API) | Working when the API is reachable and AWS credentials are valid; otherwise local rules (`degraded`). Surfaced in the UI: Home summary bar, a translate panel on notes / request details / incoming messages, and a non-blocking duplicate check before submitting a request. The original text is always kept and a degraded chip is shown honestly |
+| Network status | Real: probes the cloud `/healthz` (latency, last checked) and shows live cloud/node sync status (last synced, pending count, errors). Nearby peers unavailable in browsers; LoRa not set up |
+| Offline downloads | Pick a saved node, read its real package catalog, and keep your own library of package versions (add / edit / check / download / delete). When the node serves a **signed manifest** that verifies against your configured trusted root, downloads can be **checksum-verified** (SHA-256 against the signed manifest) before you trust them; otherwise the manifest state is shown honestly as unverified/unavailable |
+| Trusted organizations | You choose which organization keys to trust (from a contact, or your own key when founding one); persisted; untrust any time |
+| Map | Real OpenStreetMap map (pan/zoom, locate me). Requests, supplies and shelters plot at their true (rounded ~110 m) coordinates. Supplies past their "available until" time and closed requests are auto-hidden. Online tiles need internet; when the active node serves **offline PMTiles** (raster) they are used and an honest offline banner is shown, otherwise it falls back to the online OSM raster layer |
+| Supplies | Full lifecycle: add (type, item, number + free-text unit, amount level, available now / today / until a date, location), edit, restock, mark out of stock, take down, put back up. Supplies past "available until" show as **Expired** and drop off the map. Only the owner's edits count |
+| Requests | My Requests can **close/cancel** a request (owner-only; it leaves the map, the record stays verifiable). A close from any other key is ignored |
+| Provider tools | Verified providers (a trusted root, or certified within **2 certificate hops** of one) can publish verified supplies, post emergency alerts (and **recall** their own alerts), and create + assign missions; roots can certify contacts. Community users see how to become one. Verified-org status requires a chain from a trusted root at most 2 hops deep |
+| Deliveries / missions | Verified providers assign a carrier to a mission (`MISSION_MATCHED`, verified-only — a non-provider assignment is ignored); carriers accept a mission from the Deliveries tab (`MISSION_ACCEPTED`). Buckets: Assigned / Available / In transit / Awaiting handoff / Completed |
+| Resilience nodes | Save several nodes (scan the node's QR or type an address), rename, set active, check reachability, delete |
+| Languages | English, Spanish, French, Mandarin (Simplified) |
 | Data controls | Erase-all really wipes events, contacts and identity; clear-cache rebuilds derived state |
-| Location sharing | **Not connected.** Audience/precision/duration (15m, 1h, 4h, 24h, until I stop) UI exists, but there is no position source or delivery path, so the button is disabled |
-| Secure messaging | **Not connected.** Crypto engines are tested (Signal X3DH/Double Ratchet), but chats need prekey publication, a durable Signal store and an app-side sync client that do not exist yet |
-| App-side cloud sync (push/pull events) | **Not built.** The API endpoints exist and are tested; the app does not call them yet |
+| Location sharing | Working: the Share button takes a real position (opt-in, rounded ~110 m unless you pick exact), encrypts the point to the chosen contacts over the Signal E2E path, and is time-boxed (15m / 1h / 4h / 24h / until I stop) and revocable (Stop). Shares fold into the map/list and auto-expire; only the author can stop their own share |
+| Secure messaging | Working end to end: durable Drift-backed Signal store (X3DH + Double Ratchet), prekey bundles published as signed events, text + photo (EXIF-stripped, re-encoded) + voice notes, AES-256-GCM attachments as content-addressed opaque blobs, delivery states. Relays/cloud only ever see ciphertext |
+| App-side cloud + node sync (push/pull events) | Working: the app pushes unsent local events and pulls new ones from the cloud (`/v1/events`, `/v1/events/pull`) and from a node (`/node/v1/push`, `/node/v1/pull`), ingesting every pulled event through the verify-before-store path. Visible status, exponential backoff, honest offline handling |
+| CORS | The cloud API sends CORS headers and answers OPTIONS preflight (incl. `X-Api-Key`), so the Flutter web app can call it from a different origin. Mirrors the node's CORS policy |
 | Cloud event store | In-memory on the Heroku dyno (resets on restart) unless `RESILIENCE_PG_DSN` is set |
 
 ## Status

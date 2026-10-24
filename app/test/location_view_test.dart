@@ -1,7 +1,14 @@
+import 'dart:typed_data';
+
 import 'package:fixnum/fixnum.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:resilience/core/event_factory.dart';
+import 'package:resilience/core/lamport_clock.dart';
+import 'package:resilience/core/signing.dart';
 import 'package:resilience/gen/resilience/v1/event.pb.dart';
+import 'package:resilience/location/location_share.dart';
 import 'package:resilience/logistics/location_view.dart';
+import 'package:resilience/state/derived_state.dart';
 
 void main() {
   GeoPoint fullPoint() => GeoPoint(
@@ -70,5 +77,91 @@ void main() {
     expect(roundApprox(-122.419418), -122.42);
     // Reducing precision guarantees the exact value is never recoverable.
     expect(roundApprox(37.774929) == 37.774929, isFalse);
+  });
+
+  group('WorldState.locationSharesVisibleTo scoping', () {
+    late Signer signer;
+
+    setUp(() => signer = Signer());
+
+    test('public beacon is visible to any viewer; a contact share is not',
+        () async {
+      final sharer = await signer.generateKeyPair();
+      final viewer = await signer.generateKeyPair();
+      final factory = EventFactory(signer: signer);
+      final shareClock = LamportClock();
+      final at = DateTime.utc(2024, 6, 1, 9);
+
+      final ls = LocationSharer(
+        selfKeyPair: sharer,
+        clock: shareClock,
+        factory: factory,
+        now: () => at,
+      );
+
+      // A public beacon (coarse, in the clear).
+      final beacon = await ls.broadcastPublicBeacon(
+        GeoPoint(approxLat: 37.33, approxLon: -121.88),
+        ttl: const Duration(hours: 1),
+        shareId: 'beacon-1',
+      );
+
+      final world = WorldState(
+          clock: () => at.millisecondsSinceEpoch + 1000);
+      world.rebuildFromEvents([beacon]);
+
+      // Public beacons are visible to everyone by default.
+      final visible = world.locationSharesVisibleTo(viewer.publicKey);
+      expect(visible.map((s) => s.shareId), contains('beacon-1'));
+      expect(visible.first.isPublic, isTrue);
+
+      // With public beacons excluded, the viewer (not the audience of any
+      // contact share) sees nothing.
+      final noPublic = world.locationSharesVisibleTo(
+        viewer.publicKey,
+        includePublic: false,
+      );
+      expect(noPublic, isEmpty);
+    });
+
+    test('a channel share is only visible to a viewer in that channel',
+        () async {
+      final sharer = await signer.generateKeyPair();
+      final viewer = await signer.generateKeyPair();
+      final factory = EventFactory(signer: signer);
+      final at = DateTime.utc(2024, 6, 1, 9);
+
+      // Build a channel LOCATION_SHARE event by hand (encryptedPoint opaque).
+      final body = LocationShareBody(
+        shareId: 'chan-1',
+        scope: 'channel:rescue-7',
+        encryptedPoint: Uint8List.fromList([1, 2, 3, 4]),
+        expiresMs:
+            Int64(at.add(const Duration(hours: 1)).millisecondsSinceEpoch),
+        seq: Int64(1),
+      );
+      final ev = await factory.buildFromMessage(
+        keyPair: sharer,
+        clock: LamportClock(),
+        type: EventType.EVENT_TYPE_LOCATION_SHARE,
+        body: body,
+      );
+
+      final world = WorldState(
+          clock: () => at.millisecondsSinceEpoch + 1000);
+      world.rebuildFromEvents([ev]);
+
+      // Not in the channel -> not visible.
+      expect(
+        world.locationSharesVisibleTo(viewer.publicKey),
+        isEmpty,
+      );
+      // In the channel -> visible.
+      final inChannel = world.locationSharesVisibleTo(
+        viewer.publicKey,
+        channelIds: {'rescue-7'},
+      );
+      expect(inChannel.map((s) => s.shareId), contains('chan-1'));
+    });
   });
 }

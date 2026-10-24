@@ -7,8 +7,11 @@ package main
 
 import (
 	"context"
+	"crypto/ed25519"
+	"encoding/hex"
 	"errors"
 	"flag"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -20,6 +23,7 @@ import (
 	"github.com/resilience-network/aws13/node/internal/cache"
 	"github.com/resilience-network/aws13/node/internal/gateway"
 	"github.com/resilience-network/aws13/node/internal/packages"
+	"github.com/resilience-network/aws13/node/internal/pairing"
 	"github.com/resilience-network/aws13/node/internal/syncserver"
 	"github.com/resilience-network/aws13/node/internal/webapp"
 )
@@ -32,6 +36,9 @@ type config struct {
 	apkDir       string
 	mapDir       string
 	readinessDir string
+	name         string
+	publicURL    string
+	signingKey   string
 	syncInterval time.Duration
 }
 
@@ -43,6 +50,9 @@ func loadConfig() config {
 		apkDir:       envOr("APK_DIR", ""),
 		mapDir:       envOr("MAP_DIR", ""),
 		readinessDir: envOr("READINESS_DIR", ""),
+		name:         envOr("NODE_NAME", "Resilience Node"),
+		publicURL:    envOr("PUBLIC_URL", ""),
+		signingKey:   envOr("PACKAGES_SIGNING_KEY", ""),
 		syncInterval: 15 * time.Second,
 	}
 	flag.StringVar(&c.httpAddr, "http-addr", c.httpAddr, "HTTP listen address (env HTTP_ADDR)")
@@ -51,6 +61,9 @@ func loadConfig() config {
 	flag.StringVar(&c.apkDir, "apk-dir", c.apkDir, "directory containing the Android APK (env APK_DIR)")
 	flag.StringVar(&c.mapDir, "map-dir", c.mapDir, "directory containing <region>.pmtiles maps (env MAP_DIR)")
 	flag.StringVar(&c.readinessDir, "readiness-dir", c.readinessDir, "directory containing readiness bundles (env READINESS_DIR)")
+	flag.StringVar(&c.name, "name", c.name, "display name shown to phones that pair with this node (env NODE_NAME)")
+	flag.StringVar(&c.publicURL, "public-url", c.publicURL, "address advertised in the pairing QR; default is the address the phone used (env PUBLIC_URL)")
+	flag.StringVar(&c.signingKey, "packages-signing-key", c.signingKey, "path to a hex-encoded Ed25519 private key (64 bytes) or seed (32 bytes) used to sign the package manifest (env PACKAGES_SIGNING_KEY); empty disables the signed manifest endpoint")
 	flag.DurationVar(&c.syncInterval, "sync-interval", c.syncInterval, "cloud/mesh sync cadence")
 	flag.Parse()
 	return c
@@ -95,12 +108,22 @@ func run(cfg config, logger *slog.Logger) error {
 		MapDir:       cfg.mapDir,
 		ReadinessDir: cfg.readinessDir,
 	})
+	if cfg.signingKey != "" {
+		priv, kerr := loadSigningKey(cfg.signingKey)
+		if kerr != nil {
+			return kerr
+		}
+		pkg.WithSigningKey(priv)
+		logger.Info("package manifest signing enabled",
+			"pubkey", hex.EncodeToString(priv.Public().(ed25519.PublicKey)))
+	}
 	pkg.Register(mux)
+	pairing.New(pairing.Config{Name: cfg.name, PublicURL: cfg.publicURL}).Register(mux)
 	mux.Handle("/", webapp.Handler())
 
 	srv := &http.Server{
 		Addr:              cfg.httpAddr,
-		Handler:           logRequests(logger, mux),
+		Handler:           cors(logRequests(logger, mux)),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 
@@ -154,6 +177,26 @@ func run(cfg config, logger *slog.Logger) error {
 	}
 }
 
+// cors lets the web build (served from another origin, e.g. the cloud API's
+// https page) read this node. The node serves public, non-secret data (node
+// state is signed events; packages are public files) and carries no cookies,
+// so a wildcard origin does not widen what an attacker can reach.
+func cors(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		h := w.Header()
+		h.Set("Access-Control-Allow-Origin", "*")
+		h.Set("Access-Control-Allow-Methods", "GET, HEAD, POST, OPTIONS")
+		h.Set("Access-Control-Allow-Headers", "Content-Type, Range")
+		h.Set("Access-Control-Expose-Headers", "Content-Length, Content-Range, Accept-Ranges")
+		h.Set("Access-Control-Allow-Private-Network", "true")
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 // logRequests is lightweight structured access logging middleware.
 func logRequests(logger *slog.Logger, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -188,6 +231,29 @@ func (s *statusWriter) Write(b []byte) (int, error) {
 		s.wroteHeader = true
 	}
 	return s.ResponseWriter.Write(b)
+}
+
+// loadSigningKey reads a hex-encoded Ed25519 key from path. It accepts either a
+// 64-byte private key (128 hex chars) or a 32-byte seed (64 hex chars), from
+// which the full private key is derived. Whitespace is trimmed.
+func loadSigningKey(path string) (ed25519.PrivateKey, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read signing key: %w", err)
+	}
+	decoded, err := hex.DecodeString(strings.TrimSpace(string(raw)))
+	if err != nil {
+		return nil, fmt.Errorf("decode signing key hex: %w", err)
+	}
+	switch len(decoded) {
+	case ed25519.PrivateKeySize:
+		return ed25519.PrivateKey(decoded), nil
+	case ed25519.SeedSize:
+		return ed25519.NewKeyFromSeed(decoded), nil
+	default:
+		return nil, fmt.Errorf("signing key must be %d-byte key or %d-byte seed, got %d bytes",
+			ed25519.PrivateKeySize, ed25519.SeedSize, len(decoded))
+	}
 }
 
 func envOr(key, def string) string {

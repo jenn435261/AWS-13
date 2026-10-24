@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../app/providers.dart';
 import '../../gen/resilience/v1/event.pb.dart';
 import '../../l10n/strings.dart';
+import '../../location/position_service.dart';
 import '../components/common.dart';
+import '../components/location_field.dart';
 import '../components/toast.dart';
 import '../components/trust_badges.dart';
 
@@ -32,6 +35,7 @@ class _HelpFlowScreenState extends ConsumerState<HelpFlowScreen> {
   AmountBand _amount = AmountBand.AMOUNT_BAND_UNSPECIFIED;
   Availability _availability = Availability.AVAILABILITY_NOW;
   bool _aiBusy = false;
+  LatLng? _where;
   bool _sending = false;
 
   static const _categories = <ResourceCategory>[
@@ -45,6 +49,12 @@ class _HelpFlowScreenState extends ConsumerState<HelpFlowScreen> {
     ResourceCategory.RESOURCE_CATEGORY_COMMUNICATION,
     ResourceCategory.RESOURCE_CATEGORY_OTHER,
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _where = ref.read(myPositionProvider);
+  }
 
   @override
   void dispose() {
@@ -76,6 +86,100 @@ class _HelpFlowScreenState extends ConsumerState<HelpFlowScreen> {
     );
   }
 
+  /// Entry point for the primary action. For a help REQUEST we first run a
+  /// non-blocking near-duplicate check (AI dedup, with the deterministic rules
+  /// fallback) against the currently open requests; if a very similar one
+  /// already exists we offer to view it or submit anyway. Offers skip this.
+  Future<void> _onSendPressed() async {
+    if (!widget.isRequest) {
+      await _send();
+      return;
+    }
+    final candidate = _candidateText();
+    if (candidate.trim().isEmpty) {
+      await _send();
+      return;
+    }
+    final world = ref.read(worldStateProvider).valueOrNull;
+    final existing = <String>[];
+    if (world != null) {
+      for (final q in world.helpRequests) {
+        if (q.closed) continue;
+        final text = q.body.freeform.trim();
+        if (text.isNotEmpty) existing.add(text);
+      }
+    }
+    if (existing.isEmpty) {
+      await _send();
+      return;
+    }
+    setState(() => _sending = true);
+    final hits = await ref.read(aiAssistProvider).dedup(candidate, existing);
+    if (!mounted) return;
+    setState(() => _sending = false);
+    if (hits.isEmpty) {
+      await _send();
+      return;
+    }
+    await _showDedupWarning(hits.first.text);
+  }
+
+  /// The text used for the near-duplicate check: the note, falling back to the
+  /// selected category labels so a note-less request still de-dupes sensibly.
+  String _candidateText() {
+    final note = _note.text.trim();
+    if (note.isNotEmpty) return note;
+    final l = L10n.of(context);
+    return _selected.map((c) => categoryLabel(l, c)).join(', ');
+  }
+
+  Future<void> _showDedupWarning(String existingText) async {
+    final l = L10n.of(context);
+    await showDialog<void>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        title: Text(l.t('dedup_warning_title')),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(l.t('dedup_warning_body'),
+                style: const TextStyle(fontSize: 16)),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Theme.of(dialogCtx).colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(existingText, style: const TextStyle(fontSize: 16)),
+            ),
+          ],
+        ),
+        actions: [
+          // "View existing" is non-destructive: close the dialog and the flow
+          // so the user lands back on the map where the existing request shows.
+          TextButton(
+            onPressed: () {
+              Navigator.of(dialogCtx).pop();
+              Navigator.of(context).pop();
+            },
+            child: Text(l.t('view_existing'),
+                style: const TextStyle(fontSize: 16)),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.of(dialogCtx).pop();
+              _send();
+            },
+            child: Text(l.t('submit_anyway'),
+                style: const TextStyle(fontSize: 16)),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _send() async {
     final l = L10n.of(context);
     setState(() => _sending = true);
@@ -96,6 +200,7 @@ class _HelpFlowScreenState extends ConsumerState<HelpFlowScreen> {
                   .contains(ResourceCategory.RESOURCE_CATEGORY_MEDICAL_HELP)
               ? Priority.PRIORITY_HIGH
               : Priority.PRIORITY_NORMAL,
+          location: _where == null ? null : geoPointFor(_where!),
         );
         event = await factory.buildFromMessage(
           keyPair: kp,
@@ -110,6 +215,7 @@ class _HelpFlowScreenState extends ConsumerState<HelpFlowScreen> {
           amount: _amount,
           availability: _availability,
           notes: _note.text.trim(),
+          location: _where == null ? null : geoPointFor(_where!),
         );
         event = await factory.buildFromMessage(
           keyPair: kp,
@@ -214,6 +320,10 @@ class _HelpFlowScreenState extends ConsumerState<HelpFlowScreen> {
                         : const Icon(Icons.auto_awesome_rounded),
                     label: Text(l.t('structure_with_ai')),
                   ),
+                  const SizedBox(height: 20),
+                  LocationField(
+                      value: _where,
+                      onChanged: (v) => setState(() => _where = v)),
                   if (!widget.isRequest) ...[
                     const SizedBox(height: 8),
                     AdvancedDisclosure(
@@ -275,7 +385,7 @@ class _HelpFlowScreenState extends ConsumerState<HelpFlowScreen> {
                     : l.t('send_offer'),
                 icon: Icons.send_rounded,
                 urgent: widget.isRequest,
-                onPressed: canSend ? _send : null,
+                onPressed: canSend ? _onSendPressed : null,
               ),
             ),
           ],

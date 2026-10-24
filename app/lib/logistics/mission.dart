@@ -211,11 +211,19 @@ class MissionStore {
   /// Package events for the mission are consulted to refine status
   /// (`in_transit` once picked up, `awaiting_handoff` while a handoff is
   /// pending, `completed` on delivery).
+  /// [isVerifiedProvider], when supplied, decides whether a given author key is
+  /// a verified organization (typically `WorldState.provenanceOf(key) ==
+  /// VERIFIED_ORG`). It gates mission creation and assignment: a
+  /// `MISSION_CREATED` or `MISSION_MATCHED` signed by a non-verified key is
+  /// IGNORED (abuse rule). When null, no provenance gate is applied (callers
+  /// that already trust the event source, e.g. a mission-private flow, keep the
+  /// old behaviour).
   Future<List<MissionView>> missionsForViewer({
     required List<int> viewerPubkey,
     required CapabilitySet capabilities,
     required List<SignedEvent> events,
     String distributorScope = 'distributor',
+    bool Function(List<int> author)? isVerifiedProvider,
     int? nowMs,
   }) async {
     final Uint8List viewer = Uint8List.fromList(viewerPubkey);
@@ -234,6 +242,12 @@ class MissionStore {
       switch (e.header.type) {
         case EventType.EVENT_TYPE_MISSION_CREATED:
           final MissionBody b = MissionBody.fromBuffer(e.body);
+          // Only a verified organization may create (and thereby assign) a
+          // mission. A MISSION_CREATED from a non-provider is ignored.
+          if (isVerifiedProvider != null &&
+              !isVerifiedProvider(e.header.authorPubkey)) {
+            break;
+          }
           (byMission[b.missionId] ??= _MissionAgg(b.missionId))
             ..created = b
             ..creator = Uint8List.fromList(e.header.authorPubkey);
@@ -245,6 +259,12 @@ class MissionStore {
           break;
         case EventType.EVENT_TYPE_MISSION_MATCHED:
           final MissionMatchBody b = MissionMatchBody.fromBuffer(e.body);
+          // Assignment/matching is a provider action: ignore a MISSION_MATCHED
+          // signed by a key that is not a verified organization (abuse rule).
+          if (isVerifiedProvider != null &&
+              !isVerifiedProvider(e.header.authorPubkey)) {
+            break;
+          }
           (byMission[b.missionId] ??= _MissionAgg(b.missionId))
             ..requestId = b.requestId
             ..offerId = b.offerId;

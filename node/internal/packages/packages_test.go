@@ -150,3 +150,16 @@ func TestReadiness404WhenAbsent(t *testing.T) {
 		t.Fatalf("expected 404, got %d", resp.StatusCode)
 	}
 }
+
+func TestCatalogListsRealFiles(t *testing.T) {
+	maps := t.TempDir()
+	_ = os.WriteFile(filepath.Join(maps, "bay.pmtiles"), []byte("12345"), 0o644)
+	_ = os.WriteFile(filepath.Join(maps, "notes.txt"), []byte("x"), 0o644)
+	items := New(Config{MapDir: maps}).Catalog()
+	if len(items) != 1 || items[0].Name != "bay.pmtiles" || items[0].SizeBytes != 5 || items[0].Kind != "map" {
+		t.Fatalf("unexpected catalog %+v", items)
+	}
+	if got := New(Config{}).Catalog(); got == nil || len(got) != 0 {
+		t.Fatalf("empty config must give an empty non-nil list, got %v", got)
+	}
+}

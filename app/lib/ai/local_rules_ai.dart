@@ -43,7 +43,13 @@ class LocalRulesAiClient implements AiAssist {
   }
 
   @override
-  Future<String> summarize(List<String> items) async {
+  Future<SummaryResult> summarize(List<String> items) async {
+    return SummaryResult(text: summarizeText(items), degraded: true);
+  }
+
+  /// The deterministic summary string (shared so callers can compare against a
+  /// cloud response without re-implementing the heuristic).
+  static String summarizeText(List<String> items) {
     final cleaned =
         items.map(_normalizeWs).where((s) => s.isNotEmpty).toList();
     if (cleaned.isEmpty) return 'No reports to summarize.';

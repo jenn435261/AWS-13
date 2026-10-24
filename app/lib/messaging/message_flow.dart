@@ -8,6 +8,9 @@ import '../core/hashing.dart';
 import '../core/lamport_clock.dart';
 import '../core/signing.dart';
 import '../gen/resilience/v1/event.pb.dart';
+import 'attachment_cipher.dart';
+import 'blob_transport.dart';
+import 'message_payload.dart';
 import 'secure_session.dart';
 
 /// Delivery state of a message (spec §16).
@@ -114,6 +117,96 @@ class MessageFlow {
       body: body,
     );
     return SentMessage(event: event, messageId: id);
+  }
+
+  /// Send a rich [payload] (text and/or attachments) toward the session peer.
+  ///
+  /// The whole [MessagePayload] (including each attachment's random key) is
+  /// serialized and encrypted with the Signal session, then wrapped in a
+  /// `MESSAGE_SENT` event. Attachment ciphertext has already been uploaded to
+  /// [blob] by [attachBytes]; only the opaque blob and the E2E ciphertext ever
+  /// touch a relay.
+  Future<SentMessage> sendPayload({
+    required List<int> recipientPubkey,
+    required MessagePayload payload,
+    String channelId = '',
+    String? messageId,
+    Priority priority = Priority.PRIORITY_NORMAL,
+  }) async {
+    final String id = messageId ?? _nextMessageId();
+    final Uint8List ciphertext = await session.encrypt(payload.encode());
+    final body = MessageBody(
+      messageId: id,
+      channelId: channelId,
+      recipientHint: recipientHintFor(recipientPubkey),
+      ciphertext: ciphertext,
+      priority: priority,
+    );
+    final SignedEvent event = await _factory.buildFromMessage(
+      keyPair: selfKeyPair,
+      clock: clock,
+      type: EventType.EVENT_TYPE_MESSAGE_SENT,
+      body: body,
+    );
+    return SentMessage(event: event, messageId: id);
+  }
+
+  /// Encrypt [plaintext] bytes with a fresh random key, upload the ciphertext
+  /// to [blob] under its sha256, and return the [Attachment] descriptor to
+  /// embed in a [MessagePayload]. The plaintext and key never reach a relay.
+  static Future<Attachment> attachBytes({
+    required BlobTransport blob,
+    required List<int> plaintext,
+    required String mime,
+    Uint8List? thumbnail,
+    int durationMs = 0,
+    int width = 0,
+    int height = 0,
+  }) async {
+    final enc = await encryptAttachment(plaintext);
+    final ok = await blob.put(enc.sha256Hex, enc.ciphertext);
+    if (!ok) {
+      throw const AttachmentException('blob upload failed on all endpoints');
+    }
+    return Attachment(
+      sha256: enc.sha256Hex,
+      size: enc.ciphertext.length,
+      mime: mime,
+      key: enc.key,
+      thumbnail: thumbnail,
+      durationMs: durationMs,
+      width: width,
+      height: height,
+    );
+  }
+
+  /// If [event] is a `MESSAGE_SENT` addressed to us, decrypt and return the
+  /// [MessagePayload]; otherwise return `null`.
+  Future<MessagePayload?> receivePayload(SignedEvent event) async {
+    if (event.header.type != EventType.EVENT_TYPE_MESSAGE_SENT) return null;
+    if (!await _factory.verifyEvent(event)) return null;
+    final MessageBody body = MessageBody.fromBuffer(event.body);
+    if (!hintMatches(body.recipientHint, selfKeyPair.publicKey)) return null;
+    final clear = await session.decrypt(Uint8List.fromList(body.ciphertext));
+    return MessagePayload.decode(clear);
+  }
+
+  /// Download, decrypt, and sha256-verify [attachment] from [blob]. Returns the
+  /// plaintext bytes, or throws [AttachmentException] if the blob is missing,
+  /// the ciphertext hash does not match, or authentication fails (tampering).
+  static Future<Uint8List> fetchAttachment({
+    required BlobTransport blob,
+    required Attachment attachment,
+  }) async {
+    final ciphertext = await blob.get(attachment.sha256);
+    if (ciphertext == null) {
+      throw const AttachmentException('attachment blob not found');
+    }
+    return decryptAttachment(
+      ciphertext,
+      key: attachment.key,
+      expectedSha256: attachment.sha256,
+    );
   }
 
   /// If [event] is a `MESSAGE_SENT` addressed to us, decrypt and return the

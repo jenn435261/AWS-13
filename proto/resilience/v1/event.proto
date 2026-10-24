@@ -89,6 +89,7 @@ enum EventType {
   EVENT_TYPE_HELP_OFFERED = 21;
   EVENT_TYPE_SHELTER_CREATED = 22;
   EVENT_TYPE_TRANSPORT_OFFERED = 23;
+  EVENT_TYPE_HELP_REQUEST_CLOSED = 24;  // author closes/cancels their request
 
   // Messaging (ciphertext payloads; relays cannot read)
   EVENT_TYPE_MESSAGE_SENT = 30;
@@ -270,6 +271,15 @@ message HelpOfferBody {
   Availability availability = 4;
   string notes = 5;
   GeoPoint location = 6;
+}
+
+// Closes/cancels a prior HELP_REQUESTED. Honored ONLY when signed by the same
+// author that signed the original request (owner-only; a close from any other
+// key is ignored by the fold). References the request by id.
+message HelpRequestClosedBody {
+  string request_id = 1;
+  string reason = 2;         // optional freeform ("resolved", "no longer needed")
+  int64 closed_at_ms = 3;    // optional advisory wall-clock of the close
 }
 
 enum TransportMode {

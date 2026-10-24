@@ -239,4 +239,61 @@ void main() {
     expect(views.first.pickup.hasExactAccess, isTrue);
     expect(views.first.pickup.point.address, '742 Example St, rear entrance');
   });
+
+  test('a verified provider may create+assign a mission; a non-provider '
+      'create/assign is ignored (abuse)', () async {
+    final clock = LamportClock();
+    final provider = await signer.generateKeyPair();
+    final nonProvider = await signer.generateKeyPair();
+
+    // A VERIFIED provider creates a mission and assigns it (MISSION_MATCHED).
+    final created = await missionEvents.created(
+      creatorKeyPair: provider,
+      clock: clock,
+      missionId: missionId,
+      cargoCategory: ResourceCategory.RESOURCE_CATEGORY_WATER,
+    );
+    final matched = await missionEvents.matched(
+      matcherKeyPair: provider,
+      clock: clock,
+      missionId: missionId,
+      requestId: 'r-1',
+      offerId: 'o-1',
+    );
+
+    // A NON-provider tries to create and assign a different mission.
+    final evilCreated = await missionEvents.created(
+      creatorKeyPair: nonProvider,
+      clock: clock,
+      missionId: 'EVIL',
+      cargoCategory: ResourceCategory.RESOURCE_CATEGORY_WATER,
+    );
+    final evilMatched = await missionEvents.matched(
+      matcherKeyPair: nonProvider,
+      clock: clock,
+      missionId: 'EVIL',
+      requestId: 'r-2',
+      offerId: 'o-2',
+    );
+
+    final store = MissionStore(factory: factory);
+    bool isVerified(List<int> author) {
+      for (var i = 0; i < author.length; i++) {
+        if (author[i] != provider.publicKey[i]) return false;
+      }
+      return author.length == provider.publicKey.length;
+    }
+
+    final views = await store.missionsForViewer(
+      viewerPubkey: provider.publicKey,
+      capabilities: CapabilitySet(<String, Capability>{}),
+      events: [created, matched, evilCreated, evilMatched],
+      isVerifiedProvider: isVerified,
+    );
+
+    // Only the provider's mission exists; the non-provider's is ignored.
+    expect(views.map((v) => v.missionId), equals(<String>[missionId]));
+    expect(views.single.requestId, 'r-1');
+    expect(views.single.offerId, 'o-1');
+  });
 }
