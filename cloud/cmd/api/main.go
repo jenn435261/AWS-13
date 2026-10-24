@@ -27,6 +27,7 @@ import (
 	"github.com/resilience-network/aws13/cloud/internal/ai"
 	"github.com/resilience-network/aws13/cloud/internal/api"
 	"github.com/resilience-network/aws13/cloud/internal/org"
+	"github.com/resilience-network/aws13/cloud/internal/packages"
 	"github.com/resilience-network/aws13/cloud/internal/store"
 )
 
@@ -113,6 +114,25 @@ func main() {
 		log.Info("serving web app", "dir", dir)
 	}
 
+	// Cloud map/guidance packs (PMTiles) served with Range + a cloud-signed
+	// manifest. The signing key lives ONLY in env, never in git.
+	if dir := getenv("CLOUD_PACKAGES_DIR", ""); dir != "" {
+		pkg := packages.New(packages.Config{PackDir: dir})
+		if keyHex := getenv("CLOUD_PACKAGES_SIGNING_KEY", ""); keyHex != "" {
+			if key, perr := parseEd25519Key(keyHex); perr == nil {
+				pkg.WithSigningKey(key)
+				log.Info("cloud packages manifest signing enabled", "pubkey",
+					hex.EncodeToString(key.Public().(ed25519.PublicKey)))
+			} else {
+				log.Warn("CLOUD_PACKAGES_SIGNING_KEY invalid; manifest will be unavailable", "err", perr)
+			}
+		} else {
+			log.Warn("CLOUD_PACKAGES_DIR set without CLOUD_PACKAGES_SIGNING_KEY; manifest unavailable (503)")
+		}
+		opts = append(opts, api.WithPackages(pkg))
+		log.Info("serving cloud packages", "dir", dir)
+	}
+
 	srv := api.NewServer(st, opts...)
 	httpSrv := &http.Server{
 		Addr:              ":" + port,
@@ -137,6 +157,22 @@ func main() {
 		os.Exit(1)
 	}
 	log.Info("stopped")
+}
+
+// parseEd25519Key accepts a hex ed25519 private key (64 bytes) or seed (32).
+func parseEd25519Key(hexKey string) (ed25519.PrivateKey, error) {
+	raw, err := hex.DecodeString(strings.TrimSpace(hexKey))
+	if err != nil {
+		return nil, errors.New("key must be hex")
+	}
+	switch len(raw) {
+	case ed25519.PrivateKeySize:
+		return ed25519.PrivateKey(raw), nil
+	case ed25519.SeedSize:
+		return ed25519.NewKeyFromSeed(raw), nil
+	default:
+		return nil, errors.New("key must be 32-byte seed or 64-byte private key")
+	}
 }
 
 func getenv(key, def string) string {

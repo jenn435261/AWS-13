@@ -21,6 +21,7 @@ import (
 	resiliencev1 "github.com/resilience-network/aws13/cloud/gen/resilience/v1"
 	"github.com/resilience-network/aws13/cloud/internal/ai"
 	"github.com/resilience-network/aws13/cloud/internal/org"
+	"github.com/resilience-network/aws13/cloud/internal/packages"
 	"github.com/resilience-network/aws13/cloud/internal/store"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -76,6 +77,10 @@ type Server struct {
 	// /app-config.json. webDir is the Flutter web bundle directory (see web.go).
 	webKey string
 	webDir string
+
+	// packages serves cloud map/guidance packs (PMTiles) with Range + a
+	// cloud-signed manifest. Nil when no pack directory is configured.
+	packages *packages.Server
 
 	// feedPubkey is the cloud-service feed signing key's PUBLIC key (32 bytes).
 	// When set, /v1/alerts serves the EMERGENCY_ALERT events authored by it and
@@ -165,6 +170,12 @@ func WithFeedPubkey(pub []byte) Option {
 	}
 }
 
+// WithPackages installs the cloud package server (PMTiles map/guidance packs
+// served with Range + a cloud-signed manifest). Nil disables the routes.
+func WithPackages(p *packages.Server) Option {
+	return func(s *Server) { s.packages = p }
+}
+
 // WithTrustedOrgs installs the verified-org signing-key set used to validate
 // and tag EMERGENCY_ALERT events (ORG_TRUSTED_PUBKEYS).
 func WithTrustedOrgs(t *org.TrustedOrgs) Option {
@@ -208,6 +219,11 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/v1/ai/summarize", s.clientGate(s.handleAISummarize))
 	mux.HandleFunc("/v1/ai/dedup", s.clientGate(s.handleAIDedup))
 	mux.HandleFunc("/v1/org/needs", s.handleOrgNeeds)
+	if s.packages != nil {
+		// The pack endpoints are gated by the same client key as the sync/AI
+		// routes so a public deployment is not an open file server.
+		s.packages.Register(mux, s.clientGate)
+	}
 	mux.HandleFunc("/healthz", s.handleHealthz)
 	mux.HandleFunc("/readyz", s.handleReadyz)
 	s.mountWeb(mux)
