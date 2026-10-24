@@ -84,6 +84,12 @@ dependencies:
   geolocator: ^14.0.2
   url_launcher: ^6.3.3
 
+  # Device motion sensors for native dead-reckoning (estimated position).
+  # Native-only: the web build never imports it (conditional import under
+  # lib/location/dead_reckoning/). Verify `flutter build web --release` after
+  # bumping this.
+  sensors_plus: ^6.1.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

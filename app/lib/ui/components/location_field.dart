@@ -6,6 +6,8 @@ import 'package:latlong2/latlong.dart';
 import '../../app/providers.dart';
 import '../../gen/resilience/v1/event.pb.dart';
 import '../../l10n/strings.dart';
+import '../../location/dead_reckoning/dead_reckoning.dart';
+import '../../location/dead_reckoning/estimate.dart';
 import '../../location/location_providers.dart';
 import '../../location/position_service.dart';
 import '../map/map_view.dart';
@@ -83,6 +85,30 @@ class _LocationFieldState extends ConsumerState<LocationField> {
     if (p != null) widget.onChanged(p, LocationSource.LOCATION_SOURCE_MANUAL);
   }
 
+  /// Estimated position (dead-reckoning). Native only: coasts from the cached
+  /// last-known fix with a growing uncertainty radius. On web it is honestly
+  /// unavailable (no motion sensors in a browser).
+  Future<void> _estimate() async {
+    final l = L10n.of(context);
+    if (!deadReckoningAvailable()) {
+      Toast.show(context, l.t('estimated_unavailable_web'));
+      return;
+    }
+    final fix = await ref.read(lastKnownFixProvider.future);
+    if (fix == null || !mounted) return;
+    final reckoner = DeadReckoner();
+    final DeadReckonEstimate? est = reckoner.estimate(fix);
+    reckoner.dispose();
+    if (est == null || !mounted) return;
+    final accepted = await showDialog<bool>(
+      context: context,
+      builder: (_) => _EstimateDialog(estimate: est),
+    );
+    if (accepted == true) {
+      widget.onChanged(est.point, LocationSource.LOCATION_SOURCE_ESTIMATED);
+    }
+  }
+
   String _sourceLabel(L10n l) {
     switch (widget.source) {
       case LocationSource.LOCATION_SOURCE_GPS:
@@ -146,6 +172,12 @@ class _LocationFieldState extends ConsumerState<LocationField> {
             icon: const Icon(Icons.pin_drop_outlined),
             label: Text(l.t('enter_coordinates')),
           ),
+          if (deadReckoningAvailable() && lastFix != null)
+            OutlinedButton.icon(
+              onPressed: _estimate,
+              icon: const Icon(Icons.explore_outlined),
+              label: Text(l.t('estimated_position')),
+            ),
           if (v != null)
             TextButton(
                 onPressed: () => widget.onChanged(
@@ -247,6 +279,44 @@ class _CoordinateDialogState extends State<_CoordinateDialog> {
             onPressed: _submit,
             child:
                 Text(l.t('use_this_point'), style: const TextStyle(fontSize: 16))),
+      ],
+    );
+  }
+}
+
+/// Shows the dead-reckoned estimate with its honest uncertainty radius and asks
+/// the user to accept it as their position. Accepting stamps an event with
+/// location_source = ESTIMATED (never GPS).
+class _EstimateDialog extends StatelessWidget {
+  final DeadReckonEstimate estimate;
+  const _EstimateDialog({required this.estimate});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10n.of(context);
+    final radius = estimate.radiusM;
+    return AlertDialog(
+      title: Text(l.t('estimated_position')),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(l.t('estimated_hint'), style: const TextStyle(fontSize: 16)),
+          const SizedBox(height: 10),
+          Text(
+            '± ${radius >= 1000 ? '${(radius / 1000).toStringAsFixed(1)} km' : '${radius.round()} m'}',
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(l.t('cancel'), style: const TextStyle(fontSize: 16))),
+        FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(l.t('estimated_accept'),
+                style: const TextStyle(fontSize: 16))),
       ],
     );
   }
