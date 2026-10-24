@@ -1,5 +1,9 @@
 import 'package:flutter/widgets.dart';
 
+import 'strings_fr.dart';
+import 'strings_new.dart';
+import 'strings_zh.dart';
+
 /// Centralized localization for Resilience Network.
 ///
 /// Hand-rolled (no codegen) so builds stay fast. Every user-facing string in
@@ -15,6 +19,8 @@ class L10n {
   static const List<Locale> supportedLocales = <Locale>[
     Locale('en'),
     Locale('es'),
+    Locale('fr'),
+    Locale('zh'),
   ];
 
   static const LocalizationsDelegate<L10n> delegate = _L10nDelegate();
@@ -25,7 +31,19 @@ class L10n {
 
   String t(String key) {
     final lang = locale.languageCode;
-    return _data[lang]?[key] ?? _data['en']![key] ?? key;
+    return _lookup(lang, key) ?? _lookup('en', key) ?? key;
+  }
+
+  /// Newer strings override the original set; fr and zh live in their own files.
+  static String? _lookup(String lang, String key) {
+    switch (lang) {
+      case 'fr':
+        return kStringsFr[key];
+      case 'zh':
+        return kStringsZh[key];
+      default:
+        return kStringsNew[lang]?[key] ?? _data[lang]?[key];
+    }
   }
 
   /// Human-readable language name for a code (for the language switcher).
@@ -35,6 +53,10 @@ class L10n {
         return 'English';
       case 'es':
         return 'Español';
+      case 'fr':
+        return 'Français';
+      case 'zh':
+        return '中文（简体）';
       default:
         return code;
     }

@@ -1,8 +1,9 @@
-# Handoff: finish the unconnected features
+# Handoff: what is left
 
-Written for an engineer (or Kiro) picking this up cold. Everything below is verified against the code as of the
-merge of PR #1. Do the tasks in order; each has an acceptance test. Keep the rule that has held so far:
-**the UI must never claim something works that is not wired.** If a feature is not connected, show an honest state.
+Written for an engineer (or Kiro) picking this up cold. Read `docs/SPEC_PROVIDER_AND_FEATURES.md` first: it
+defines roles, the map, supplies, nodes, packages, media messages and languages, and says which parts are built.
+Rule that has held so far: **the UI must never claim something works that is not wired.** If it is not connected,
+show an honest state.
 
 ## Live system
 
@@ -10,90 +11,77 @@ merge of PR #1. Do the tasks in order; each has an acceptance test. Keep the rul
 - Deploy: `scripts/deploy-heroku.ps1` (needs Flutter on PATH; builds web, copies into `cloud/web`, subtree-pushes `cloud/`).
 - Config vars and domain steps: `cloud/DEPLOY_HEROKU.md`. Event AWS creds are temporary STS creds and **expire at event end**.
 - AWS Lambda/CDK cannot be deployed in the event account (`iam:CreateRole` denied). Do not retry.
+- Proof-of-concept node: `cd node && go run ./cmd/resilience-node --name "My Node" --http-addr :8090 --map-dir … --apk-dir … --readiness-dir …`
+  then open `http://localhost:8090/node/v1/pair.png` and scan it from the app, or add `localhost:8090` by hand.
 
-## What actually works (verified in a real browser against the live site)
+## Already built (do not redo)
 
-| Area | State |
-|---|---|
-| Need Help / Offer Help | Signed event written to local SQLite (WASM on web), shown in My Requests / My Supplies |
-| Contacts | Add by pasted code / QR payload, list, detail, remove + undo; stored locally |
-| Network Status | Real probe of `GET /healthz` with latency and last-checked time |
-| AI structure | `help_flow_screen.dart` calls `POST /v1/ai/structure` -> Bedrock (`degraded:false` live). Falls back to rules offline |
-| AI translate / summarize / dedup | Endpoints live and tested (translate verified live), **no UI calls them** |
-| Gate | `/v1/events*`, `/v1/ai/*` need `X-Api-Key`; web gets first key from `/app-config.json` |
+Real map; supply create / edit / restock / out of stock / take down / relist with quantity, unit, date and location;
+provider tools (verified supplies, alerts, missions, certify a contact); trusted organizations (persisted);
+saved nodes with QR pairing, rename, active, delete; offline package library with versions; node catalog,
+pairing QR and CORS; French and Mandarin; owner-only edits and verified-only alerts enforced in the fold.
+Tests: `supply_and_provider_test.dart`, Go `internal/pairing`, `internal/packages` catalog.
 
-## What is NOT connected (your work)
+## Still not connected (your work, in this order)
 
 ### 1. App-side cloud sync client (do first; 2 and 3 depend on it)
-The API has `POST /v1/events` and `GET /v1/events/pull`, and `sync_engine.dart` exists for peer sync, but the app never
-pushes or pulls against the cloud. Build `app/lib/sync/cloud_sync.dart`:
-- On every local event write, push unsent events (track a high-water mark in the KeyValue table).
-- Periodically and on app focus, pull since the last cursor and ingest through the existing event validation
-  path (signature + hybrid-logical-clock checks) so a forged event is rejected.
-- Use `cloudBaseUrlProvider` and `cloudApiKeyProvider` (`app/lib/app/providers.dart`). Send `X-Api-Key`.
-- Surface the result in Network Status ("Last synced", count pending).
-- Acceptance: two browser profiles on the live site; a request created in A appears in B's map/list within 30 s.
-  Add a Dart test with `MockClient`, and a Go test if the API changes.
-- Cloud store is **in-memory** on Heroku. Provision Heroku Postgres and set `RESILIENCE_PG_DSN` so events survive restarts
-  (`heroku addons:create heroku-postgresql:essential-0`; check how `cloud/cmd/api/main.go` reads the DSN).
+The API has `POST /v1/events` and `GET /v1/events/pull`, and `sync_engine.dart` exists for peer sync, but the app
+never pushes or pulls. Build `app/lib/sync/cloud_sync.dart`:
+- Push unsent local events (high-water mark in the KeyValue table); pull since a cursor; ingest through
+  `EventStore.apply` so signatures and clock checks reject forgeries.
+- Also sync with the **active saved node** (`/node/v1/push`, `/node/v1/pull`, `/node/v1/have`).
+- Use `cloudBaseUrlProvider` and `cloudApiKeyProvider` (`app/lib/app/providers.dart`), header `X-Api-Key`.
+- Show "Last synced / N pending" in Network Status.
+- Acceptance: two browser profiles on the live site; a request or alert created in A appears in B within 30 s.
+  Provider alerts, missions, supplies and certificates only reach other people once this exists.
+- The cloud store is in-memory on Heroku. Provision Postgres (`heroku addons:create heroku-postgresql:essential-0`) and set
+  `RESILIENCE_PG_DSN` so events survive restarts.
 
-### 2. Secure messaging (Signal)
-Today `messages_screen.dart` shows a "not connected" empty state; fake chats were removed. Pieces already in
-`app/lib/messaging/`: `secure_session.dart`, `signal_keys.dart`, `message_flow.dart`, `conversation_view.dart`.
-Missing:
-- **Durable Signal store.** The session/prekey/identity stores are in-memory, so a reload loses all sessions.
-  Back them with Drift (new table or the KeyValue table). Never store private keys unencrypted on web beyond what
-  `identity_store.dart` already does; note the trade-off in the README.
-- **Prekey bundle publication.** Publish your bundle (identity key, signed prekey, one-time prekeys) as a signed
-  event or a new `PUT/GET /v1/prekeys/{resilienceId}` endpoint (gate it like the others). Fetch a contact's bundle
-  when opening a chat with them.
-- **Delivery.** Send ciphertext as an event addressed to the recipient; the sync client (task 1) carries it. The
-  recipient decrypts on ingest.
-- **UI.** Chat list = contacts with messages; tap a contact -> `conversation_view.dart`. Replace `_notConnected`.
-- Acceptance: A and B add each other by code, A sends "hello", B sees it after a reload of B. Add a test of
-  X3DH + double ratchet round trip through the Drift-backed store.
+### 2. Secure messaging, with photos and audio
+Today `messages_screen.dart` shows a "not connected" state. Engines exist in `app/lib/messaging/`.
+Missing: durable Signal store (Drift-backed), prekey bundle publication and fetch, delivery via the sync client, chat UI.
+Media design is in the spec §6 (encrypted blobs, size limits, blob endpoints on cloud and node). Build text first,
+then images, then audio. Acceptance: A and B add each other, A sends text, a photo and a voice note, B sees all three after a reload.
 
 ### 3. Location sharing
-`location_share_screen.dart`: durations (15m / 1h / 4h / 24h / Until I stop) exist; the Share button is
-**disabled** (`onPressed: null`) and a note says it is not connected. Build:
-- A position source: `geolocator` (works on web via browser permission). Ask for permission only on Share.
-- Encrypt position to the chosen contacts (reuse task 2), send as a short-lived event with an expiry equal to the
-  chosen duration (null = indefinite until stopped). Stop button must publish a revoke.
-- Recipient side: show on a simple list/map of "people sharing with you". `maplibre_gl` was removed because it
-  breaks the web build; use a list, or a web-safe map (e.g. `flutter_map` with OSM tiles) if you want a map.
-- Then enable the button and remove the `location_not_connected` note.
+`location_share_screen.dart`: durations exist, the Share button is disabled. `position_service.dart` already reads a
+one-shot position. Build: encrypt to chosen contacts (task 2), send a short-lived `LOCATION_SHARE` event with an expiry
+(null = until stopped), publish `LOCATION_STOP` on stop, show "people sharing with you". Then enable the button.
 
-### 4. Use the other AI endpoints
-- Translate: add a "Translate" action on a request/offer detail and on messages (`ai.translate(text, from, to)`).
-  Server field names are `text`, `from`, `to`.
-- Summarize: situation summary on Home from `worldState`.
-- Dedup: warn on submit if a near-duplicate request exists nearby.
-- Look at `app/lib/ai/bedrock_ai_client.dart`; every call has a rules fallback, keep it.
+### 4. Provider gaps (spec §1.1)
+Mission list and assignment for providers (`MISSION_MATCHED`), alert recall, org-wide missions view, request close
+(`HELP_REQUEST_CLOSED` event), auto-hide supplies past `available_until_ms`, certificate depth limit (spec §1).
 
-### 5. Smaller items
-- Add by username / phone was removed (no directory backend). Only add back with a real lookup endpoint.
-- API sends no CORS headers; only matters if the web app is ever hosted on a different origin than the API.
-- Offline Downloads and Resilience Node screens work against a node you type in; there is no discovery.
-- LoRa is "Not supported yet" (honest state). Nearby peers is "unavailable here" on web.
-- `screenshots_test.dart` has a hard-coded sandbox font path; it is excluded from the 107-test run.
+### 5. Offline map
+Serve PMTiles from a node and render them (spec §2). OSM raster tiles are a demo-grade stopgap.
+
+### 6. Use the other AI endpoints
+Translate (`text`, `from`, `to`) on request/offer details and messages; summarize on Home; dedup warning on submit.
+See `app/lib/ai/bedrock_ai_client.dart`; keep the rules fallback.
+
+### 7. Smaller items
+- Add by username / phone was removed (no directory). Only add back with a real lookup endpoint.
+- API sends no CORS headers; only matters if the web app is hosted on another origin.
+- A https page cannot reach a plain-http LAN node (mixed content). Native app is fine; for web give the node HTTPS.
+- Node discovery (mDNS), signed package manifests, on-device download with resume and checksums.
+- `screenshots_test.dart` has a hard-coded sandbox font path; it is excluded from the normal test run.
 
 ## Gotchas learned the hard way
 
 - **Drift on web**: `app/web/sqlite3.wasm` and `app/web/drift_worker.js` must match `drift 2.35.3` / `sqlite3 3.8.0`
   (pinned in `pubspec.yaml`). A mismatch makes every DB write throw `WebAssembly.instantiate(): Import #25 "env"`.
-- **dart2js** rejects 64-bit integer literals (see `_blakeIv` in `identity_keys.dart`, parsed from hex strings).
-  `flutter build web --wasm` fails because of plugins; use the JS build.
-- Do not add `maplibre_gl`; its web plugin breaks the build.
+- dart2js rejects 64-bit integer literals (see `_blakeIv` in `identity_keys.dart`). `flutter build web --wasm` fails because of plugins; use the JS build.
+- Do not add `maplibre_gl` (breaks the web build). The map uses `flutter_map`.
 - `SnackBar` with an action never auto-dismisses unless `persist: false` (set in `toast.dart`).
-- Controllers owned by dialogs must live in a `StatefulWidget` (see `_EnterCodeDialog`), or you get
-  "used after being disposed".
-- Windows needs Developer Mode on for Flutter plugin symlinks.
+- Controllers owned by dialogs must live in a `StatefulWidget` (see `_EnterCodeDialog`, `_NameDialog`).
+- A proto3 `bool=false` update is the same bytes as "unset"; relist re-publishes the resource instead (see `supply_service.dart`).
+- Windows needs Developer Mode for Flutter plugin symlinks.
 
-## How to verify (do not skip: unit tests alone missed every bug above)
+## How to verify (unit tests alone missed every bug so far)
 
-1. `cd app && flutter analyze && flutter test` (skip `screenshots_test.dart`), and
-   `cd cloud && go test ./...`.
-2. `flutter build web --release`, serve it, and click every flow in a real browser. The headless harness used
-   puppeteer-core + Flutter's semantics tree (click `flt-semantics-placeholder` first, tap the smallest
-   `flt-semantics` node matching a label). Watch the console for `pageerror`.
+1. `cd app && flutter analyze && flutter test` (skip `screenshots_test.dart`), `cd cloud && go test ./...`, `cd node && go test ./...`.
+2. `flutter build web --release`, serve `build/web`, click every flow in a real browser. The headless harness used
+   puppeteer-core + Flutter's semantics tree (click `flt-semantics-placeholder` first; tap the smallest `flt-semantics`
+   node matching a label; text fields need coordinate taps; lists are lazy so scroll before tapping lower items).
+   Grant geolocation to test the map. Watch the console for `pageerror`.
 3. Redeploy with `scripts/deploy-heroku.ps1` and repeat against the live domain.

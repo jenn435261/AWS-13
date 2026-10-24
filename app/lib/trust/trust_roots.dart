@@ -33,6 +33,9 @@ class TrustRootStore {
     _roots.add(AuthorKey(pubkey));
   }
 
+  /// Removes [pubkey] from the trusted roots. Idempotent.
+  void remove(List<int> pubkey) => _roots.remove(AuthorKey(pubkey));
+
   /// Adds every pubkey in [pubkeys] as a trusted root (e.g. when applying a
   /// readiness package).
   void addAll(Iterable<List<int>> pubkeys) {

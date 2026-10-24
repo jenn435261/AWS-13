@@ -48,6 +48,7 @@ func (s *Server) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/node/v1/apk", s.handleAPK)
 	mux.HandleFunc("/node/v1/map/", s.handleMap)
 	mux.HandleFunc("/node/v1/readiness/", s.handleReadiness)
+	mux.HandleFunc("/node/v1/packages", s.handleCatalog)
 }
 
 func (s *Server) handleAPK(w http.ResponseWriter, r *http.Request) {

@@ -4,37 +4,124 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
 import '../../l10n/strings.dart';
+import '../../location/position_service.dart';
 import '../../state/derived_state.dart';
+import '../components/toast.dart';
 import '../components/trust_badges.dart';
 import '../map/map_view.dart';
 import '../theme/app_theme.dart';
 import 'help_flow_screen.dart';
 import 'resource_detail_screen.dart';
+import 'supply_editor_screen.dart';
 
-/// The default screen: map-first, with the single large primary action
-/// (I NEED HELP / OFFER HELP) pinned at the bottom center.
+/// The default screen: a real map with everything that has a location on it,
+/// and the two large primary actions (I NEED HELP / OFFER HELP) at the bottom.
 class MapScreen extends ConsumerWidget {
   const MapScreen({super.key});
 
+  Future<void> _locate(BuildContext context, WidgetRef ref) async {
+    final l = L10n.of(context);
+    final r = await readPosition();
+    if (r.position != null) {
+      ref.read(myPositionProvider.notifier).state = r.position;
+      return;
+    }
+    if (!context.mounted) return;
+    Toast.show(
+        context,
+        switch (r.failure) {
+          PositionFailure.serviceOff => l.t('loc_service_off'),
+          PositionFailure.denied ||
+          PositionFailure.deniedForever =>
+            l.t('loc_denied'),
+          PositionFailure.timeout => l.t('loc_timeout'),
+          _ => l.t('loc_unknown'),
+        },
+        urgent: true);
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final resourcesAsync = ref.watch(rankedResourcesProvider);
+    final l = L10n.of(context);
+    final world = ref.watch(worldStateProvider);
+    final me = ref.watch(myPositionProvider);
+
+    final markers = <MapMarker>[];
+    var unplaced = 0;
+    final w = world.valueOrNull;
+    if (w != null) {
+      for (final r in w.rankedResources()) {
+        if (r.withdrawn) continue;
+        final pos = latLngOf(r.resource.hasLocation() ? r.resource.location : null);
+        if (pos == null) {
+          unplaced++;
+          continue;
+        }
+        markers.add(MapMarker(
+          id: r.resourceId,
+          icon: iconForCategory(r.resource.category),
+          color: r.trust.source.isVerifiedOrg
+              ? AppTheme.verified
+              : AppTheme.communityAccent,
+          position: pos,
+          label: r.resource.title,
+          onTap: () => Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => ResourceDetailScreen(resourceId: r.resourceId),
+          )),
+        ));
+      }
+      for (final q in w.helpRequests) {
+        final pos = latLngOf(q.body.hasLocation() ? q.body.location : null);
+        if (pos == null) {
+          unplaced++;
+          continue;
+        }
+        markers.add(MapMarker(
+          id: 'req-${q.requestId}',
+          icon: Icons.sos_rounded,
+          color: AppTheme.urgent,
+          position: pos,
+          label: q.body.freeform.isEmpty ? l.t('i_need_help') : q.body.freeform,
+          onTap: () => _requestSheet(context, l, q),
+        ));
+      }
+    }
+
+    final alerts = w?.emergencyAlerts
+            .where((a) =>
+                a.body.expiresMs == 0 ||
+                a.body.expiresMs.toInt() >
+                    DateTime.now().millisecondsSinceEpoch)
+            .toList() ??
+        const <EmergencyAlertView>[];
 
     return Scaffold(
       body: SafeArea(
         child: Column(
           children: [
             const _StatusBar(),
+            for (final a in alerts) _AlertBanner(alert: a),
             Expanded(
-              child: resourcesAsync.when(
-                loading: () => const MapView(),
-                error: (e, _) => const MapView(),
-                data: (resources) => MapView(
-                  markers: _markersFor(context, resources, ref),
-                ),
+              child: Stack(
+                children: [
+                  MapView(
+                    markers: markers,
+                    me: me,
+                    onLocateMe: () => _locate(context, ref),
+                  ),
+                  if (unplaced > 0)
+                    Positioned(
+                      top: 8,
+                      left: 12,
+                      child: Chip(
+                        avatar: const Icon(Icons.location_off_outlined, size: 18),
+                        label: Text('$unplaced ${l.t('without_location')}'),
+                      ),
+                    ),
+                ],
               ),
             ),
-            // The primary actions — map-first, pinned at the bottom, big.
+            // The primary actions — pinned at the bottom, big.
             Padding(
               padding: const EdgeInsets.fromLTRB(0, 12, 0, 12),
               child: _PrimaryMapAction(),
@@ -45,44 +132,69 @@ class MapScreen extends ConsumerWidget {
     );
   }
 
-  List<MapMarker> _markersFor(
-      BuildContext context, List<ResourceView> resources, WidgetRef ref) {
-    // Place markers schematically around the center for the fallback map.
-    final markers = <MapMarker>[];
-    for (var i = 0; i < resources.length && i < 12; i++) {
-      final r = resources[i];
-      final angle = (i / 12) * 6.28318;
-      final radius = 0.18 + (i % 3) * 0.1;
-      markers.add(MapMarker(
-        id: r.resourceId,
-        icon: iconForCategory(r.resource.category),
-        color: r.trust.source.isVerifiedOrg
-            ? AppTheme.verified
-            : AppTheme.communityAccent,
-        x: 0.5 + radius * _cos(angle) - 0.05,
-        y: 0.5 + radius * _sin(angle) - 0.05,
-        label: r.resource.title,
-        onTap: () => Navigator.of(context).push(MaterialPageRoute(
-          builder: (_) => ResourceDetailScreen(resourceId: r.resourceId),
-        )),
-      ));
-    }
-    return markers;
+  void _requestSheet(BuildContext context, L10n l, HelpRequestView q) {
+    final cats = q.body.categories.map((c) => categoryLabel(l, c)).join(', ');
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (_) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(l.t('i_need_help'),
+                  style: const TextStyle(
+                      fontFamily: 'Roboto',
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700)),
+              const SizedBox(height: 8),
+              Text(cats.isEmpty ? '—' : cats,
+                  style: const TextStyle(fontFamily: 'Roboto', fontSize: 16)),
+              if (q.body.freeform.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text(q.body.freeform,
+                    style:
+                        const TextStyle(fontFamily: 'Roboto', fontSize: 16)),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
-double _cos(double x) => _taylorCos(x);
-double _sin(double x) => _taylorCos(x - 1.5707963);
-double _taylorCos(double x) {
-  // Normalize to [-pi, pi]
-  while (x > 3.14159265) {
-    x -= 6.28318530;
+class _AlertBanner extends StatelessWidget {
+  final EmergencyAlertView alert;
+  const _AlertBanner({required this.alert});
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      color: AppTheme.urgent,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: Row(children: [
+        const Icon(Icons.warning_amber_rounded, color: Colors.white),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            alert.body.detail.isEmpty
+                ? alert.body.title
+                : '${alert.body.title} — ${alert.body.detail}',
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+                fontFamily: 'Roboto',
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w600),
+          ),
+        ),
+      ]),
+    );
   }
-  while (x < -3.14159265) {
-    x += 6.28318530;
-  }
-  final x2 = x * x;
-  return 1 - x2 / 2 + x2 * x2 / 24 - x2 * x2 * x2 / 720;
 }
 
 class _StatusBar extends ConsumerWidget {
@@ -140,7 +252,7 @@ class _PrimaryMapAction extends StatelessWidget {
               icon: Icons.volunteer_activism_rounded,
               urgent: false,
               onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                builder: (_) => const HelpFlowScreen(isRequest: false),
+                builder: (_) => const SupplyEditorScreen(),
               )),
             ),
           ),

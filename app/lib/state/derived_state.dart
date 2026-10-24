@@ -239,16 +239,20 @@ class WorldState {
           final ResourceBody body = _resource(e);
           final String id = body.resourceId;
           if (id.isEmpty) break;
+          // Only the owner may re-publish (edit / relist) a resource.
+          if (owners.containsKey(id) && !_sameKey(owners[id]!, author)) break;
           latestResource[id] = body;
           owners[id] = author;
           createLamport[id] = h.lamport.toInt();
-          withdrawn.putIfAbsent(id, () => false);
+          withdrawn[id] = false;
           break;
 
         case EventType.EVENT_TYPE_RESOURCE_UPDATED:
           final ResourceUpdateBody upd = _update(e);
           final String id = upd.resourceId;
           if (id.isEmpty) break;
+          // Only the owner may change or withdraw a resource.
+          if (owners.containsKey(id) && !_sameKey(owners[id]!, author)) break;
           final ResourceBody base =
               latestResource[id] ?? ResourceBody(resourceId: id);
           final ResourceBody merged = base.deepCopy();
@@ -263,6 +267,8 @@ class WorldState {
           final InventorySnapshotBody snap = _snapshot(e);
           final String id = snap.resourceId;
           if (id.isEmpty) break;
+          // Only the owner publishes the authoritative count.
+          if (owners.containsKey(id) && !_sameKey(owners[id]!, author)) break;
           final int lamport = h.lamport.toInt();
           final InventoryView? prev = inventory[id];
           if (prev == null || lamport >= prev.lamport) {
@@ -341,6 +347,13 @@ class WorldState {
 
         case EventType.EVENT_TYPE_EMERGENCY_ALERT:
           final EmergencyAlertBody body = _alert(e);
+          // Alerts are authoritative: only verified organization members may
+          // issue one. A community member's "alert" is ignored, not shown.
+          if (engine.certGraph.provenanceOf(author,
+                  roots: trustRoots, revocations: engine.revocations) !=
+              ProvenanceKind.PROVENANCE_KIND_VERIFIED_ORG) {
+            break;
+          }
           emergencyAlerts.add(EmergencyAlertView(
               alertId: body.alertId, author: author, body: body));
           break;
@@ -376,6 +389,22 @@ class WorldState {
         shelters.add(view);
       }
     }
+  }
+
+  /// Whether [key] is a verified organization member under the trust roots this
+  /// device holds (a trusted root itself, or certified by a chain from one).
+  ProvenanceKind provenanceOf(List<int> key) {
+    final TrustEngine engine = TrustEngine.fromEvents(_log, roots: trustRoots);
+    return engine.certGraph.provenanceOf(key,
+        roots: trustRoots, revocations: engine.revocations);
+  }
+
+  static bool _sameKey(List<int> a, List<int> b) {
+    if (a.length != b.length) return false;
+    for (int i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
   }
 
   /// Resources ordered by trust rank (confirmed + fresh + verified first),

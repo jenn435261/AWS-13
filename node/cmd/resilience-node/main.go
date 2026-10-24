@@ -20,6 +20,7 @@ import (
 	"github.com/resilience-network/aws13/node/internal/cache"
 	"github.com/resilience-network/aws13/node/internal/gateway"
 	"github.com/resilience-network/aws13/node/internal/packages"
+	"github.com/resilience-network/aws13/node/internal/pairing"
 	"github.com/resilience-network/aws13/node/internal/syncserver"
 	"github.com/resilience-network/aws13/node/internal/webapp"
 )
@@ -32,6 +33,8 @@ type config struct {
 	apkDir       string
 	mapDir       string
 	readinessDir string
+	name         string
+	publicURL    string
 	syncInterval time.Duration
 }
 
@@ -43,6 +46,8 @@ func loadConfig() config {
 		apkDir:       envOr("APK_DIR", ""),
 		mapDir:       envOr("MAP_DIR", ""),
 		readinessDir: envOr("READINESS_DIR", ""),
+		name:         envOr("NODE_NAME", "Resilience Node"),
+		publicURL:    envOr("PUBLIC_URL", ""),
 		syncInterval: 15 * time.Second,
 	}
 	flag.StringVar(&c.httpAddr, "http-addr", c.httpAddr, "HTTP listen address (env HTTP_ADDR)")
@@ -51,6 +56,8 @@ func loadConfig() config {
 	flag.StringVar(&c.apkDir, "apk-dir", c.apkDir, "directory containing the Android APK (env APK_DIR)")
 	flag.StringVar(&c.mapDir, "map-dir", c.mapDir, "directory containing <region>.pmtiles maps (env MAP_DIR)")
 	flag.StringVar(&c.readinessDir, "readiness-dir", c.readinessDir, "directory containing readiness bundles (env READINESS_DIR)")
+	flag.StringVar(&c.name, "name", c.name, "display name shown to phones that pair with this node (env NODE_NAME)")
+	flag.StringVar(&c.publicURL, "public-url", c.publicURL, "address advertised in the pairing QR; default is the address the phone used (env PUBLIC_URL)")
 	flag.DurationVar(&c.syncInterval, "sync-interval", c.syncInterval, "cloud/mesh sync cadence")
 	flag.Parse()
 	return c
@@ -96,11 +103,12 @@ func run(cfg config, logger *slog.Logger) error {
 		ReadinessDir: cfg.readinessDir,
 	})
 	pkg.Register(mux)
+	pairing.New(pairing.Config{Name: cfg.name, PublicURL: cfg.publicURL}).Register(mux)
 	mux.Handle("/", webapp.Handler())
 
 	srv := &http.Server{
 		Addr:              cfg.httpAddr,
-		Handler:           logRequests(logger, mux),
+		Handler:           cors(logRequests(logger, mux)),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 
@@ -152,6 +160,26 @@ func run(cfg config, logger *slog.Logger) error {
 		logger.Info("node stopped cleanly")
 		return nil
 	}
+}
+
+// cors lets the web build (served from another origin, e.g. the cloud API's
+// https page) read this node. The node serves public, non-secret data (node
+// state is signed events; packages are public files) and carries no cookies,
+// so a wildcard origin does not widen what an attacker can reach.
+func cors(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		h := w.Header()
+		h.Set("Access-Control-Allow-Origin", "*")
+		h.Set("Access-Control-Allow-Methods", "GET, HEAD, POST, OPTIONS")
+		h.Set("Access-Control-Allow-Headers", "Content-Type, Range")
+		h.Set("Access-Control-Expose-Headers", "Content-Length, Content-Range, Accept-Ranges")
+		h.Set("Access-Control-Allow-Private-Network", "true")
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 // logRequests is lightweight structured access logging middleware.

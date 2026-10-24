@@ -124,8 +124,13 @@ event account (`WSParticipantRole`) denies `iam:CreateRole`/`PassRole`, so
 | Contacts | Working: add by QR scan (camera), by pasted code, show/copy my QR; saved locally; remove with undo |
 | AI assist (Bedrock via the Go API) | Working when the API is reachable and AWS credentials are valid; otherwise local rules (`degraded`) |
 | Network status | Real: probes the cloud `/healthz` (latency, last checked). Nearby peers unavailable in browsers; node and LoRa not set up |
-| Offline downloads | Probes a Resilience Node address you enter and lists only what it confirms |
-| Trusted organizations | Shows installed trust roots (empty until a readiness package installs one) |
+| Offline downloads | Pick a saved node, read its real package catalog, and keep your own library of package versions (add / edit / check / download / delete) |
+| Trusted organizations | You choose which organization keys to trust (from a contact, or your own key when founding one); persisted; untrust any time |
+| Map | Real OpenStreetMap map (pan/zoom, locate me). Requests, supplies and shelters plot at their true (rounded ~110 m) coordinates. Tiles need internet; offline PMTiles from a node are the planned replacement |
+| Supplies | Full lifecycle: add (type, item, number + free-text unit, amount level, available now / today / until a date, location), edit, restock, mark out of stock, take down, put back up. Only the owner's edits count |
+| Provider tools | Verified providers (a trusted root, or certified by one) can publish verified supplies, post emergency alerts and create missions; roots can certify contacts. Community users see how to become one |
+| Resilience nodes | Save several nodes (scan the node's QR or type an address), rename, set active, check reachability, delete |
+| Languages | English, Spanish, French, Mandarin (Simplified) |
 | Data controls | Erase-all really wipes events, contacts and identity; clear-cache rebuilds derived state |
 | Location sharing | **Not connected.** Audience/precision/duration (15m, 1h, 4h, 24h, until I stop) UI exists, but there is no position source or delivery path, so the button is disabled |
 | Secure messaging | **Not connected.** Crypto engines are tested (Signal X3DH/Double Ratchet), but chats need prekey publication, a durable Signal store and an app-side sync client that do not exist yet |

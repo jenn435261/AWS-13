@@ -1,0 +1,119 @@
+# Spec: providers, map, supplies, nodes, packages, media, languages
+
+Status key: **Built** (in the app, tested) · **Partial** · **Spec only** (designed here, not built).
+Everything here follows one rule: the UI never claims something works that is not wired.
+
+## 1. Roles and what each can do
+
+There is no central account system. A role is a fact any device derives from signed events and
+the trust roots *that device* chose to trust.
+
+| Role | How you get it | Can | Cannot |
+|---|---|---|---|
+| Community member | Default for every identity | Request help; publish supplies (shown as community); confirm / dispute / mark useful; add contacts; run nodes and packages locally | Post alerts; get a verified badge; certify anyone |
+| Verified provider | Your key is a trusted root, or is certified by a chain from one (`ORG_CERTIFICATE`), and is not revoked | Everything above, plus: verified badge on supplies; **post emergency alerts**; **create missions**; read aggregate community needs (with a cloud org token) | Read others' messages; see anyone's exact location unless shared with them; remove or edit others' posts; revoke keys unless also a root |
+| Organization root | A key the device owner explicitly trusted ("Trust my own key" when founding an org, or "Trust a contact") | Everything a provider can, plus **certify contacts** into the organization | Be trusted by anyone who did not add it themselves |
+| Carrier / driver | Holds a mission capability (`CAPABILITY_GRANTED`) | Accept missions, scan package handoffs | Create missions |
+
+Rules that make this safe (all enforced in `derived_state.dart`, tested in `supply_and_provider_test.dart`):
+
+1. **Trust is local.** Roots are never learned from the event log, so nobody can mint their own badge. Trusting is a choice on the Trusted organizations screen and persists.
+2. **Badges are re-derived, not claimed.** A post's `provenance` field is advisory. Each device walks the certificate chain itself.
+3. **Only verified authors' alerts are shown.** A community member's `EMERGENCY_ALERT` is ignored.
+4. **Only the owner changes a supply.** Edit (re-publish), restock, mark out, take down and relist from any other key are ignored.
+5. Revoking a key (`KEY_REVOKED`) removes the badge from it and from anyone certified only through it.
+
+Open policy question: today any verified member's certificate extends the chain (transitive). The UI only offers *certify* to roots. Decide whether to enforce root-only issuance or a depth limit in the fold (recommended: depth limit 2).
+
+### 1.1 How a provider sends and receives
+
+Everything is a signed event; transports only move bytes.
+
+| Direction | What | Path today | Path once sync client exists |
+|---|---|---|---|
+| Send | Verified supply, alert, mission, certificate | Written to the local log; visible on this device | Pushed over: nearby peers; a Resilience Node (`/node/v1/push`); the cloud (`POST /v1/events`) |
+| Receive | Requests, supplies, alerts from others | Only events already on this device | Pulled the same ways; every event is signature-checked before it is stored, so a relay cannot forge anything |
+| Receive (aggregate) | Community needs by category | `GET /v1/org/needs` with an org token (Provider tools → Community needs). Shows only what has reached the cloud | Same, populated once devices push |
+| Receive (mission) | Mission offers | Mission events in the log | Carriers see them in Deliveries after sync |
+
+Provider screen layout (Built): status card (verified or not, why) → if not verified, three steps to become one → if verified, actions (publish supply, post alert, create mission, certify contact if root) → what I published → community needs → "what providers cannot do".
+
+**Gap for the next phase:** providers have no way to *assign* a mission to a named carrier or close it from the UI, no mission list across the org, and no alert recall. Spec: `MISSION_MATCHED` is the assignment; add a Missions tab for providers (created / accepted / in transit / completed buckets already exist in `logistics/mission.dart`); alert recall = a new `EMERGENCY_ALERT` with the same `alert_id` and `expires_ms` in the past (add the fold rule).
+
+## 2. Map (Built)
+
+- Real map via `flutter_map` with OpenStreetMap tiles; pan, zoom buttons, "My location".
+- Plots, at true coordinates: supplies and shelters (green = verified org, blue = community), help requests (red). Anything without a location is **not** plotted; a chip says how many.
+- "You" dot appears only after the user taps My location (browser/phone permission prompt). We never poll or track.
+- Privacy: published coordinates are rounded to 3 decimals (~110 m). `has_exact` stays false unless a flow deliberately sets it (none do yet).
+- Location is set per post with: use my location, pick on map, or none. Requests default to the last position the user read.
+- Offline: tiles need internet. When tile requests fail, a banner says so and markers still draw. **Spec only:** serve `<region>.pmtiles` from a node (`/node/v1/map/…`, Range supported) and render with a vector PMTiles layer; keep OSM raster as the online fallback. Respect the OSM tile usage policy: fine for a demo, not for sustained load; switch to the node PMTiles or a paid tile host before real use.
+- Emergency alerts from verified authors show as a banner above the map until `expires_ms`.
+
+## 3. Supplies and availability (Built)
+
+A supply is a `RESOURCE_CREATED` event plus an optional `INVENTORY_SNAPSHOT`.
+
+| Field | Input | Stored as |
+|---|---|---|
+| Type | One category chip | `category` |
+| What is it | Free text ("Bottled water") | `title` |
+| Quantity | Whole number (optional) | `INVENTORY_SNAPSHOT.quantity` |
+| Unit | Free text ("cases", "gallons", "beds") | `INVENTORY_SNAPSHOT.unit` |
+| Rough level | Plenty / Some / Low | `amount` (use when you only know roughly) |
+| Availability | Now / Today / **Until a date** (date picker) | `availability`, `available_until_ms` (end of that day) |
+| Location | See §2 | `location` |
+| Shelter | Toggle | `is_shelter` |
+| Notes | Free text (pickup times, limits) | `notes` |
+
+Lifecycle (My Supplies → ⋮ menu; log is append-only so nothing is erased):
+
+| Action | Event | Result |
+|---|---|---|
+| Add | `RESOURCE_CREATED` (+ snapshot) | Listed, on the map if it has a location |
+| Edit | Re-publish `RESOURCE_CREATED`, same `resource_id` | Latest wins; owner only; also relists |
+| Update quantity | `INVENTORY_SNAPSHOT` | Authoritative count changes |
+| Mark out of stock | Snapshot qty 0 + `RESOURCE_UPDATED amount=LOW` | Stays listed as "Out of stock" |
+| Take down ("delete") | `RESOURCE_UPDATED withdrawn=true` | Hidden from the map, struck through in My Supplies; undo toast |
+| Put back up | Re-publish `RESOURCE_CREATED` | Listed again. (A proto3 `withdrawn=false` is indistinguishable from "unset", so relisting cannot use an update) |
+
+Not built: my **requests** cannot yet be cancelled or marked fulfilled (no event type; add `HELP_REQUEST_CLOSED`). Reservations by missions reduce *available* quantity but never the snapshot (existing rule). Expiry (`available_until_ms` in the past) should auto-hide a supply on the map; the field is stored and shown, the hide rule is not implemented.
+
+## 4. Resilience nodes (Built) and the proof-of-concept node
+
+- **Run one here:** `cd node && go run ./cmd/resilience-node --name "My Node" --apk-dir … --map-dir … --readiness-dir …` (flags/env in `node/README.md`). New: `--name`, `--public-url`.
+- **Pairing QR:** `GET /node/v1/pair` returns `{"v":1,"name":…,"url":…}`; `GET /node/v1/pair.png` is a QR of the same JSON. The URL is the address the phone used to reach the node, unless `--public-url` pins it. Open `/node/v1/pair.png` on any screen and scan it from the app (More → Resilience nodes → Add node → Scan node QR), or type the address.
+- **Saved nodes:** several allowed; rename, set active, check reachability (`/healthz`), delete with undo. Typing only an address pulls the node's own name from `/pair`. Stored locally only.
+- **Catalog:** `GET /node/v1/packages` lists what the node really holds (kind, name, path, size, modified). The app never guesses file names.
+- **CORS:** the node answers cross-origin reads so the https web app can reach `http://localhost:8090`. A browser still blocks an https page from reaching a plain-http LAN address (mixed content); on a real LAN use the native app, or give the node HTTPS (`--public-url https://…` behind a proxy).
+- **Cloud API** is already running on Heroku (see `cloud/DEPLOY_HEROKU.md`); a node pointed at it with `--cloud-base-url` bridges events up when it has internet.
+- Spec only: node discovery on the LAN (mDNS), node-side auth for pushes, a signed catalog so a rogue node cannot offer a malicious APK (verify a detached signature against a trusted root before installing).
+
+## 5. Offline downloads (Built)
+
+My library = your own list of package versions: kind (app / map / readiness / other), name, version, link, notes. Add by hand or "Save to my library" from a node's catalog (version defaults to the file's modified date). Several versions of one name sit together, newest first. Per entry: download (opens the link), check link (HEAD), copy link, edit, delete with undo. Nothing is claimed to be downloaded on-device: the app stores *where* each version is; the browser/OS handles the file.
+
+Spec only: true on-device download with progress, resume (Range), checksum verification against a signed manifest, and "keep the last N versions" pruning.
+
+## 6. Messages with photos and audio (Spec only; messaging itself is not connected)
+
+Blocked on the same prerequisites as text chat (durable Signal store, prekey publication, sync client; see `KIRO_HANDOFF.md` task 2). Design so media is not a rewrite:
+
+- **Message kinds:** text, image, audio, location (later). One `MessagePayload { kind, text, attachments[] }` inside the Signal ciphertext.
+- **Attachments are encrypted blobs, not in the event.** Sender picks a random 256-bit key, encrypts the file (AES-GCM), uploads the ciphertext to a blob store, and sends `{sha256, size, mime, key, thumbnail}` inside the end-to-end encrypted message. Relays and the store see only ciphertext.
+- **Limits for disrupted networks:** photos re-encoded to ≤1600 px JPEG/WebP (target ≤250 KB) with a ≤8 KB blurred thumbnail sent inline; audio Opus mono ≤60 s (~120 KB at 16 kbps). Over mesh / LoRa send only the thumbnail and a "full file when online" marker; full blobs move over IP (node or cloud).
+- **Blob store:** `PUT/GET /v1/blobs/{sha256}` on the cloud and `/node/v1/blobs/{sha256}` on a node; content-addressed, size cap 2 MB, rate-limited, gated by the client API key, purged after 7 days. The recipient verifies the hash after decrypting.
+- **UI:** attach button (camera / gallery), hold-to-record mic with cancel and 60 s cap, inline thumbnail with tap-to-load, audio bubble with play and duration, "queued" state while offline. Strip EXIF (including GPS) before encrypting.
+- **Safety:** warn before sending a photo with detectable location context; never auto-download from unknown contacts on mobile data.
+
+## 7. Languages (Built)
+
+English, Spanish, French, Mandarin (Simplified). Strings are in `lib/l10n/` (`strings.dart` base, `strings_new.dart` additions, `strings_fr.dart`, `strings_zh.dart`). A test fails if French or Mandarin is missing a key English has. Selecting a language is in Settings; unselected means the system language. Notes: Mandarin text renders with the browser/OS CJK fallback font (the web build fetches it when needed); dates use the platform formatter. To add a language: add its map, add a `Locale`, add a name in `L10n.languageName`.
+
+## 8. Decisions needed from the team
+
+1. Transitive vs root-only certificate issuance (§1).
+2. Which tile source for production (§2).
+3. Whether providers may *assign* missions to specific carriers from the UI, or only publish them for carriers to accept (§1.1).
+4. Retention: how long do requests and supplies stay on the map after their last update?
+5. Where blobs live in production and who pays (§6).

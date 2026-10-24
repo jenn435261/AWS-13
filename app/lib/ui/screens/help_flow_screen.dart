@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../app/providers.dart';
 import '../../gen/resilience/v1/event.pb.dart';
 import '../../l10n/strings.dart';
+import '../../location/position_service.dart';
 import '../components/common.dart';
+import '../components/location_field.dart';
 import '../components/toast.dart';
 import '../components/trust_badges.dart';
 
@@ -32,6 +35,7 @@ class _HelpFlowScreenState extends ConsumerState<HelpFlowScreen> {
   AmountBand _amount = AmountBand.AMOUNT_BAND_UNSPECIFIED;
   Availability _availability = Availability.AVAILABILITY_NOW;
   bool _aiBusy = false;
+  LatLng? _where;
   bool _sending = false;
 
   static const _categories = <ResourceCategory>[
@@ -45,6 +49,12 @@ class _HelpFlowScreenState extends ConsumerState<HelpFlowScreen> {
     ResourceCategory.RESOURCE_CATEGORY_COMMUNICATION,
     ResourceCategory.RESOURCE_CATEGORY_OTHER,
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _where = ref.read(myPositionProvider);
+  }
 
   @override
   void dispose() {
@@ -96,6 +106,7 @@ class _HelpFlowScreenState extends ConsumerState<HelpFlowScreen> {
                   .contains(ResourceCategory.RESOURCE_CATEGORY_MEDICAL_HELP)
               ? Priority.PRIORITY_HIGH
               : Priority.PRIORITY_NORMAL,
+          location: _where == null ? null : geoPointFor(_where!),
         );
         event = await factory.buildFromMessage(
           keyPair: kp,
@@ -110,6 +121,7 @@ class _HelpFlowScreenState extends ConsumerState<HelpFlowScreen> {
           amount: _amount,
           availability: _availability,
           notes: _note.text.trim(),
+          location: _where == null ? null : geoPointFor(_where!),
         );
         event = await factory.buildFromMessage(
           keyPair: kp,
@@ -214,6 +226,10 @@ class _HelpFlowScreenState extends ConsumerState<HelpFlowScreen> {
                         : const Icon(Icons.auto_awesome_rounded),
                     label: Text(l.t('structure_with_ai')),
                   ),
+                  const SizedBox(height: 20),
+                  LocationField(
+                      value: _where,
+                      onChanged: (v) => setState(() => _where = v)),
                   if (!widget.isRequest) ...[
                     const SizedBox(height: 8),
                     AdvancedDisclosure(

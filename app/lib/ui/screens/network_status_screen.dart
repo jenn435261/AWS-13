@@ -5,7 +5,9 @@ import 'package:http/http.dart' as http;
 
 import '../../app/providers.dart';
 import '../../l10n/strings.dart';
+import '../../nodes/node_store.dart';
 import '../theme/app_theme.dart';
+import 'nodes_screen.dart';
 
 /// Result of probing the cloud API's /healthz.
 class CloudProbe {
@@ -60,6 +62,23 @@ class NetworkStatusScreen extends ConsumerWidget {
     );
     final checkedAt = probe.valueOrNull?.checkedAt;
 
+    final nodes = ref.watch(nodesProvider).valueOrNull ?? const <SavedNode>[];
+    final activeId = ref.watch(activeNodeIdProvider).valueOrNull;
+    final SavedNode? node = nodes.isEmpty
+        ? null
+        : nodes.firstWhere((n) => n.id == activeId, orElse: () => nodes.first);
+    _Row nodeRow = _Row(l.t('status_not_configured'), _Tone.neutral);
+    if (node != null) {
+      final np = ref.watch(nodeProbeProvider(node.url));
+      nodeRow = np.when(
+        loading: () => _Row('${node.name} · ${l.t('status_checking')}', _Tone.neutral),
+        error: (e, _) => _Row('${node.name} · ${l.t('status_unreachable')}', _Tone.bad),
+        data: (p) => p.reachable
+            ? _Row('${node.name} · ${l.t('status_reachable')} · ${p.latencyMs} ms', _Tone.good)
+            : _Row('${node.name} · ${l.t('status_unreachable')}', _Tone.bad),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: Text(l.t('network_status')),
@@ -67,8 +86,10 @@ class NetworkStatusScreen extends ConsumerWidget {
           IconButton(
             tooltip: l.t('refresh'),
             icon: const Icon(Icons.refresh_rounded),
-            onPressed: () =>
-                ref.read(cloudProbeRevisionProvider.notifier).state++,
+            onPressed: () {
+              ref.read(cloudProbeRevisionProvider.notifier).state++;
+              ref.read(nodesRevisionProvider.notifier).state++;
+            },
           ),
         ],
       ),
@@ -85,8 +106,12 @@ class NetworkStatusScreen extends ConsumerWidget {
                         ? l.t('status_unavailable_here')
                         : l.t('status_not_configured'),
                     _Tone.neutral)),
-            _row(context, Icons.router_rounded, l.t('resilience_node'),
-                _Row(l.t('status_not_configured'), _Tone.neutral)),
+            InkWell(
+              onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const NodesScreen())),
+              child: _row(context, Icons.router_rounded, l.t('resilience_node'),
+                  nodeRow),
+            ),
             _row(context, Icons.cell_tower_rounded, l.t('lora'),
                 _Row(l.t('status_not_supported'), _Tone.neutral)),
             const Divider(),
