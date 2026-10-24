@@ -7,6 +7,7 @@ import 'package:uuid/uuid.dart';
 import '../../app/providers.dart';
 import '../../gen/resilience/v1/event.pb.dart';
 import '../../l10n/strings.dart';
+import '../../location/location_providers.dart';
 import '../../location/position_service.dart';
 import '../components/common.dart';
 import '../components/location_field.dart';
@@ -36,6 +37,7 @@ class _HelpFlowScreenState extends ConsumerState<HelpFlowScreen> {
   Availability _availability = Availability.AVAILABILITY_NOW;
   bool _aiBusy = false;
   LatLng? _where;
+  LocationSource _whereSource = LocationSource.LOCATION_SOURCE_UNSPECIFIED;
   bool _sending = false;
 
   static const _categories = <ResourceCategory>[
@@ -53,7 +55,20 @@ class _HelpFlowScreenState extends ConsumerState<HelpFlowScreen> {
   @override
   void initState() {
     super.initState();
-    _where = ref.read(myPositionProvider);
+    // Default the new-post location to the freshest thing we have, labelled
+    // honestly: a live fix (GPS) if one is loaded, otherwise the cached
+    // last-known fix (LAST_KNOWN). The user can override via LocationField.
+    final me = ref.read(myPositionProvider);
+    if (me != null) {
+      _where = me;
+      _whereSource = LocationSource.LOCATION_SOURCE_GPS;
+    } else {
+      final fix = ref.read(lastKnownFixProvider).valueOrNull;
+      if (fix != null) {
+        _where = fix.position;
+        _whereSource = LocationSource.LOCATION_SOURCE_LAST_KNOWN;
+      }
+    }
   }
 
   @override
@@ -200,7 +215,9 @@ class _HelpFlowScreenState extends ConsumerState<HelpFlowScreen> {
                   .contains(ResourceCategory.RESOURCE_CATEGORY_MEDICAL_HELP)
               ? Priority.PRIORITY_HIGH
               : Priority.PRIORITY_NORMAL,
-          location: _where == null ? null : geoPointFor(_where!),
+          location: _where == null
+              ? null
+              : geoPointFor(_where!, source: _whereSource),
         );
         event = await factory.buildFromMessage(
           keyPair: kp,
@@ -215,7 +232,9 @@ class _HelpFlowScreenState extends ConsumerState<HelpFlowScreen> {
           amount: _amount,
           availability: _availability,
           notes: _note.text.trim(),
-          location: _where == null ? null : geoPointFor(_where!),
+          location: _where == null
+              ? null
+              : geoPointFor(_where!, source: _whereSource),
         );
         event = await factory.buildFromMessage(
           keyPair: kp,
@@ -323,7 +342,11 @@ class _HelpFlowScreenState extends ConsumerState<HelpFlowScreen> {
                   const SizedBox(height: 20),
                   LocationField(
                       value: _where,
-                      onChanged: (v) => setState(() => _where = v)),
+                      source: _whereSource,
+                      onChanged: (v, s) => setState(() {
+                            _where = v;
+                            _whereSource = s;
+                          })),
                   if (!widget.isRequest) ...[
                     const SizedBox(height: 8),
                     AdvancedDisclosure(

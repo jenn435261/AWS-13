@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../app/providers.dart';
 import '../db/json_store.dart';
+import '../location/location_providers.dart';
 import 'cloud_sync.dart';
 
 /// Live sync state surfaced to the UI (Network Status screen). Every field is
@@ -295,13 +296,21 @@ class _SyncLifecycleObserverState extends ConsumerState<SyncLifecycleObserver>
     _lastRevision = ref.read(worldRevisionProvider);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(syncCoordinatorProvider).start();
+      // Auto-resolve position on start (permission permitting). Never blocks
+      // the first paint; a failure quietly leaves the cached last-known fix.
+      unawaited(autoResolvePosition(ref));
     });
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     final coordinator = ref.read(syncCoordinatorProvider);
-    coordinator.setVisible(state == AppLifecycleState.resumed);
+    final resumed = state == AppLifecycleState.resumed;
+    coordinator.setVisible(resumed);
+    if (resumed) {
+      // Re-resolve position on foreground so the map recentres on a fresh fix.
+      unawaited(autoResolvePosition(ref));
+    }
   }
 
   @override

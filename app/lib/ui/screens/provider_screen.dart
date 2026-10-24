@@ -452,6 +452,7 @@ class _AlertEditorState extends ConsumerState<AlertEditorScreen> {
   Priority _priority = Priority.PRIORITY_HIGH;
   int _hours = 6;
   LatLng? _where;
+  LocationSource _whereSource = LocationSource.LOCATION_SOURCE_UNSPECIFIED;
   bool _saving = false;
   String? _error;
 
@@ -483,7 +484,9 @@ class _AlertEditorState extends ConsumerState<AlertEditorScreen> {
             title: _title.text.trim(),
             detail: _detail.text.trim(),
             priority: _priority,
-            area: _where == null ? null : geoPointFor(_where!),
+            area: _where == null
+                ? null
+                : geoPointFor(_where!, source: _whereSource),
             expiresMs: Int64(DateTime.now()
                 .add(Duration(hours: _hours))
                 .millisecondsSinceEpoch),
@@ -548,7 +551,12 @@ class _AlertEditorState extends ConsumerState<AlertEditorScreen> {
               ]),
               const SizedBox(height: 16),
               LocationField(
-                  value: _where, onChanged: (v) => setState(() => _where = v)),
+                  value: _where,
+                  source: _whereSource,
+                  onChanged: (v, s) => setState(() {
+                        _where = v;
+                        _whereSource = s;
+                      })),
               if (_error != null) ...[
                 const SizedBox(height: 12),
                 Text(_error!,
@@ -591,7 +599,9 @@ class _MissionEditorState extends ConsumerState<MissionEditorScreen> {
   ResourceCategory _category = ResourceCategory.RESOURCE_CATEGORY_WATER;
   Priority _priority = Priority.PRIORITY_NORMAL;
   LatLng? _pickupAt;
+  LocationSource _pickupSource = LocationSource.LOCATION_SOURCE_UNSPECIFIED;
   LatLng? _destAt;
+  LocationSource _destSource = LocationSource.LOCATION_SOURCE_UNSPECIFIED;
   bool _saving = false;
   String? _error;
 
@@ -627,9 +637,13 @@ class _MissionEditorState extends ConsumerState<MissionEditorScreen> {
       cargoDescription: _cargo.text.trim(),
       cargoQuantity: int.tryParse(_qty.text.trim()) ?? 0,
       pickupName: _pickup.text.trim(),
-      pickupLocation: _pickupAt == null ? null : geoPointFor(_pickupAt!),
+      pickupLocation: _pickupAt == null
+          ? null
+          : geoPointFor(_pickupAt!, source: _pickupSource),
       destinationName: _dest.text.trim(),
-      destinationLocation: _destAt == null ? null : geoPointFor(_destAt!),
+      destinationLocation: _destAt == null
+          ? null
+          : geoPointFor(_destAt!, source: _destSource),
       priority: _priority,
     );
     await ref.read(eventStoreProvider).apply(event);
@@ -683,14 +697,22 @@ class _MissionEditorState extends ConsumerState<MissionEditorScreen> {
                   decoration: InputDecoration(labelText: l.t('pickup'))),
               LocationField(
                   value: _pickupAt,
-                  onChanged: (v) => setState(() => _pickupAt = v)),
+                  source: _pickupSource,
+                  onChanged: (v, s) => setState(() {
+                        _pickupAt = v;
+                        _pickupSource = s;
+                      })),
               const SizedBox(height: 16),
               TextField(
                   controller: _dest,
                   decoration: InputDecoration(labelText: l.t('destination'))),
               LocationField(
                   value: _destAt,
-                  onChanged: (v) => setState(() => _destAt = v)),
+                  source: _destSource,
+                  onChanged: (v, s) => setState(() {
+                        _destAt = v;
+                        _destSource = s;
+                      })),
               const SizedBox(height: 16),
               Text(l.t('priority'), style: label),
               const SizedBox(height: 8),

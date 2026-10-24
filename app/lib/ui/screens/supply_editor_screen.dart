@@ -6,6 +6,7 @@ import 'package:latlong2/latlong.dart';
 import '../../app/providers.dart';
 import '../../gen/resilience/v1/event.pb.dart';
 import '../../l10n/strings.dart';
+import '../../location/location_providers.dart';
 import '../../location/position_service.dart';
 import '../../state/derived_state.dart';
 import '../../supplies/supply_service.dart';
@@ -47,6 +48,7 @@ class _SupplyEditorState extends ConsumerState<SupplyEditorScreen> {
   Availability _availability = Availability.AVAILABILITY_NOW;
   DateTime? _until;
   LatLng? _where;
+  LocationSource _whereSource = LocationSource.LOCATION_SOURCE_UNSPECIFIED;
   bool _shelter = false;
   bool _saving = false;
   String? _error;
@@ -70,13 +72,26 @@ class _SupplyEditorState extends ConsumerState<SupplyEditorScreen> {
         _until = DateTime.fromMillisecondsSinceEpoch(r.availableUntilMs.toInt());
       }
       _where = latLngOf(r.hasLocation() ? r.location : null);
+      if (r.hasLocation() && r.location.hasLocationSource()) {
+        _whereSource = r.location.locationSource;
+      }
       _shelter = r.isShelter;
       if (e.inventory != null) {
         _qty.text = e.inventory!.quantity.toString();
         _unit.text = e.inventory!.unit;
       }
     } else {
-      _where = ref.read(myPositionProvider);
+      final me = ref.read(myPositionProvider);
+      if (me != null) {
+        _where = me;
+        _whereSource = LocationSource.LOCATION_SOURCE_GPS;
+      } else {
+        final fix = ref.read(lastKnownFixProvider).valueOrNull;
+        if (fix != null) {
+          _where = fix.position;
+          _whereSource = LocationSource.LOCATION_SOURCE_LAST_KNOWN;
+        }
+      }
     }
   }
 
@@ -138,7 +153,9 @@ class _SupplyEditorState extends ConsumerState<SupplyEditorScreen> {
         amount: _amount,
         availability: _availability,
         availableUntil: until,
-        location: _where == null ? null : geoPointFor(_where!),
+        location: _where == null
+            ? null
+            : geoPointFor(_where!, source: _whereSource),
         isShelter: _shelter || _category == ResourceCategory.RESOURCE_CATEGORY_SHELTER,
       ));
       bumpWorld(ref);
@@ -275,7 +292,12 @@ class _SupplyEditorState extends ConsumerState<SupplyEditorScreen> {
               ]),
               const SizedBox(height: 20),
               LocationField(
-                  value: _where, onChanged: (v) => setState(() => _where = v)),
+                  value: _where,
+                  source: _whereSource,
+                  onChanged: (v, s) => setState(() {
+                        _where = v;
+                        _whereSource = s;
+                      })),
               const SizedBox(height: 16),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,

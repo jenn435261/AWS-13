@@ -9,11 +9,16 @@ enum PositionFailure { serviceOff, denied, deniedForever, timeout, unknown }
 class PositionResult {
   final LatLng? position;
   final PositionFailure? failure;
-  const PositionResult.ok(LatLng p)
+
+  /// Reported horizontal accuracy in metres for a successful read, or null.
+  final double? accuracyM;
+
+  const PositionResult.ok(LatLng p, {this.accuracyM})
       : position = p,
         failure = null;
   const PositionResult.fail(PositionFailure f)
       : position = null,
+        accuracyM = null,
         failure = f;
 }
 
@@ -38,7 +43,8 @@ Future<PositionResult> readPosition() async {
         locationSettings: const LocationSettings(
             accuracy: LocationAccuracy.medium,
             timeLimit: Duration(seconds: 12)));
-    return PositionResult.ok(LatLng(p.latitude, p.longitude));
+    return PositionResult.ok(LatLng(p.latitude, p.longitude),
+        accuracyM: p.accuracy);
   } on Exception catch (e) {
     final s = e.toString().toLowerCase();
     return PositionResult.fail(

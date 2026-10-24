@@ -9,6 +9,8 @@ import '../../location/location_providers.dart';
 import '../../location/location_state.dart';
 import '../../location/position_service.dart';
 import '../../state/derived_state.dart';
+import '../../sync/connectivity.dart';
+import '../../sync/sync_providers.dart';
 import '../components/toast.dart';
 import '../components/trust_badges.dart';
 import '../components/translate_panel.dart';
@@ -25,11 +27,10 @@ class MapScreen extends ConsumerWidget {
 
   Future<void> _locate(BuildContext context, WidgetRef ref) async {
     final l = L10n.of(context);
-    final r = await readPosition();
-    if (r.position != null) {
-      ref.read(myPositionProvider.notifier).state = r.position;
-      return;
-    }
+    // Caches a successful read as the new last-good fix (so it persists and the
+    // map can recentre on it later), and updates the live "you are here" dot.
+    final r = await autoResolvePosition(ref);
+    if (r.position != null) return;
     if (!context.mounted) return;
     Toast.show(
         context,
@@ -49,6 +50,9 @@ class MapScreen extends ConsumerWidget {
     final l = L10n.of(context);
     final world = ref.watch(worldStateProvider);
     final me = ref.watch(myPositionProvider);
+    final lastFix = ref.watch(lastKnownFixProvider).valueOrNull;
+    // Centre: a live fix wins; otherwise the cached last-known fix.
+    final centre = me ?? lastFix?.position;
 
     final markers = <MapMarker>[];
     var unplaced = 0;
@@ -135,9 +139,22 @@ class MapScreen extends ConsumerWidget {
                   MapView(
                     markers: markers,
                     me: me,
+                    center: centre,
                     onLocateMe: () => _locate(context, ref),
                     pmtilesUrl: ref.watch(nodePmtilesUrlProvider).valueOrNull,
                   ),
+                  // Honest "last known, <age>" chip when we have no live fix but
+                  // do have a cached one — never presented as a live GPS fix.
+                  if (me == null && lastFix != null)
+                    Positioned(
+                      bottom: 12,
+                      left: 12,
+                      child: Chip(
+                        avatar: const Icon(Icons.history_rounded, size: 18),
+                        label: Text(
+                            '${l.t('loc_last_known')}, ${lastFix.ageLabel(DateTime.now().toUtc().millisecondsSinceEpoch)}'),
+                      ),
+                    ),
                   if (unplaced > 0)
                     Positioned(
                       top: 8,
@@ -163,9 +180,12 @@ class MapScreen extends ConsumerWidget {
                 ],
               ),
             ),
+            // Refresh row: re-fold + sync + recentre, with the real last sync
+            // time. Kept above the big primary actions (bottom-anchored).
+            const _RefreshBar(),
             // The primary actions — pinned at the bottom, big.
             Padding(
-              padding: const EdgeInsets.fromLTRB(0, 12, 0, 12),
+              padding: const EdgeInsets.fromLTRB(0, 8, 0, 12),
               child: _PrimaryMapAction(),
             ),
           ],
@@ -529,33 +549,143 @@ class _SummarySheetState extends ConsumerState<_SummarySheet> {
   }
 }
 
+/// The live connectivity banner. Driven by [connectivityProvider] (real
+/// reachability from the sync client plus browser online/offline events), so it
+/// flips without a reload and never claims a connection that is not wired.
 class _StatusBar extends ConsumerWidget {
   const _StatusBar();
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l = L10n.of(context);
     final scheme = Theme.of(context).colorScheme;
-    final online = ref.watch(cloudBaseUrlProvider).isNotEmpty;
+    final conn = ref.watch(connectivityProvider);
+    final sync = ref.watch(syncStatusProvider);
+
+    final (IconData icon, Color color) = switch (conn) {
+      Connectivity.online => (Icons.cloud_done_rounded, AppTheme.verified),
+      Connectivity.nodeConnected => (Icons.lan_rounded, AppTheme.verified),
+      Connectivity.cloudUnreachable => (
+          Icons.cloud_off_rounded,
+          AppTheme.urgent
+        ),
+      Connectivity.offline => (Icons.cloud_off_rounded, scheme.outline),
+    };
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       color: scheme.surfaceContainerHigh,
       child: Row(
         children: [
-          Icon(online ? Icons.cloud_done_rounded : Icons.cloud_off_rounded,
-              size: 22,
-              color: online ? AppTheme.verified : scheme.outline),
+          Icon(icon, size: 22, color: color),
           const SizedBox(width: 8),
-          Text(online ? l.t('online') : l.t('offline'),
-              style:
-                  const TextStyle(fontFamily: 'Roboto', fontSize: 16, fontWeight: FontWeight.w600)),
-          const Spacer(),
-          Icon(Icons.check_circle_rounded,
-              size: 20, color: AppTheme.verified),
-          const SizedBox(width: 6),
-          Text(l.t('ready'), style: const TextStyle(fontFamily: 'Roboto', fontSize: 16)),
+          Expanded(
+            child: Text(l.t(connectivityLabelKey(conn)),
+                style: const TextStyle(
+                    fontFamily: 'Roboto',
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600)),
+          ),
+          if (sync.syncing) ...[
+            const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2)),
+            const SizedBox(width: 8),
+          ],
+          if (sync.lastSyncedMs != null)
+            Text(
+              '${l.t('last_sync')} ${_syncAge(l, sync.lastSyncedMs!)}',
+              style: TextStyle(
+                  fontFamily: 'Roboto', fontSize: 16, color: scheme.outline),
+            ),
         ],
       ),
     );
+  }
+
+  static String _syncAge(L10n l, int ms) {
+    final d = DateTime.now().millisecondsSinceEpoch - ms;
+    if (d < 60000) return l.t('time_just_now');
+    final m = d ~/ 60000;
+    if (m < 60) return l.t('time_minutes_ago').replaceAll('{n}', '$m');
+    final h = m ~/ 60;
+    if (h < 24) return l.t('time_hours_ago').replaceAll('{n}', '$h');
+    return l.t('time_days_ago').replaceAll('{n}', '${h ~/ 24}');
+  }
+}
+
+/// A full-width refresh control (>=48px) that re-folds local state, triggers a
+/// sync when reachable, recentres on the last known position, and shows the
+/// real last-refreshed time from the sync status.
+class _RefreshBar extends ConsumerStatefulWidget {
+  const _RefreshBar();
+  @override
+  ConsumerState<_RefreshBar> createState() => _RefreshBarState();
+}
+
+class _RefreshBarState extends ConsumerState<_RefreshBar> {
+  bool _busy = false;
+
+  Future<void> _run() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      bumpWorld(ref);
+      final conn = ref.read(connectivityProvider);
+      if (conn != Connectivity.offline) {
+        await ref.read(syncCoordinatorProvider).syncNow();
+      }
+      final me = ref.read(myPositionProvider);
+      if (me == null) {
+        final fix = await ref.read(lastKnownFixProvider.future);
+        if (fix != null) {
+          ref.read(myPositionProvider.notifier).state = fix.position;
+        }
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10n.of(context);
+    final sync = ref.watch(syncStatusProvider);
+    final lastMs = sync.lastSyncedMs;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: SizedBox(
+        height: 48,
+        width: double.infinity,
+        child: OutlinedButton.icon(
+          onPressed: _busy ? null : _run,
+          icon: _busy
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2))
+              : const Icon(Icons.refresh_rounded),
+          label: Text(
+            _busy
+                ? l.t('map_refreshing')
+                : lastMs == null
+                    ? l.t('map_refresh')
+                    : '${l.t('map_refresh')} · ${l.t('last_refreshed')} ${_ago(l, lastMs)}',
+            style: const TextStyle(fontSize: 16),
+          ),
+        ),
+      ),
+    );
+  }
+
+  static String _ago(L10n l, int ms) {
+    final d = DateTime.now().millisecondsSinceEpoch - ms;
+    if (d < 60000) return l.t('time_just_now');
+    final m = d ~/ 60000;
+    if (m < 60) return l.t('time_minutes_ago').replaceAll('{n}', '$m');
+    final h = m ~/ 60;
+    if (h < 24) return l.t('time_hours_ago').replaceAll('{n}', '$h');
+    return l.t('time_days_ago').replaceAll('{n}', '${h ~/ 24}');
   }
 }
 
