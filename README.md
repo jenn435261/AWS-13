@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # mesh_app
 
 Flutter front end for a LoRa mesh help network (Meshtastic-style), one
@@ -78,3 +79,9 @@ implementation (local SQLite store plus the transports) and pass it in
 - `reportLocation()` already receives the phone's GPS
   (`lib/services/device_location.dart`).
 - Roles must come from the server; the route guards only hide screens.
+=======
+# AWS-13
+
+# Chris Luk, Shruti Nath, Jennelle Dabu, Bryan Cruz, Nathan Taladua
+
+>>>>>>> origin/main
