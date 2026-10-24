@@ -53,6 +53,17 @@ dependencies:
   qr_flutter: ^4.1.0
   mobile_scanner: ^5.2.3
 
+  # Secure messaging attachments (photos + audio). All web-safe:
+  #  * image — pure-Dart decode/re-encode + EXIF strip (incl. GPS).
+  #  * image_picker — camera/gallery pick (web via <input type=file>).
+  #  * record — hold-to-record mic (web via MediaRecorder).
+  #  * audioplayers — playback of recorded voice notes (web via <audio>).
+  # Verify `flutter build web --release` still compiles after bumping these.
+  image: ^4.2.0
+  image_picker: ^1.1.2
+  record: ^5.1.2
+  audioplayers: ^6.1.0
+
   # Networking (cloud transport)
   http: ^1.2.2
 
