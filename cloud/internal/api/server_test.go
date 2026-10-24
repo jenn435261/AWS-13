@@ -7,6 +7,9 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	resiliencev1 "github.com/resilience-network/aws13/cloud/gen/resilience/v1"
@@ -144,5 +147,62 @@ func TestServerPushVerifiesAndPulls(t *testing.T) {
 	// Confirm the tampered event was never stored.
 	if _, ok, _ := st.Get(context.Background(), tampered.GetHeader().GetEventId()); ok {
 		t.Fatalf("tampered event should not be stored")
+	}
+}
+
+func TestClientGate(t *testing.T) {
+	srv := NewServer(store.NewMemStore(), WithClientTokens([]string{"k1"}))
+	h := srv.Handler()
+	do := func(path string, hdr map[string]string) int {
+		req := httptest.NewRequest(http.MethodPost, path, strings.NewReader(`{"text":"water needed"}`))
+		req.Header.Set("Content-Type", "application/json")
+		for k, v := range hdr {
+			req.Header.Set(k, v)
+		}
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		return rec.Code
+	}
+	if c := do("/v1/ai/structure", nil); c != http.StatusUnauthorized {
+		t.Fatalf("no key: got %d want 401", c)
+	}
+	if c := do("/v1/events/pull", map[string]string{"X-Api-Key": "bad"}); c != http.StatusUnauthorized {
+		t.Fatalf("bad key: got %d want 401", c)
+	}
+	if c := do("/v1/ai/structure", map[string]string{"X-Api-Key": "k1"}); c != http.StatusOK {
+		t.Fatalf("good key: got %d want 200", c)
+	}
+	if c := do("/v1/ai/structure", map[string]string{"Authorization": "Bearer k1"}); c != http.StatusOK {
+		t.Fatalf("bearer: got %d want 200", c)
+	}
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/healthz", nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("healthz must stay open, got %d", rec.Code)
+	}
+}
+
+func TestWebServing(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "index.html"), []byte("<html>app</html>"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	h := NewServer(store.NewMemStore(), WithWebDir(dir), WithClientTokens([]string{"webk"})).Handler()
+	get := func(path string) *httptest.ResponseRecorder {
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, path, nil))
+		return rec
+	}
+	if r := get("/"); r.Code != 200 || !strings.Contains(r.Body.String(), "app") {
+		t.Fatalf("index: %d %q", r.Code, r.Body.String())
+	}
+	if r := get("/some/client/route"); r.Code != 200 || !strings.Contains(r.Body.String(), "app") {
+		t.Fatalf("spa fallback: %d", r.Code)
+	}
+	if r := get("/v1/nope"); r.Code != 404 {
+		t.Fatalf("/v1 unknown must 404, got %d", r.Code)
+	}
+	if r := get("/app-config.json"); r.Code != 200 || !strings.Contains(r.Body.String(), `"apiKey":"webk"`) {
+		t.Fatalf("config: %d %q", r.Code, r.Body.String())
 	}
 }

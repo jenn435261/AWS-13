@@ -12,6 +12,10 @@ import 'local_rules_ai.dart';
 /// construction: the AI never blocks or throws into the UI.
 class BedrockAiClient implements AiAssist {
   final String baseUrl;
+
+  /// Shared client key sent as X-Api-Key (the cloud's CLIENT_API_KEYS gate).
+  /// Empty => no header (works against an ungated server).
+  final String apiKey;
   final LocalRulesAiClient fallback;
   final http.Client _http;
   final Duration timeout;
@@ -19,6 +23,7 @@ class BedrockAiClient implements AiAssist {
   BedrockAiClient({
     required this.baseUrl,
     required this.fallback,
+    this.apiKey = '',
     http.Client? httpClient,
     this.timeout = const Duration(seconds: 6),
   }) : _http = httpClient ?? http.Client();
@@ -30,7 +35,10 @@ class BedrockAiClient implements AiAssist {
     try {
       final resp = await _http
           .post(_u(path),
-              headers: const {'Content-Type': 'application/json'},
+              headers: {
+                'Content-Type': 'application/json',
+                if (apiKey.isNotEmpty) 'X-Api-Key': apiKey,
+              },
               body: jsonEncode(body))
           .timeout(timeout);
       if (resp.statusCode < 200 || resp.statusCode >= 300) return null;

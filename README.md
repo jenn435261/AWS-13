@@ -54,7 +54,7 @@ Toolchain: Flutter (Dart 3.11+), Go 1.26, protoc/buf.
 
 ```bash
 # App
-cd app && flutter pub get && flutter test            # 103 tests
+cd app && flutter pub get && flutter test            # 103 tests (excluding screenshots_test, which needs the original author's sandbox font path)
 
 # Cloud (Go)
 cd cloud && go test ./...                            # events/store/api/ai/org
@@ -71,8 +71,50 @@ cd proto && buf generate
 Bedrock inference is proven live in us-east-1 via the Claude Sonnet 4.5 inference
 profile. The Go API exposes `/v1/ai/{structure,translate,summarize,dedup}`; with
 `BEDROCK_MODEL_ID` set it calls Bedrock, otherwise it falls back to the
-deterministic rules engine (`degraded:true`). See `infra/DEPLOY_NOTES.md` and
-`cloud/DEPLOY_HEROKU.md` for deployment.
+deterministic rules engine (`degraded:true`).
+
+## Live deployment (Heroku + Bedrock)
+
+The Go API **and the Flutter web app** are served by one Heroku container app
+(`resilience-api-chris`); the API calls Amazon Bedrock with AWS credentials held
+as Heroku config vars. The web app is the same Flutter code as the mobile app,
+so it runs in any browser (local-first via Drift/SQLite-WASM + IndexedDB).
+
+- Web app + API: https://resilience.chrisccluk.live (also
+  `https://resilience-api-chris-83ac9d67094f.herokuapp.com`)
+- Health: `/healthz`. AI: `POST /v1/ai/structure` etc.
+
+| Config var | Purpose |
+|------------|---------|
+| `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN` | Bedrock credentials (event STS creds expire at event end) |
+| `BEDROCK_MODEL_ID` | `us.anthropic.claude-sonnet-4-5-20250929-v1:0` |
+| `CLIENT_API_KEYS` | Comma-separated keys; gates `/v1/events`, `/v1/events/pull`, `/v1/ai/*` (401 without `X-Api-Key`). Abuse guard, not user auth: the web app receives the first key from `/app-config.json`. |
+| `ORG_API_TOKENS` | Gates `/v1/org/needs` (`X-Org-Token`) |
+| `WEB_DIR` | Set in the Dockerfile; serves the Flutter web bundle |
+
+Deploy (builds the web app, ships API + bundle):
+
+```powershell
+./scripts/deploy-heroku.ps1
+```
+
+Native builds target the same backend: `flutter build apk --dart-define=CLOUD_API_KEY=<key>`
+(`CLOUD_BASE_URL` defaults to `https://resilience.chrisccluk.live`; set it empty for fully offline).
+
+### Custom domain (Cloudflare)
+
+`heroku domains:add resilience.chrisccluk.live -a resilience-api-chris` prints a
+DNS target. In Cloudflare DNS add a `CNAME` record: name `resilience`, target =
+that Heroku DNS target, **Proxy status: DNS only** (grey cloud) until Heroku ACM
+issues the certificate (`heroku certs:auto -a resilience-api-chris`); afterwards
+the proxy may be enabled with SSL/TLS mode **Full**.
+
+### Why not Lambda/CDK?
+
+`infra/` is a complete CDK app (S3 + Bedrock-enabled Go Lambda), but the hackathon
+event account (`WSParticipantRole`) denies `iam:CreateRole`/`PassRole`, so
+`cdk bootstrap` fails (re-confirmed). It deploys on any normal AWS account
+(`infra/deploy.sh`). See `infra/DEPLOY_NOTES.md`. S3 and Bedrock were proven live.
 
 ## Status
 

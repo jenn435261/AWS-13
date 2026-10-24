@@ -1,5 +1,6 @@
-import 'package:flutter_test/flutter_test.dart';
-import 'package:resilience/ai/ai_assist.dart';
+﻿import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:resilience/ai/bedrock_ai_client.dart';
 import 'package:resilience/ai/local_rules_ai.dart';
 
@@ -73,6 +74,25 @@ void main() {
       final r = await c.structure('we need water urgently');
       expect(r.category, 'WATER');
       expect(r.degraded, isTrue);
+    });
+
+    test('sends X-Api-Key and uses the live response', () async {
+      String? seen;
+      final c = BedrockAiClient(
+        baseUrl: 'https://example.test',
+        apiKey: 'k123',
+        fallback: const LocalRulesAiClient(),
+        httpClient: MockClient((http.Request req) async {
+          seen = req.headers['X-Api-Key'] ?? req.headers['x-api-key'];
+          return http.Response(
+              '{"category":"SHELTER","priority":"high","short_title":"t","degraded":false}',
+              200);
+        }),
+      );
+      final r = await c.structure('gas leak');
+      expect(seen, 'k123');
+      expect(r.category, 'SHELTER');
+      expect(r.degraded, isFalse);
     });
   });
 }

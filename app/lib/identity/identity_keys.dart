@@ -186,16 +186,16 @@ final List<List<int>> _blakeSigma = [
   [14, 10, 4, 8, 9, 15, 13, 6, 1, 12, 0, 2, 11, 7, 5, 3],
 ];
 
-final List<BigInt> _blakeIv = <int>[
-  0x6a09e667f3bcc908,
-  0xbb67ae8584caa73b,
-  0x3c6ef372fe94f82b,
-  0xa54ff53a5f1d36f1,
-  0x510e527fade682d1,
-  0x9b05688c2b3e6c1f,
-  0x1f83d9abfb41bd6b,
-  0x5be0cd19137e2179,
-].map((e) => BigInt.from(e).toUnsigned(64)).toList();
+final List<BigInt> _blakeIv = <String>[
+  '6a09e667f3bcc908',
+  'bb67ae8584caa73b',
+  '3c6ef372fe94f82b',
+  'a54ff53a5f1d36f1',
+  '510e527fade682d1',
+  '9b05688c2b3e6c1f',
+  '1f83d9abfb41bd6b',
+  '5be0cd19137e2179',
+].map((e) => BigInt.parse(e, radix: 16)).toList();
 
 final BigInt _mask64 = (BigInt.one << 64) - BigInt.one;
 

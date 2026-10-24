@@ -11,6 +11,9 @@ RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /out/resilience-api ./cmd/api
 
 FROM gcr.io/distroless/static-debian12:nonroot
 COPY --from=build /out/resilience-api /resilience-api
+# Prebuilt Flutter web bundle (see ../README.md "Web build").
+COPY web /web
+ENV WEB_DIR=/web
 # Heroku sets $PORT at runtime; the API defaults to 8080 locally.
 ENV PORT=8080
 USER nonroot:nonroot

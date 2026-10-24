@@ -39,7 +39,8 @@ dependencies:
   libsignal_protocol_dart: ^0.8.2
 
   # Map (locked stack): MapLibre + PMTiles (static, no tile server)
-  maplibre_gl: ^0.21.0
+  # maplibre_gl omitted: unused so far and its web plugin breaks `flutter build web`.
+  # Re-add behind a conditional import when the real MapLibre view lands.
   pmtiles: ^2.2.0
 
   # P2P transport: Wi-Fi Direct (Android) / Multipeer (iOS)

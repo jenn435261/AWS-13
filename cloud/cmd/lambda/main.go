@@ -16,12 +16,14 @@ import (
 	"context"
 	"log/slog"
 	"os"
+	"strings"
 
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/awslabs/aws-lambda-go-api-proxy/httpadapter"
 
 	"github.com/resilience-network/aws13/cloud/internal/ai"
 	"github.com/resilience-network/aws13/cloud/internal/api"
+	"github.com/resilience-network/aws13/cloud/internal/org"
 	"github.com/resilience-network/aws13/cloud/internal/store"
 )
 
@@ -69,6 +71,18 @@ func main() {
 		}
 	} else {
 		log.Info("no BEDROCK_MODEL_ID set; AI endpoints use deterministic rules (degraded)")
+	}
+
+	// Same env-gated config as cmd/api: shared client key for sync/AI routes,
+	// org API tokens, and trusted verified-org keys.
+	if keys := os.Getenv("CLIENT_API_KEYS"); keys != "" {
+		opts = append(opts, api.WithClientTokens(strings.Split(keys, ",")))
+	}
+	if tokens := os.Getenv("ORG_API_TOKENS"); tokens != "" {
+		opts = append(opts, api.WithOrgTokens(strings.Split(tokens, ",")))
+	}
+	if pubkeys := os.Getenv("ORG_TRUSTED_PUBKEYS"); pubkeys != "" {
+		opts = append(opts, api.WithTrustedOrgs(org.ParseTrustedOrgs(pubkeys)))
 	}
 
 	srv := api.NewServer(st, opts...)

@@ -57,6 +57,13 @@ type Server struct {
 	orgTokens map[string]struct{}
 	// trustedOrgs recognizes verified-org signing keys (ORG_TRUSTED_PUBKEYS).
 	trustedOrgs *org.TrustedOrgs
+	// clientTokens is the set of valid X-Api-Key values for the sync and AI
+	// routes (CLIENT_API_KEYS). When empty those routes are open.
+	clientTokens map[string]struct{}
+	// webKey is the first client token, handed to the bundled web app via
+	// /app-config.json. webDir is the Flutter web bundle directory (see web.go).
+	webKey string
+	webDir string
 }
 
 // Option configures a Server.
@@ -102,6 +109,24 @@ func WithOrgTokens(tokens []string) Option {
 	}
 }
 
+// WithClientTokens gates /v1/events, /v1/events/pull and /v1/ai/* behind a
+// shared X-Api-Key (or "Authorization: Bearer") token. It is an abuse guard for
+// a public deployment, not user authentication: a key shipped inside an app can
+// be extracted. Health checks and the org API (own token) are unaffected.
+func WithClientTokens(tokens []string) Option {
+	return func(s *Server) {
+		s.clientTokens = make(map[string]struct{}, len(tokens))
+		for _, t := range tokens {
+			if t = strings.TrimSpace(t); t != "" {
+				s.clientTokens[t] = struct{}{}
+				if s.webKey == "" {
+					s.webKey = t
+				}
+			}
+		}
+	}
+}
+
 // WithTrustedOrgs installs the verified-org signing-key set used to validate
 // and tag EMERGENCY_ALERT events (ORG_TRUSTED_PUBKEYS).
 func WithTrustedOrgs(t *org.TrustedOrgs) Option {
@@ -126,15 +151,16 @@ func NewServer(st store.Store, opts ...Option) *Server {
 // Handler returns the http.Handler mounting all routes.
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/v1/events", s.handlePush)
-	mux.HandleFunc("/v1/events/pull", s.handlePull)
-	mux.HandleFunc("/v1/ai/structure", s.handleAIStructure)
-	mux.HandleFunc("/v1/ai/translate", s.handleAITranslate)
-	mux.HandleFunc("/v1/ai/summarize", s.handleAISummarize)
-	mux.HandleFunc("/v1/ai/dedup", s.handleAIDedup)
+	mux.HandleFunc("/v1/events", s.clientGate(s.handlePush))
+	mux.HandleFunc("/v1/events/pull", s.clientGate(s.handlePull))
+	mux.HandleFunc("/v1/ai/structure", s.clientGate(s.handleAIStructure))
+	mux.HandleFunc("/v1/ai/translate", s.clientGate(s.handleAITranslate))
+	mux.HandleFunc("/v1/ai/summarize", s.clientGate(s.handleAISummarize))
+	mux.HandleFunc("/v1/ai/dedup", s.clientGate(s.handleAIDedup))
 	mux.HandleFunc("/v1/org/needs", s.handleOrgNeeds)
 	mux.HandleFunc("/healthz", s.handleHealthz)
 	mux.HandleFunc("/readyz", s.handleReadyz)
+	s.mountWeb(mux)
 	return mux
 }
 
@@ -551,6 +577,37 @@ func (s *Server) handleOrgNeeds(w http.ResponseWriter, r *http.Request) {
 	// The report is aggregate-only by construction (see package org): no author,
 	// no exact coordinate, no message content ever appears here.
 	s.writeAIJSON(w, report)
+}
+
+// clientGate rejects requests lacking a valid client key when CLIENT_API_KEYS
+// is configured; with no keys configured it is a pass-through.
+func (s *Server) clientGate(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if len(s.clientTokens) > 0 && !s.clientAuthorized(r) {
+			s.writeError(w, http.StatusUnauthorized, "api key required")
+			return
+		}
+		next(w, r)
+	}
+}
+
+func (s *Server) clientAuthorized(r *http.Request) bool {
+	token := strings.TrimSpace(r.Header.Get("X-Api-Key"))
+	if token == "" {
+		if a := r.Header.Get("Authorization"); strings.HasPrefix(a, "Bearer ") {
+			token = strings.TrimSpace(a[len("Bearer "):])
+		}
+	}
+	if token == "" {
+		return false
+	}
+	ok := false
+	for valid := range s.clientTokens {
+		if subtle.ConstantTimeCompare([]byte(token), []byte(valid)) == 1 {
+			ok = true
+		}
+	}
+	return ok
 }
 
 // orgAuthorized gates the org endpoints: a valid X-Org-Token (constant-time

@@ -26,9 +26,15 @@ heroku config:set -a resilience-api-<you> \
   AWS_SECRET_ACCESS_KEY=... \
   AWS_SESSION_TOKEN=... \
   BEDROCK_MODEL_ID=us.anthropic.claude-sonnet-4-5-20250929-v1:0 \
-  ORG_API_TOKENS=demo-org-token
+  ORG_API_TOKENS=<random>   CLIENT_API_KEYS=<random>      # gates /v1/events*, /v1/ai/* via X-Api-Key
 ```
 (Omit `AWS_SESSION_TOKEN` if you use a long-lived IAM user instead of STS.)
+
+## Web app
+The Dockerfile also serves the Flutter web bundle from `cloud/web` (`WEB_DIR=/web`).
+`../scripts/deploy-heroku.ps1` builds it (`flutter build web --release`), stages it
+into `cloud/web` on a throwaway branch (it is git-ignored), and pushes the `cloud/`
+subtree to Heroku (`git subtree`; no local Docker needed).
 
 ## Deploy (container build on Heroku)
 Because `cloud/` is a subdirectory of the monorepo, deploy it with the Heroku

@@ -89,6 +89,16 @@ func main() {
 		log.Info("trusted org keys loaded", "count", trusted.Len())
 	}
 
+	if keys := getenv("CLIENT_API_KEYS", ""); keys != "" {
+		opts = append(opts, api.WithClientTokens(splitCSV(keys)))
+		log.Info("client api key gate enabled")
+	}
+
+	if dir := getenv("WEB_DIR", ""); dir != "" {
+		opts = append(opts, api.WithWebDir(dir))
+		log.Info("serving web app", "dir", dir)
+	}
+
 	srv := api.NewServer(st, opts...)
 	httpSrv := &http.Server{
 		Addr:              ":" + port,

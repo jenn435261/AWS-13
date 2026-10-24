@@ -60,6 +60,9 @@ export class CoreStack extends cdk.Stack {
         // Enables the online Bedrock AI path in internal/ai. Without this the
         // API still works via deterministic rules (degraded:true).
         BEDROCK_MODEL_ID,
+        // Optional gates (read from the deploy shell; unset = open/disabled).
+        ...(process.env.CLIENT_API_KEYS ? { CLIENT_API_KEYS: process.env.CLIENT_API_KEYS } : {}),
+        ...(process.env.ORG_API_TOKENS ? { ORG_API_TOKENS: process.env.ORG_API_TOKENS } : {}),
         // The in-memory store is used when RESILIENCE_PG_DSN is unset, so no
         // RDS is required on the critical path.
       },

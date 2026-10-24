@@ -16,9 +16,24 @@ import '../trust/trust_roots.dart';
 /// Hand-written Riverpod providers wiring the engines (Waves 1-3) to the UI.
 /// No codegen — plain providers so builds stay fast.
 
+/// Default cloud API for native builds. Override per build with
+/// `--dart-define=CLOUD_BASE_URL=...` (empty string => fully offline). On web
+/// the bundle is served by the API itself, so main() overrides this with the
+/// page's own origin.
+const kDefaultCloudBaseUrl = String.fromEnvironment('CLOUD_BASE_URL',
+    defaultValue: 'https://resilience.chrisccluk.live');
+
+/// Shared client key for the cloud's CLIENT_API_KEYS gate. Never committed:
+/// native builds pass `--dart-define=CLOUD_API_KEY=...`; web reads it from the
+/// server's /app-config.json at startup.
+const kDefaultCloudApiKey = String.fromEnvironment('CLOUD_API_KEY');
+
 /// The app's cloud API base URL. Empty => fully offline (AI falls back to
-/// local rules; sync uses local transports only). Overridden at deploy time.
-final cloudBaseUrlProvider = Provider<String>((ref) => '');
+/// local rules; sync uses local transports only).
+final cloudBaseUrlProvider = Provider<String>((ref) => kDefaultCloudBaseUrl);
+
+/// The X-Api-Key sent to the cloud. Empty => no header.
+final cloudApiKeyProvider = Provider<String>((ref) => kDefaultCloudApiKey);
 
 /// The local Drift database. Overridden in tests with AppDatabase.memory().
 final databaseProvider = Provider<AppDatabase>((ref) {
@@ -105,7 +120,11 @@ final aiAssistProvider = Provider<AiAssist>((ref) {
   final base = ref.watch(cloudBaseUrlProvider);
   final local = LocalRulesAiClient();
   if (base.isEmpty) return local;
-  return BedrockAiClient(baseUrl: base, fallback: local);
+  return BedrockAiClient(
+    baseUrl: base,
+    apiKey: ref.watch(cloudApiKeyProvider),
+    fallback: local,
+  );
 });
 
 /// Builds a KeyPairData usable by the EventFactory from the device identity.
