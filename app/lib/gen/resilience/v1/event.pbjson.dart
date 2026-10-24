@@ -180,6 +180,24 @@ final $typed_data.Uint8List priorityDescriptor = $convert.base64Decode(
     'MKD1BSSU9SSVRZX05PUk1BTBACEhEKDVBSSU9SSVRZX0hJR0gQAxIVChFQUklPUklUWV9DUklU'
     'SUNBTBAE');
 
+@$core.Deprecated('Use locationSourceDescriptor instead')
+const LocationSource$json = {
+  '1': 'LocationSource',
+  '2': [
+    {'1': 'LOCATION_SOURCE_UNSPECIFIED', '2': 0},
+    {'1': 'LOCATION_SOURCE_GPS', '2': 1},
+    {'1': 'LOCATION_SOURCE_LAST_KNOWN', '2': 2},
+    {'1': 'LOCATION_SOURCE_MANUAL', '2': 3},
+    {'1': 'LOCATION_SOURCE_ESTIMATED', '2': 4},
+  ],
+};
+
+/// Descriptor for `LocationSource`. Decode as a `google.protobuf.EnumDescriptorProto`.
+final $typed_data.Uint8List locationSourceDescriptor = $convert.base64Decode(
+    'Cg5Mb2NhdGlvblNvdXJjZRIfChtMT0NBVElPTl9TT1VSQ0VfVU5TUEVDSUZJRUQQABIXChNMT0'
+    'NBVElPTl9TT1VSQ0VfR1BTEAESHgoaTE9DQVRJT05fU09VUkNFX0xBU1RfS05PV04QAhIaChZM'
+    'T0NBVElPTl9TT1VSQ0VfTUFOVUFMEAMSHQoZTE9DQVRJT05fU09VUkNFX0VTVElNQVRFRBAE');
+
 @$core.Deprecated('Use transportModeDescriptor instead')
 const TransportMode$json = {
   '1': 'TransportMode',
@@ -303,6 +321,14 @@ const GeoPoint$json = {
     {'1': 'exact_lon', '3': 5, '4': 1, '5': 1, '10': 'exactLon'},
     {'1': 'has_exact', '3': 6, '4': 1, '5': 8, '10': 'hasExact'},
     {'1': 'address', '3': 7, '4': 1, '5': 9, '10': 'address'},
+    {
+      '1': 'location_source',
+      '3': 8,
+      '4': 1,
+      '5': 14,
+      '6': '.resilience.v1.LocationSource',
+      '10': 'locationSource'
+    },
   ],
 };
 
@@ -311,7 +337,9 @@ final $typed_data.Uint8List geoPointDescriptor = $convert.base64Decode(
     'CghHZW9Qb2ludBIXCgdoM19jZWxsGAEgASgEUgZoM0NlbGwSHQoKYXBwcm94X2xhdBgCIAEoAV'
     'IJYXBwcm94TGF0Eh0KCmFwcHJveF9sb24YAyABKAFSCWFwcHJveExvbhIbCglleGFjdF9sYXQY'
     'BCABKAFSCGV4YWN0TGF0EhsKCWV4YWN0X2xvbhgFIAEoAVIIZXhhY3RMb24SGwoJaGFzX2V4YW'
-    'N0GAYgASgIUghoYXNFeGFjdBIYCgdhZGRyZXNzGAcgASgJUgdhZGRyZXNz');
+    'N0GAYgASgIUghoYXNFeGFjdBIYCgdhZGRyZXNzGAcgASgJUgdhZGRyZXNzEkYKD2xvY2F0aW9u'
+    'X3NvdXJjZRgIIAEoDjIdLnJlc2lsaWVuY2UudjEuTG9jYXRpb25Tb3VyY2VSDmxvY2F0aW9uU2'
+    '91cmNl');
 
 @$core.Deprecated('Use identityCertificateBodyDescriptor instead')
 const IdentityCertificateBody$json = {

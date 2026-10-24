@@ -49,6 +49,11 @@ dependencies:
   # P2P transport: Wi-Fi Direct (Android) / Multipeer (iOS)
   nearby_service: ^0.2.1
 
+  # BLE GATT transport (central role, Android<->iOS). NATIVE-ONLY: it is kept
+  # out of the web-reachable import graph (the web build never imports the
+  # native BLE adapter) so `flutter build web --release` keeps working.
+  flutter_blue_plus: ^1.32.12
+
   # QR codes for identity + logistics
   qr_flutter: ^4.1.0
   mobile_scanner: ^5.2.3
@@ -67,6 +72,10 @@ dependencies:
   # Networking (cloud transport)
   http: ^1.2.2
 
+  # Browser APIs (web-only online/offline events). Pure interop, web-safe; the
+  # native build never imports the web online detector (conditional import).
+  web: ^1.1.0
+
   # Secure storage for private keys (OS keystore / keychain)
   flutter_secure_storage: ^9.2.2
 
@@ -79,6 +88,12 @@ dependencies:
   latlong2: ^0.10.1
   geolocator: ^14.0.2
   url_launcher: ^6.3.3
+
+  # Device motion sensors for native dead-reckoning (estimated position).
+  # Native-only: the web build never imports it (conditional import under
+  # lib/location/dead_reckoning/). Verify `flutter build web --release` after
+  # bumping this.
+  sensors_plus: ^6.1.0
 
 dev_dependencies:
   flutter_test:

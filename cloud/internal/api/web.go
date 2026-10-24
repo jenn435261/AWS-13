@@ -26,11 +26,19 @@ func (s *Server) mountWeb(mux *http.ServeMux) {
 	mux.HandleFunc("/app-config.json", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Cache-Control", "no-store")
-		_ = json.NewEncoder(w).Encode(map[string]string{
+		cfg := map[string]string{
 			// Empty baseUrl => the app uses its own origin.
 			"baseUrl": "",
 			"apiKey":  s.webKey,
-		})
+		}
+		// Advertise the cloud feed signing key's public hex so the web app
+		// trusts it as a root and labels official-feed alerts "Official" (and
+		// trusts the cloud package manifest). Omitted when no feed is
+		// configured so the app never claims a trust it cannot verify.
+		if len(s.feedPubkey) == ed25519PubLen {
+			cfg["feedPubkey"] = hexLower(s.feedPubkey)
+		}
+		_ = json.NewEncoder(w).Encode(cfg)
 	})
 	files := http.FileServer(http.Dir(s.webDir))
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -45,8 +53,15 @@ func (s *Server) mountWeb(mux *http.ServeMux) {
 				r.URL.Path = "/"
 			}
 		}
+		// The shell entry points must always be revalidated so a new deploy is
+		// picked up (no-cache = cacheable but revalidate), while the hashed
+		// asset files stay cacheable with their defaults. We deliberately do
+		// NOT send no-store on the shell: the offline service worker (sw.js)
+		// needs to cache it for a cold offline start. sw.js itself is
+		// revalidated so worker updates propagate.
 		if r.URL.Path == "/" || strings.HasSuffix(r.URL.Path, ".html") ||
-			strings.HasSuffix(r.URL.Path, "flutter_service_worker.js") {
+			strings.HasSuffix(r.URL.Path, "flutter_service_worker.js") ||
+			strings.HasSuffix(r.URL.Path, "/sw.js") {
 			w.Header().Set("Cache-Control", "no-cache")
 		}
 		files.ServeHTTP(w, r)

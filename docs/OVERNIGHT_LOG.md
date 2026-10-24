@@ -1,5 +1,247 @@
 # Overnight Engineering Run — Resilience Network
 
+> **This file has two reports. The Round-2 report is first (below this line);
+> the original Round-1 report follows under "Round 1 (original overnight run)".
+> Round-1 content is preserved verbatim, not deleted.**
+
+---
+
+# ROUND 2 - Final report
+
+Branch: `kiro/round2` (off `feature/provider-map-supplies`). Commit small and
+often; do not push/merge/force-push.
+
+## 1. Done vs. not (one paragraph)
+
+Round 2 (FEAT-001 through FEAT-006) is complete on `kiro/round2` and the tree is
+green: `flutter analyze` is clean, the full Flutter suite passes **266 tests**
+(`screenshots_test.dart` excluded as always, hard-coded font path), both Go
+modules pass `go vet ./... && go test ./...` (cloud and node), `flutter build
+web --release` succeeds, `buf generate` round-trips with **zero diff**, and the
+new `scripts/seed-demo.sh` builds and runs, creating a demo org + two certified
+providers + two supplies + an alert as signed events (each re-verified locally).
+What genuinely works now, on top of the Round-1 foundation: a live connectivity
+indicator, a hand-written cache-first offline service-worker shell, map refresh
+with fold-driven updates, auto/last-known/manual location with a
+`location_source` enum, multi-select supplies/needs, gated haptics, optional
+identity with a reveal-gated biometric-locked Resilience ID, a cloud
+official-alert feed + `/v1/alerts` + no-fabrication `/v1/safe-places` + cloud
+signed packages, a "Prepare now" resumable chunked download, an animated QR
+fountain transfer (loss-tolerant, SHA-256 + signature verified), and the
+`Transport`-abstraction code for BLE and LoRa plus a node LoRa serial gateway.
+What is **native-only** (honestly unavailable on web): estimated dead-reckoning
+position and haptics. What **needs a real device/hardware** and was therefore
+not exercised here: the BLE, Nearby, and LoRa radios (their logic is unit-tested
+behind the abstraction, but no radio exists in this sandbox) and native
+local-notification/background polling. What is **not built**: Web Push/VAPID.
+What was **not done** for environment reasons: the Heroku deploy and live-site
+click-through (the Heroku CLI is not authenticated here; exact commands are in
+section 3), anything in `infra/` (off limits; the event account denies
+`iam:CreateRole`), and interaction-level browser driving of the Flutter UI (the
+headless semantics tree publishes no aria-label nodes), so UI behaviour is proven
+by Dart fold/abuse/widget tests + Go endpoint tests + the passing web build. No
+secrets were added to git (scan in section 3).
+
+## 2. Feature state table
+
+| Feature | State | How verified | Evidence (test / note) |
+|---|---|---|---|
+| FEAT-001 LocationSource enum + `GeoPoint.location_source` | works | `buf generate` no-diff; Dart+Go compile; node/gen byte-identical | `proto/resilience/v1/event.proto`; cloud+node build |
+| FEAT-002 connectivity indicator | works | Dart tests + zero-error web boot | `lib/sync/connectivity.dart`; connectivity tests |
+| FEAT-002 offline service-worker shell + cacheable cloud headers | works | Go header test; web build serves `sw.js` | `app/web/sw.js`, `cloud/internal/api/web.go` + `web_test.go` |
+| FEAT-002 map refresh + fold-driven updates | works | fold-invalidation regression test | map refresh test |
+| FEAT-002 auto/last-known location + manual pin | works | `location_source` stamped; fold/abuse tests | `location_source_event_test.dart` |
+| FEAT-002 estimated (dead-reckoning) position | native-only | pure uncertainty-radius unit test; web honestly unavailable | `lib/location/dead_reckoning/`; dead-reckoning test |
+| FEAT-003 multi-select supplies/needs | works | widget + fold tests; mapped to existing categories (no proto change) | `lib/supplies/supply_catalog.dart`, `supply_editor_widget_test.dart` |
+| FEAT-003 gated haptics | works (native) | Settings toggle test; web has no haptics | `lib/core/haptics/` |
+| FEAT-003 optional identity + include-name QR | works | identity tests; never auto-verified | `identity_test.dart` |
+| FEAT-003 reveal-gated Resilience ID + biometric lock + auto-hide | works | `FakeAuthenticator` reveal/auto-hide tests | `reveal_gate_test.dart`, `lib/auth/authenticator.dart` |
+| FEAT-004 cloud feed ingest to signed official alerts | works (server) | Go sign/verify/determinism + scheduler fixture tests | `cloud/internal/feeds/*_test.go` |
+| FEAT-004 `GET /v1/alerts` + feed alerts in pull | works (server) | Go endpoint tests | `TestFeedAlertsAppearInPull` |
+| FEAT-004 `GET /v1/safe-places` (sources, no fabrication) | works (server) | Go no-fabrication test | `TestSafePlacesNoFabrication` |
+| FEAT-004 cloud signed packages + Range | works | Go sign/verify + Range test (mirrors node) | `cloud/internal/packages` tests |
+| FEAT-004 app alert poller + severe banner + Prepare-now + resumable download | works (native best) | Dart poller/chunk-store tests; web has no persistent partial file | `lib/packages`, `DriftChunkStore` tests |
+| FEAT-005 animated QR fountain transfer | works (codec + verify) | encode/drop/shuffle/tamper tests; ingest via `EventStore.apply` | `qr_fountain`/`qr_transfer` tests |
+| FEAT-005 BLE GATT transport | needs real device | chunker/pairing/encryption unit tests over an in-memory link | `ble_transport_test.dart`; no radio here |
+| FEAT-005 LoRa transport + node serial gateway | needs real hardware | Dart codec + Go gateway tests from a canned stream | `lora_codec` tests, `node/internal/lora` tests |
+| FEAT-005 Network Status transport matrix | works | honest-state model test (never fake "connected") | `transport_status_test.dart` |
+| FEAT-006 four new docs (NODE_SETUP/DEMO_ORG_SETUP/HOW_IT_WORKS/VIDEO_GUIDE) | works | files exist with required content + Mermaid + honest tables | this commit |
+| FEAT-006 runnable `scripts/seed-demo.*` | works | builds, `go vet` clean, smoke run prints 6 locally-verified signed events | `cloud/cmd/seed-demo/main.go`, `scripts/seed-demo.sh` |
+| FEAT-006 honest status sweep (README/HANDOFF/SPEC/DECISIONS) | works | labels match real state; no unwired claim | `README.md`, `docs/*` |
+| Heroku deploy + live-site click-through | not done | Heroku CLI not authenticated here (commands in section 3) | n/a |
+| Web Push / VAPID | not built | needs SW push subscription + server push endpoint | honest UI state |
+| Native local notifications + background polling | needs real device | needs plugin + device; in-app banner covers open-app case | honest UI state |
+| `infra/` (CDK/Lambda) | off limits / not deployable | event account denies `iam:CreateRole` | untouched |
+| Interaction-level UI click-through | not testable headlessly | headless Flutter publishes no aria-label nodes | substituted by Dart/Go tests + web boot |
+
+## 3. Not done, and exactly why
+
+- **Heroku deploy + live-site click-through: SKIPPED.** The Heroku CLI is **not
+  installed or authenticated** in this sandbox. Commands for the operator (do
+  NOT run in the sandbox):
+
+  ```sh
+  heroku login
+  heroku git:remote -a resilience-api-chris
+  # API dyno config (Bedrock creds expire at event end):
+  heroku config:set CLIENT_API_KEYS=<key> \
+    AWS_REGION=us-east-1 AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=... AWS_SESSION_TOKEN=... \
+    BEDROCK_MODEL_ID=us.anthropic.claude-sonnet-4-5-20250929-v1:0 \
+    FEED_PUBKEY=<hex public feed key> \
+    CLOUD_PACKAGES_DIR=/app/packs CLOUD_PACKAGES_SIGNING_KEY=<hex private key or seed>
+  # Feed worker's PRIVATE signing key (never in git):
+  heroku config:set FEED_SIGNING_KEY=<hex private key or seed> FEED_INGEST_INTERVAL=15m FEED_TTL=6h
+  # Durable store so events + alerts survive a dyno restart (sets RESILIENCE_PG_DSN):
+  heroku addons:create heroku-postgresql:essential-0
+  # Run the feed ingest on a schedule:
+  heroku addons:create scheduler:standard
+  #   in the Scheduler dashboard add a job: FEED_RUN_ONCE=1 ./bin/feedworker  (e.g. every 10 min)
+  ./scripts/deploy-heroku.ps1    # builds web, copies into cloud/web, subtree-pushes cloud/
+  heroku logs --tail -a resilience-api-chris
+  ```
+  Full procedure + config vars + custom-domain steps: `cloud/DEPLOY_HEROKU.md`
+  and `docs/FEED_AND_DOWNLOADS.md`.
+- **`infra/` / CDK: OFF LIMITS.** Untouched; not deployable in the event
+  account anyway (`iam:CreateRole` denied).
+- **Interaction-level browser click-through of the Flutter UI: SUBSTITUTED
+  (applies across every UI item).** The headless Flutter semantics tree
+  publishes **no aria-label nodes** in this sandbox, so tapping buttons/fields by
+  accessible name is not possible. A Chrome binary exists at
+  `/usr/local/bin/chrome` but cannot drive the semantics tree and has no
+  mic/camera. UI behaviour is therefore proven by Dart fold/abuse/widget tests +
+  Go endpoint tests + a zero-console-error web boot.
+- **BLE / Nearby / LoRa radios: NOT EXERCISED.** They need a second real device
+  or dedicated radio hardware, which the sandbox lacks. Their logic is
+  unit-tested behind the `Transport` abstraction; the UI and docs label them
+  "needs real device/hardware", not "working".
+- **Estimated (dead-reckoning) position + haptics: native-only.** Web has no
+  motion sensors / haptics; the app says so honestly.
+- **Web Push/VAPID + native background notifications: NOT BUILT / needs device.**
+  The in-app banner covers the open-app case on every platform.
+- **`flutter build web --wasm`: expected to fail** (plugins such as
+  `flutter_secure_storage_web`). The JS build `flutter build web --release` is
+  the gate and passes.
+- **Web filesystem limits:** a browser has no persistent partial download file
+  beyond IndexedDB/OPFS, so a true background/closed-tab download is not possible
+  on web; native is the best path. The UI never claims otherwise.
+
+### Secret scan (done)
+
+`git diff feature/provider-map-supplies...kiro/round2` was scanned for PEM key
+blocks, long hex key material, AWS keys, and token patterns. **No secret is
+committed.** The only long hex string in the diff is the obviously-fake example
+seed (`0011...eeff`) in `docs/DEMO_ORG_SETUP.md`; all signing keys are referenced
+only via env/config vars (`FEED_SIGNING_KEY`, `PACKAGES_SIGNING_KEY`,
+`CLOUD_PACKAGES_SIGNING_KEY`) and key files kept off git. The seed script prints
+only PUBLIC keys. No fake data or placeholder "works" states were introduced;
+every honest-state label matches the code.
+
+## 4. Exact morning steps for the human
+
+**Local (no deploy needed).** Prepend the env block (bottom of this report) and
+`ulimit -n 8192` to each shell.
+
+1. Re-run the suite:
+   - `cd app && flutter analyze` to `No issues found!` (ignore cosmetic
+     "Too many open files" lines).
+   - `cd app && flutter test $(ls test/*.dart | grep -v screenshots_test.dart)`
+     to **266 passing** (includes the l10n parity test "French and Mandarin
+     cover every English key" in `supply_and_provider_test.dart`).
+   - `cd cloud && go vet ./... && go test ./...` to all `ok`.
+   - `cd node && go vet ./... && go test ./...` to all `ok`.
+   - `cd proto && buf generate && git diff --stat` to **no diff** in gen dirs.
+   - `./scripts/seed-demo.sh` to 6 locally-verified signed events + the org root
+     PUBLIC key.
+2. Build + serve same-origin through the cloud, run a node with a signed
+   manifest, and seed the demo org, in one shell (pick fresh ports; free them
+   first):
+   ```sh
+   cd app && flutter build web --release
+   (cd cloud && go build -o /projects/sandbox/r2/cloudapi ./cmd/api)
+   (cd node  && go build -o /projects/sandbox/r2/node ./cmd/resilience-node)
+   mkdir -p /projects/sandbox/r2/maps
+   python3 -c "import os;open('/projects/sandbox/r2/key.hex','w').write(os.urandom(32).hex())"
+   head -c 300 /dev/urandom > /projects/sandbox/r2/maps/region.pmtiles
+   cp -r app/build/web /projects/sandbox/r2/web
+   WEB_DIR=/projects/sandbox/r2/web PORT=8187 CLIENT_API_KEYS=devkey /projects/sandbox/r2/cloudapi &
+   /projects/sandbox/r2/node --http-addr :8197 --map-dir /projects/sandbox/r2/maps --packages-signing-key /projects/sandbox/r2/key.hex &
+   ./scripts/seed-demo.sh --cloud http://localhost:8187 --key devkey   # note the org root PUBLIC key it prints
+   ```
+3. **Which two profiles / what to click.** Open `http://localhost:8187/` in two
+   separate browser profiles (A and B; the app reads `devkey` from
+   `/app-config.json`). In one profile open **More > Trusted organisations** and
+   add the org root public key the seed printed. On the map you should now see the
+   two seeded supplies rendered as **verified** and the seeded alert as a banner.
+   In A, create an "I Need Help" request; in B, after ~30s (or tap **Refresh** in
+   Network Status) it should appear. Expected: B sees A's events; Network Status
+   shows "Last synced ... pending N" and honest transport rows (Cloud reachable,
+   Node connected, Nearby/BLE **needs device**, LoRa **needs hardware**, QR idle).
+4. **Signed manifest.** `curl http://localhost:8197/node/v1/manifest` shows
+   `algorithm:"ed25519"`, a `public_key`, a `signature`, and per-file `sha256`.
+   To see the app's **verified** banner, build the web app with
+   `--dart-define=PACKAGES_TRUSTED_ROOT=<that public_key>`.
+5. **Browser click-through with Chrome at `/usr/local/bin/chrome`.** It can boot
+   the app and show zero console errors, but it **cannot** drive the Flutter
+   semantics tree (no aria-labels) and has no mic/camera, so tapping flows is not
+   achievable headlessly; drive the clicks by hand in a normal desktop browser.
+
+**Live site (once deployed).** After section 3's Heroku deploy, repeat steps 3-4
+against `https://resilience.chrisccluk.live` in two profiles. Note: an HTTPS page
+cannot reach a plain-HTTP LAN node (mixed content), so do the node/manifest flow
+from the native app or give the node HTTPS.
+
+## 5. Known risks + next three things
+
+**Risks:**
+- Cloud event store is **in-memory** on Heroku unless `RESILIENCE_PG_DSN` is set,
+  so events and ingested alerts reset on dyno restart.
+- BLE/Nearby/LoRa are unexercised on hardware; integration-time surprises are
+  likely (peripheral advertising on the second phone, Meshtastic serial protocol
+  vs. the trivial length-delimited framing, OS background limits).
+- Web is the demo surface but has real limits (no persistent partial download, no
+  estimated position, no haptics, no closed-tab push); keep the demo on the
+  honest states.
+
+**Next three things:**
+1. Deploy to Heroku (section 3), set `FEED_SIGNING_KEY`/`FEED_PUBKEY` + Postgres,
+   and do a real two-profile click-through on the live domain.
+2. Exercise BLE and LoRa on two real devices + a Meshtastic radio; replace the
+   node's length-delimited serial framing with the real Meshtastic protobuf API.
+3. Add Web Push/VAPID (service-worker push subscription + a server push endpoint)
+   and native local notifications + background polling so alerts reach a closed
+   app.
+
+## 6. Running log (Round 2, FEAT-006)
+
+Env block prepended to every flutter/dart/go/buf shell (and `ulimit -n 8192`
+before flutter analyze/test):
+
+```sh
+export HOME=/projects/sandbox/.tc/home
+export PUB_CACHE=/projects/sandbox/.tc/pub-cache
+export GOTOOLCHAIN=auto
+export GOBIN=/projects/sandbox/.tc/gobin
+export PATH=/projects/sandbox/.tc/gobin:/projects/sandbox/.tc/pub-cache/bin:/projects/sandbox/.tc/flutter/bin/cache/dart-sdk/bin:/projects/sandbox/.tc/flutter/bin:$PATH
+```
+
+Commands run and results (FEAT-006):
+- `go run ./cmd/seed-demo` (via `scripts/seed-demo.sh`) built + locally
+  verified **6** signed events (org root, provider A depth 1, provider B depth 2,
+  two supplies, one alert). `go vet ./cmd/seed-demo` clean.
+- `cd cloud && go vet ./... && go test ./...` all `ok` (seed-demo reported
+  `[no test files]`, expected for a tooling command).
+- `cd node && go vet ./... && go test ./...` all `ok`.
+- `cd app && flutter analyze` to `No issues found!`.
+- `cd app && flutter test $(ls test/*.dart | grep -v screenshots_test.dart)` to
+  **266 passed** (incl. l10n parity).
+- `cd app && flutter build web --release` to `Built build/web`.
+- `cd proto && buf generate && git diff --stat` to no diff in gen dirs.
+- Secret scan of the Round-2 diff: none found (see section 3).
+
+---
+
+# Round 1 (original overnight run)
+
 Branch: `kiro/overnight` (off `feature/provider-map-supplies`). Commit small and often; do not push/merge/force-push.
 
 ## Final report
@@ -344,3 +586,30 @@ The v1 semantic review (`.agents/tasks/task-overnight-resilience/2026-10-24-1031
 - `cd node && go vet ./... && go test ./...` → all `ok` (incl. the two new manifest cases).
 - `cd proto && buf generate` + copy to `node/gen` → **no diff** in `app/lib/gen` / `cloud/gen` / `node/gen` (no proto change was needed for any of the three fixes).
 - `cd app && flutter build web --release` → `✓ Built build/web`.
+
+## Round 2 — FEAT-002 (offline/connectivity/refresh + location without GPS)
+
+### Offline cold-start test procedure (service worker / app shell)
+
+The app now registers a hand-written cache-first service worker (`app/web/sw.js`) from `web/index.html`. After `flutter build web --release`, the build output contains `sw.js`, `sqlite3.wasm`, `drift_worker.js`, `flutter_service_worker.js`, `index.html` and `main.dart.js` (confirmed present). To verify the offline cold start:
+
+1. Serve the release bundle from the cloud: run the API with `--web-dir app/build/web` (or deploy) and open the page once while online so the service worker installs and caches the shell (incl. `sqlite3.wasm` + `drift_worker.js`) and `app-config.json`.
+2. In the browser devtools → Application → Service Workers, confirm `sw.js` is "activated and running" and the `resilience-shell-v1` cache lists the shell assets.
+3. Go offline: devtools → Network → "Offline" (or disconnect the network / block the host).
+4. Reload the page (cold start). Expected: the app boots from cache, the local Drift DB loads from the cached `sqlite3.wasm` + `drift_worker.js`, the map and local data render, and the connectivity banner flips to **Offline (local data only)** live (it reacts to the browser `offline` event without a reload).
+5. Go back online: the banner returns to **Online** / **Node connected** after the next sync round, again without a reload.
+
+**Run-or-human honesty:** this procedure was NOT executed in this sandbox. It requires a real browser with a live service-worker lifecycle and network toggling; the headless Flutter harness here publishes no aria-label semantics and does not exercise the browser service-worker cache, so interaction/offline-boot driving is not achievable headlessly. It is a **human verification step**. What WAS verified headlessly: `sw.js` and the shell assets (`sqlite3.wasm`, `drift_worker.js`) are emitted into `build/web` and `sw.js` references them and `app-config.json`; the cloud serves the shell cacheable (no `no-store`) with `app-config.json` `no-store` and `sw.js`/entry points `no-cache` (Go `web_test.go`); the connectivity state machine flips across online/offline/reachability transitions (Dart `location_fallback_test.dart`).
+
+### Device-radio / sensor honesty
+
+- **Estimated position (dead-reckoning)** needs device motion sensors (`sensors_plus`, accelerometer). It is **native-only**; on web it is honestly unavailable (the UI says so). The uncertainty-radius growth is pure logic and unit-tested (`location_fallback_test.dart`), but the real sensor fusion **needs a real device** and was not exercised here.
+- **Live GPS** (`geolocator`) requires a real device/browser permission prompt; the cache/age-label/`location_source` logic is unit-tested, but an actual fresh fix needs a device.
+
+### Verification (all green this run)
+
+- `cd app && flutter analyze` → `No issues found!`
+- `cd app && flutter test $(ls test/*.dart | grep -v screenshots_test.dart)` → **188 passed** (167 prior + 21 new across `location_fallback_test.dart`, `map_fold_invalidation_test.dart`, `location_source_event_test.dart`).
+- `cd cloud && go vet ./... && go test ./...` → all `ok` (incl. new `web_test.go`).
+- `cd node && go vet ./... && go test ./...` → all `ok`.
+- `cd app && flutter build web --release` → `✓ Built build/web` (passes after adding `web` and `sensors_plus`; `sensors_plus` is behind a native-only conditional import).

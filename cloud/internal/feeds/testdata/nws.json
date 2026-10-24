@@ -1,0 +1,49 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-122.5, 37.7], [-122.3, 37.7], [-122.3, 37.9], [-122.5, 37.9], [-122.5, 37.7]]]
+      },
+      "properties": {
+        "id": "urn:oid:2.49.0.1.840.0.abc123.001.1",
+        "event": "Flood Warning",
+        "headline": "Flood Warning issued for San Francisco Bay",
+        "description": "Heavy rainfall will cause flooding of rivers & low-lying areas.",
+        "instruction": "Move to higher ground. Do not drive through flooded roads.",
+        "severity": "Severe",
+        "onset": "2026-02-01T08:00:00-08:00",
+        "expires": "2026-02-01T20:00:00-08:00"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-118.24, 34.05]
+      },
+      "properties": {
+        "id": "urn:oid:2.49.0.1.840.0.abc123.002.1",
+        "event": "Excessive Heat Warning",
+        "headline": "Excessive Heat Warning for Los Angeles",
+        "description": "Dangerously hot conditions with temperatures up to 108.",
+        "instruction": "Drink plenty of fluids and stay in air conditioning.",
+        "severity": "Extreme",
+        "onset": "2026-07-10T10:00:00-07:00",
+        "expires": "2026-07-11T20:00:00-07:00"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "id": "urn:oid:2.49.0.1.840.0.abc123.003.1",
+        "event": "Special Weather Statement",
+        "headline": "No geometry; must be skipped",
+        "severity": "Minor"
+      }
+    }
+  ]
+}

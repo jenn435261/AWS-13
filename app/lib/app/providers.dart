@@ -7,6 +7,9 @@ import 'package:http/http.dart' as http;
 import '../ai/ai_assist.dart';
 import '../ai/bedrock_ai_client.dart';
 import '../ai/local_rules_ai.dart';
+import '../auth/authenticator.dart';
+import '../core/haptics/haptics.dart';
+import 'settings_store.dart';
 import '../core/event_factory.dart';
 import '../core/event_store.dart';
 import '../core/lamport_clock.dart';
@@ -16,6 +19,8 @@ import '../db/json_store.dart';
 import '../gen/resilience/v1/event.pb.dart' show ProvenanceKind;
 import '../nodes/node_store.dart';
 import '../nodes/package_store.dart';
+import '../packages/drift_chunk_store.dart';
+import '../packages/region_pack_store.dart';
 import '../supplies/supply_service.dart';
 import '../trust/root_repo.dart';
 import 'package:latlong2/latlong.dart' show LatLng;
@@ -61,6 +66,18 @@ const kDefaultPackagesTrustedRoot =
 /// [kDefaultPackagesTrustedRoot]).
 final packagesTrustedRootProvider =
     Provider<String>((ref) => kDefaultPackagesTrustedRoot);
+
+/// The cloud feed signing key's PUBLIC hex, learned at startup from the cloud's
+/// `/app-config.json` (web) or passed with `--dart-define=FEED_PUBKEY=...`
+/// (native). It is the trusted root the app verifies official-feed alerts AND
+/// the cloud package manifest against. Empty => the app cannot label a cloud
+/// alert/pack Official and shows an honest unverified state.
+const kDefaultFeedPubkey = String.fromEnvironment('FEED_PUBKEY');
+
+/// The trusted cloud feed/packages root (lowercase hex Ed25519). See
+/// [kDefaultFeedPubkey]. Overridden by main() on web from /app-config.json.
+final cloudFeedPubkeyProvider =
+    Provider<String>((ref) => kDefaultFeedPubkey);
 
 /// The local Drift database. Overridden in tests with AppDatabase.memory().
 final databaseProvider = Provider<AppDatabase>((ref) {
@@ -168,6 +185,49 @@ final showDeliveriesProvider = StateProvider<bool>((ref) => false);
 
 /// The current app locale (for the language switcher). Null = system default.
 final localeProvider = StateProvider<Locale?>((ref) => null);
+
+// --- Settings (local, device-only preferences + optional identity) -----------
+
+/// Persists user settings in the local KeyValue table.
+final settingsStoreProvider = Provider<SettingsStore>((ref) =>
+    SettingsStore(JsonStore(ref.watch(databaseProvider), 'settings:')));
+
+/// Bumped after settings change so [settingsProvider] reloads.
+final settingsRevisionProvider = StateProvider<int>((ref) => 0);
+
+/// The current [AppSettings]. While loading, callers see the safe defaults
+/// (haptics ON, unlock-requirement OFF, anonymous), so the UI never blocks.
+final settingsProvider = FutureProvider<AppSettings>((ref) async {
+  ref.watch(settingsRevisionProvider);
+  return ref.watch(settingsStoreProvider).load();
+});
+
+/// Synchronous view of settings for call sites (haptics) that fire during a
+/// gesture. Falls back to defaults until the async load completes.
+final settingsValueProvider = Provider<AppSettings>((ref) {
+  return ref.watch(settingsProvider).valueOrNull ?? const AppSettings();
+});
+
+/// Writes [next] and triggers a reload.
+Future<void> updateSettings(WidgetRef ref, AppSettings next) async {
+  await ref.read(settingsStoreProvider).save(next);
+  ref.read(settingsRevisionProvider.notifier).state++;
+}
+
+/// The haptics helper (platform-appropriate backend). Stateless; gating is done
+/// per-call against the Settings "Haptic feedback" toggle.
+final hapticsProvider = Provider<Haptics>((ref) => const Haptics());
+
+/// Fires a haptic gated by the current setting. Safe to call from any widget.
+void fireHaptic(WidgetRef ref, HapticKind kind) {
+  final enabled = ref.read(settingsValueProvider).hapticsEnabled;
+  ref.read(hapticsProvider).fire(kind, enabled: enabled);
+}
+
+/// The device unlock authenticator (local_auth on native, honest "unavailable"
+/// on web). Overridden with a FakeAuthenticator in tests.
+final authenticatorProvider =
+    Provider<Authenticator>((ref) => defaultAuthenticator());
 
 
 /// Saved contacts (public identity cards), persisted in the local database.
@@ -297,6 +357,24 @@ final nodePmtilesUrlProvider = FutureProvider<String?>((ref) async {
 
 final packageStoreProvider = Provider<PackageStore>((ref) =>
     PackageStore(JsonStore(ref.watch(databaseProvider), 'pkg:')));
+
+/// Store of downloaded region packs (metadata) for the storage/downloads
+/// screens. The chunk bytes live in [regionChunkStoreProvider].
+final regionPackStoreProvider = Provider<RegionPackStore>((ref) =>
+    RegionPackStore(JsonStore(ref.watch(databaseProvider), 'regionpack:')));
+
+/// The Drift-backed chunk store (verified download chunks; survives restart on
+/// native and web via IndexedDB/OPFS).
+final regionChunkStoreProvider = Provider<DriftChunkStore>(
+    (ref) => DriftChunkStore(ref.watch(databaseProvider)));
+
+/// Bumped after a region pack changes so the downloads/storage screens reload.
+final regionPacksRevisionProvider = StateProvider<int>((ref) => 0);
+
+final regionPacksProvider = FutureProvider<List<RegionPack>>((ref) async {
+  ref.watch(regionPacksRevisionProvider);
+  return ref.watch(regionPackStoreProvider).list();
+});
 
 final packagesRevisionProvider = StateProvider<int>((ref) => 0);
 

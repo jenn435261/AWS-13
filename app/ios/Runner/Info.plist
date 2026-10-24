@@ -4,6 +4,13 @@
 <dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+	<!-- BLE GATT transport (spec §6.2): iOS requires a usage description before
+	     Core Bluetooth will grant access. Peripheral key is included because the
+	     other phone advertises the custom service. -->
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Resilience uses Bluetooth to exchange signed events directly with a nearby phone when there is no internet.</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>Resilience uses Bluetooth to share signed events with a nearby phone when there is no internet.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>

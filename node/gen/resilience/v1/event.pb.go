@@ -461,6 +461,65 @@ func (Priority) EnumDescriptor() ([]byte, []int) {
 	return file_resilience_v1_event_proto_rawDescGZIP(), []int{5}
 }
 
+// How a GeoPoint's coordinates were obtained. Lets the UI/fold reason about
+// trust and staleness of an attached position (e.g. a manual pin vs a live GPS
+// fix vs a cached last-known fix). UNSPECIFIED is treated as gps/unknown for
+// back-compat with events written before this field existed.
+type LocationSource int32
+
+const (
+	LocationSource_LOCATION_SOURCE_UNSPECIFIED LocationSource = 0
+	LocationSource_LOCATION_SOURCE_GPS         LocationSource = 1 // live device GPS fix
+	LocationSource_LOCATION_SOURCE_LAST_KNOWN  LocationSource = 2 // cached last-known device fix
+	LocationSource_LOCATION_SOURCE_MANUAL      LocationSource = 3 // user dropped/entered the point by hand
+	LocationSource_LOCATION_SOURCE_ESTIMATED   LocationSource = 4 // inferred/approximated (e.g. from H3 cell)
+)
+
+// Enum value maps for LocationSource.
+var (
+	LocationSource_name = map[int32]string{
+		0: "LOCATION_SOURCE_UNSPECIFIED",
+		1: "LOCATION_SOURCE_GPS",
+		2: "LOCATION_SOURCE_LAST_KNOWN",
+		3: "LOCATION_SOURCE_MANUAL",
+		4: "LOCATION_SOURCE_ESTIMATED",
+	}
+	LocationSource_value = map[string]int32{
+		"LOCATION_SOURCE_UNSPECIFIED": 0,
+		"LOCATION_SOURCE_GPS":         1,
+		"LOCATION_SOURCE_LAST_KNOWN":  2,
+		"LOCATION_SOURCE_MANUAL":      3,
+		"LOCATION_SOURCE_ESTIMATED":   4,
+	}
+)
+
+func (x LocationSource) Enum() *LocationSource {
+	p := new(LocationSource)
+	*p = x
+	return p
+}
+
+func (x LocationSource) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (LocationSource) Descriptor() protoreflect.EnumDescriptor {
+	return file_resilience_v1_event_proto_enumTypes[6].Descriptor()
+}
+
+func (LocationSource) Type() protoreflect.EnumType {
+	return &file_resilience_v1_event_proto_enumTypes[6]
+}
+
+func (x LocationSource) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use LocationSource.Descriptor instead.
+func (LocationSource) EnumDescriptor() ([]byte, []int) {
+	return file_resilience_v1_event_proto_rawDescGZIP(), []int{6}
+}
+
 type TransportMode int32
 
 const (
@@ -503,11 +562,11 @@ func (x TransportMode) String() string {
 }
 
 func (TransportMode) Descriptor() protoreflect.EnumDescriptor {
-	return file_resilience_v1_event_proto_enumTypes[6].Descriptor()
+	return file_resilience_v1_event_proto_enumTypes[7].Descriptor()
 }
 
 func (TransportMode) Type() protoreflect.EnumType {
-	return &file_resilience_v1_event_proto_enumTypes[6]
+	return &file_resilience_v1_event_proto_enumTypes[7]
 }
 
 func (x TransportMode) Number() protoreflect.EnumNumber {
@@ -516,7 +575,7 @@ func (x TransportMode) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use TransportMode.Descriptor instead.
 func (TransportMode) EnumDescriptor() ([]byte, []int) {
-	return file_resilience_v1_event_proto_rawDescGZIP(), []int{6}
+	return file_resilience_v1_event_proto_rawDescGZIP(), []int{7}
 }
 
 type CapacityBand int32
@@ -555,11 +614,11 @@ func (x CapacityBand) String() string {
 }
 
 func (CapacityBand) Descriptor() protoreflect.EnumDescriptor {
-	return file_resilience_v1_event_proto_enumTypes[7].Descriptor()
+	return file_resilience_v1_event_proto_enumTypes[8].Descriptor()
 }
 
 func (CapacityBand) Type() protoreflect.EnumType {
-	return &file_resilience_v1_event_proto_enumTypes[7]
+	return &file_resilience_v1_event_proto_enumTypes[8]
 }
 
 func (x CapacityBand) Number() protoreflect.EnumNumber {
@@ -568,7 +627,7 @@ func (x CapacityBand) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use CapacityBand.Descriptor instead.
 func (CapacityBand) EnumDescriptor() ([]byte, []int) {
-	return file_resilience_v1_event_proto_rawDescGZIP(), []int{7}
+	return file_resilience_v1_event_proto_rawDescGZIP(), []int{8}
 }
 
 type ChannelType int32
@@ -613,11 +672,11 @@ func (x ChannelType) String() string {
 }
 
 func (ChannelType) Descriptor() protoreflect.EnumDescriptor {
-	return file_resilience_v1_event_proto_enumTypes[8].Descriptor()
+	return file_resilience_v1_event_proto_enumTypes[9].Descriptor()
 }
 
 func (ChannelType) Type() protoreflect.EnumType {
-	return &file_resilience_v1_event_proto_enumTypes[8]
+	return &file_resilience_v1_event_proto_enumTypes[9]
 }
 
 func (x ChannelType) Number() protoreflect.EnumNumber {
@@ -626,7 +685,7 @@ func (x ChannelType) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ChannelType.Descriptor instead.
 func (ChannelType) EnumDescriptor() ([]byte, []int) {
-	return file_resilience_v1_event_proto_rawDescGZIP(), []int{8}
+	return file_resilience_v1_event_proto_rawDescGZIP(), []int{9}
 }
 
 type ObservationBody_Kind int32
@@ -668,11 +727,11 @@ func (x ObservationBody_Kind) String() string {
 }
 
 func (ObservationBody_Kind) Descriptor() protoreflect.EnumDescriptor {
-	return file_resilience_v1_event_proto_enumTypes[9].Descriptor()
+	return file_resilience_v1_event_proto_enumTypes[10].Descriptor()
 }
 
 func (ObservationBody_Kind) Type() protoreflect.EnumType {
-	return &file_resilience_v1_event_proto_enumTypes[9]
+	return &file_resilience_v1_event_proto_enumTypes[10]
 }
 
 func (x ObservationBody_Kind) Number() protoreflect.EnumNumber {
@@ -720,11 +779,11 @@ func (x PackageEventBody_Stage) String() string {
 }
 
 func (PackageEventBody_Stage) Descriptor() protoreflect.EnumDescriptor {
-	return file_resilience_v1_event_proto_enumTypes[10].Descriptor()
+	return file_resilience_v1_event_proto_enumTypes[11].Descriptor()
 }
 
 func (PackageEventBody_Stage) Type() protoreflect.EnumType {
-	return &file_resilience_v1_event_proto_enumTypes[10]
+	return &file_resilience_v1_event_proto_enumTypes[11]
 }
 
 func (x PackageEventBody_Stage) Number() protoreflect.EnumNumber {
@@ -929,16 +988,17 @@ func (x *EventHeader) GetH3Cell() uint64 {
 // deliberately shares them (e.g. with an assigned courier via a restricted
 // channel). `h3_cell` gives a coarse bucket safe to broadcast.
 type GeoPoint struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	H3Cell        uint64                 `protobuf:"varint,1,opt,name=h3_cell,json=h3Cell,proto3" json:"h3_cell,omitempty"`           // coarse cell, always safe to share
-	ApproxLat     float64                `protobuf:"fixed64,2,opt,name=approx_lat,json=approxLat,proto3" json:"approx_lat,omitempty"` // jittered/rounded center
-	ApproxLon     float64                `protobuf:"fixed64,3,opt,name=approx_lon,json=approxLon,proto3" json:"approx_lon,omitempty"`
-	ExactLat      float64                `protobuf:"fixed64,4,opt,name=exact_lat,json=exactLat,proto3" json:"exact_lat,omitempty"` // 0 unless explicitly shared
-	ExactLon      float64                `protobuf:"fixed64,5,opt,name=exact_lon,json=exactLon,proto3" json:"exact_lon,omitempty"`
-	HasExact      bool                   `protobuf:"varint,6,opt,name=has_exact,json=hasExact,proto3" json:"has_exact,omitempty"`
-	Address       string                 `protobuf:"bytes,7,opt,name=address,proto3" json:"address,omitempty"` // exact postal address, only when shared
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	H3Cell         uint64                 `protobuf:"varint,1,opt,name=h3_cell,json=h3Cell,proto3" json:"h3_cell,omitempty"`           // coarse cell, always safe to share
+	ApproxLat      float64                `protobuf:"fixed64,2,opt,name=approx_lat,json=approxLat,proto3" json:"approx_lat,omitempty"` // jittered/rounded center
+	ApproxLon      float64                `protobuf:"fixed64,3,opt,name=approx_lon,json=approxLon,proto3" json:"approx_lon,omitempty"`
+	ExactLat       float64                `protobuf:"fixed64,4,opt,name=exact_lat,json=exactLat,proto3" json:"exact_lat,omitempty"` // 0 unless explicitly shared
+	ExactLon       float64                `protobuf:"fixed64,5,opt,name=exact_lon,json=exactLon,proto3" json:"exact_lon,omitempty"`
+	HasExact       bool                   `protobuf:"varint,6,opt,name=has_exact,json=hasExact,proto3" json:"has_exact,omitempty"`
+	Address        string                 `protobuf:"bytes,7,opt,name=address,proto3" json:"address,omitempty"`                                                                        // exact postal address, only when shared
+	LocationSource LocationSource         `protobuf:"varint,8,opt,name=location_source,json=locationSource,proto3,enum=resilience.v1.LocationSource" json:"location_source,omitempty"` // how these coords were obtained (unset => gps/unknown)
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *GeoPoint) Reset() {
@@ -1018,6 +1078,13 @@ func (x *GeoPoint) GetAddress() string {
 		return x.Address
 	}
 	return ""
+}
+
+func (x *GeoPoint) GetLocationSource() LocationSource {
+	if x != nil {
+		return x.LocationSource
+	}
+	return LocationSource_LOCATION_SOURCE_UNSPECIFIED
 }
 
 type IdentityCertificateBody struct {
@@ -3011,7 +3078,7 @@ const file_resilience_v1_event_proto_rawDesc = "" +
 	"depends_on\x18\x06 \x03(\fR\tdependsOn\x12\"\n" +
 	"\rcreated_at_ms\x18\a \x01(\x03R\vcreatedAtMs\x12%\n" +
 	"\x0eschema_version\x18\b \x01(\rR\rschemaVersion\x12\x17\n" +
-	"\ah3_cell\x18\t \x01(\x04R\x06h3Cell\"\xd2\x01\n" +
+	"\ah3_cell\x18\t \x01(\x04R\x06h3Cell\"\x9a\x02\n" +
 	"\bGeoPoint\x12\x17\n" +
 	"\ah3_cell\x18\x01 \x01(\x04R\x06h3Cell\x12\x1d\n" +
 	"\n" +
@@ -3021,7 +3088,8 @@ const file_resilience_v1_event_proto_rawDesc = "" +
 	"\texact_lat\x18\x04 \x01(\x01R\bexactLat\x12\x1b\n" +
 	"\texact_lon\x18\x05 \x01(\x01R\bexactLon\x12\x1b\n" +
 	"\thas_exact\x18\x06 \x01(\bR\bhasExact\x12\x18\n" +
-	"\aaddress\x18\a \x01(\tR\aaddress\"\x84\x02\n" +
+	"\aaddress\x18\a \x01(\tR\aaddress\x12F\n" +
+	"\x0flocation_source\x18\b \x01(\x0e2\x1d.resilience.v1.LocationSourceR\x0elocationSource\"\x84\x02\n" +
 	"\x17IdentityCertificateBody\x12%\n" +
 	"\x0esigning_pubkey\x18\x01 \x01(\fR\rsigningPubkey\x120\n" +
 	"\x14key_agreement_pubkey\x18\x02 \x01(\fR\x12keyAgreementPubkey\x12!\n" +
@@ -3299,7 +3367,13 @@ const file_resilience_v1_event_proto_rawDesc = "" +
 	"\fPRIORITY_LOW\x10\x01\x12\x13\n" +
 	"\x0fPRIORITY_NORMAL\x10\x02\x12\x11\n" +
 	"\rPRIORITY_HIGH\x10\x03\x12\x15\n" +
-	"\x11PRIORITY_CRITICAL\x10\x04*\xb1\x01\n" +
+	"\x11PRIORITY_CRITICAL\x10\x04*\xa5\x01\n" +
+	"\x0eLocationSource\x12\x1f\n" +
+	"\x1bLOCATION_SOURCE_UNSPECIFIED\x10\x00\x12\x17\n" +
+	"\x13LOCATION_SOURCE_GPS\x10\x01\x12\x1e\n" +
+	"\x1aLOCATION_SOURCE_LAST_KNOWN\x10\x02\x12\x1a\n" +
+	"\x16LOCATION_SOURCE_MANUAL\x10\x03\x12\x1d\n" +
+	"\x19LOCATION_SOURCE_ESTIMATED\x10\x04*\xb1\x01\n" +
 	"\rTransportMode\x12\x1e\n" +
 	"\x1aTRANSPORT_MODE_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16TRANSPORT_MODE_WALKING\x10\x01\x12\x1a\n" +
@@ -3332,7 +3406,7 @@ func file_resilience_v1_event_proto_rawDescGZIP() []byte {
 	return file_resilience_v1_event_proto_rawDescData
 }
 
-var file_resilience_v1_event_proto_enumTypes = make([]protoimpl.EnumInfo, 11)
+var file_resilience_v1_event_proto_enumTypes = make([]protoimpl.EnumInfo, 12)
 var file_resilience_v1_event_proto_msgTypes = make([]protoimpl.MessageInfo, 28)
 var file_resilience_v1_event_proto_goTypes = []any{
 	(EventType)(0),                  // 0: resilience.v1.EventType
@@ -3341,79 +3415,81 @@ var file_resilience_v1_event_proto_goTypes = []any{
 	(Availability)(0),               // 3: resilience.v1.Availability
 	(ProvenanceKind)(0),             // 4: resilience.v1.ProvenanceKind
 	(Priority)(0),                   // 5: resilience.v1.Priority
-	(TransportMode)(0),              // 6: resilience.v1.TransportMode
-	(CapacityBand)(0),               // 7: resilience.v1.CapacityBand
-	(ChannelType)(0),                // 8: resilience.v1.ChannelType
-	(ObservationBody_Kind)(0),       // 9: resilience.v1.ObservationBody.Kind
-	(PackageEventBody_Stage)(0),     // 10: resilience.v1.PackageEventBody.Stage
-	(*SignedEvent)(nil),             // 11: resilience.v1.SignedEvent
-	(*EventHeader)(nil),             // 12: resilience.v1.EventHeader
-	(*GeoPoint)(nil),                // 13: resilience.v1.GeoPoint
-	(*IdentityCertificateBody)(nil), // 14: resilience.v1.IdentityCertificateBody
-	(*OrgCertificateBody)(nil),      // 15: resilience.v1.OrgCertificateBody
-	(*KeyRevokedBody)(nil),          // 16: resilience.v1.KeyRevokedBody
-	(*ResourceBody)(nil),            // 17: resilience.v1.ResourceBody
-	(*ResourceUpdateBody)(nil),      // 18: resilience.v1.ResourceUpdateBody
-	(*ObservationBody)(nil),         // 19: resilience.v1.ObservationBody
-	(*InventorySnapshotBody)(nil),   // 20: resilience.v1.InventorySnapshotBody
-	(*ReservationBody)(nil),         // 21: resilience.v1.ReservationBody
-	(*HelpRequestBody)(nil),         // 22: resilience.v1.HelpRequestBody
-	(*HelpOfferBody)(nil),           // 23: resilience.v1.HelpOfferBody
-	(*HelpRequestClosedBody)(nil),   // 24: resilience.v1.HelpRequestClosedBody
-	(*TransportOfferBody)(nil),      // 25: resilience.v1.TransportOfferBody
-	(*ChannelCreatedBody)(nil),      // 26: resilience.v1.ChannelCreatedBody
-	(*ChannelMembershipBody)(nil),   // 27: resilience.v1.ChannelMembershipBody
-	(*MessageBody)(nil),             // 28: resilience.v1.MessageBody
-	(*ReceiptBody)(nil),             // 29: resilience.v1.ReceiptBody
-	(*PrekeyBundleBody)(nil),        // 30: resilience.v1.PrekeyBundleBody
-	(*MissionBody)(nil),             // 31: resilience.v1.MissionBody
-	(*MissionAcceptBody)(nil),       // 32: resilience.v1.MissionAcceptBody
-	(*MissionMatchBody)(nil),        // 33: resilience.v1.MissionMatchBody
-	(*PackageEventBody)(nil),        // 34: resilience.v1.PackageEventBody
-	(*CapabilityBody)(nil),          // 35: resilience.v1.CapabilityBody
-	(*EmergencyAlertBody)(nil),      // 36: resilience.v1.EmergencyAlertBody
-	(*LocationShareBody)(nil),       // 37: resilience.v1.LocationShareBody
-	(*LocationStopBody)(nil),        // 38: resilience.v1.LocationStopBody
+	(LocationSource)(0),             // 6: resilience.v1.LocationSource
+	(TransportMode)(0),              // 7: resilience.v1.TransportMode
+	(CapacityBand)(0),               // 8: resilience.v1.CapacityBand
+	(ChannelType)(0),                // 9: resilience.v1.ChannelType
+	(ObservationBody_Kind)(0),       // 10: resilience.v1.ObservationBody.Kind
+	(PackageEventBody_Stage)(0),     // 11: resilience.v1.PackageEventBody.Stage
+	(*SignedEvent)(nil),             // 12: resilience.v1.SignedEvent
+	(*EventHeader)(nil),             // 13: resilience.v1.EventHeader
+	(*GeoPoint)(nil),                // 14: resilience.v1.GeoPoint
+	(*IdentityCertificateBody)(nil), // 15: resilience.v1.IdentityCertificateBody
+	(*OrgCertificateBody)(nil),      // 16: resilience.v1.OrgCertificateBody
+	(*KeyRevokedBody)(nil),          // 17: resilience.v1.KeyRevokedBody
+	(*ResourceBody)(nil),            // 18: resilience.v1.ResourceBody
+	(*ResourceUpdateBody)(nil),      // 19: resilience.v1.ResourceUpdateBody
+	(*ObservationBody)(nil),         // 20: resilience.v1.ObservationBody
+	(*InventorySnapshotBody)(nil),   // 21: resilience.v1.InventorySnapshotBody
+	(*ReservationBody)(nil),         // 22: resilience.v1.ReservationBody
+	(*HelpRequestBody)(nil),         // 23: resilience.v1.HelpRequestBody
+	(*HelpOfferBody)(nil),           // 24: resilience.v1.HelpOfferBody
+	(*HelpRequestClosedBody)(nil),   // 25: resilience.v1.HelpRequestClosedBody
+	(*TransportOfferBody)(nil),      // 26: resilience.v1.TransportOfferBody
+	(*ChannelCreatedBody)(nil),      // 27: resilience.v1.ChannelCreatedBody
+	(*ChannelMembershipBody)(nil),   // 28: resilience.v1.ChannelMembershipBody
+	(*MessageBody)(nil),             // 29: resilience.v1.MessageBody
+	(*ReceiptBody)(nil),             // 30: resilience.v1.ReceiptBody
+	(*PrekeyBundleBody)(nil),        // 31: resilience.v1.PrekeyBundleBody
+	(*MissionBody)(nil),             // 32: resilience.v1.MissionBody
+	(*MissionAcceptBody)(nil),       // 33: resilience.v1.MissionAcceptBody
+	(*MissionMatchBody)(nil),        // 34: resilience.v1.MissionMatchBody
+	(*PackageEventBody)(nil),        // 35: resilience.v1.PackageEventBody
+	(*CapabilityBody)(nil),          // 36: resilience.v1.CapabilityBody
+	(*EmergencyAlertBody)(nil),      // 37: resilience.v1.EmergencyAlertBody
+	(*LocationShareBody)(nil),       // 38: resilience.v1.LocationShareBody
+	(*LocationStopBody)(nil),        // 39: resilience.v1.LocationStopBody
 }
 var file_resilience_v1_event_proto_depIdxs = []int32{
-	12, // 0: resilience.v1.SignedEvent.header:type_name -> resilience.v1.EventHeader
+	13, // 0: resilience.v1.SignedEvent.header:type_name -> resilience.v1.EventHeader
 	0,  // 1: resilience.v1.EventHeader.type:type_name -> resilience.v1.EventType
-	4,  // 2: resilience.v1.OrgCertificateBody.provenance:type_name -> resilience.v1.ProvenanceKind
-	1,  // 3: resilience.v1.ResourceBody.category:type_name -> resilience.v1.ResourceCategory
-	2,  // 4: resilience.v1.ResourceBody.amount:type_name -> resilience.v1.AmountBand
-	3,  // 5: resilience.v1.ResourceBody.availability:type_name -> resilience.v1.Availability
-	13, // 6: resilience.v1.ResourceBody.location:type_name -> resilience.v1.GeoPoint
-	4,  // 7: resilience.v1.ResourceBody.provenance:type_name -> resilience.v1.ProvenanceKind
-	2,  // 8: resilience.v1.ResourceUpdateBody.amount:type_name -> resilience.v1.AmountBand
-	3,  // 9: resilience.v1.ResourceUpdateBody.availability:type_name -> resilience.v1.Availability
-	9,  // 10: resilience.v1.ObservationBody.kind:type_name -> resilience.v1.ObservationBody.Kind
-	2,  // 11: resilience.v1.ObservationBody.observed_amount:type_name -> resilience.v1.AmountBand
-	1,  // 12: resilience.v1.HelpRequestBody.categories:type_name -> resilience.v1.ResourceCategory
-	5,  // 13: resilience.v1.HelpRequestBody.priority:type_name -> resilience.v1.Priority
-	13, // 14: resilience.v1.HelpRequestBody.location:type_name -> resilience.v1.GeoPoint
-	1,  // 15: resilience.v1.HelpOfferBody.categories:type_name -> resilience.v1.ResourceCategory
-	2,  // 16: resilience.v1.HelpOfferBody.amount:type_name -> resilience.v1.AmountBand
-	3,  // 17: resilience.v1.HelpOfferBody.availability:type_name -> resilience.v1.Availability
-	13, // 18: resilience.v1.HelpOfferBody.location:type_name -> resilience.v1.GeoPoint
-	6,  // 19: resilience.v1.TransportOfferBody.mode:type_name -> resilience.v1.TransportMode
-	7,  // 20: resilience.v1.TransportOfferBody.capacity:type_name -> resilience.v1.CapacityBand
-	3,  // 21: resilience.v1.TransportOfferBody.availability:type_name -> resilience.v1.Availability
-	13, // 22: resilience.v1.TransportOfferBody.location:type_name -> resilience.v1.GeoPoint
-	8,  // 23: resilience.v1.ChannelCreatedBody.type:type_name -> resilience.v1.ChannelType
-	5,  // 24: resilience.v1.MessageBody.priority:type_name -> resilience.v1.Priority
-	1,  // 25: resilience.v1.MissionBody.cargo_category:type_name -> resilience.v1.ResourceCategory
-	13, // 26: resilience.v1.MissionBody.pickup_location:type_name -> resilience.v1.GeoPoint
-	13, // 27: resilience.v1.MissionBody.destination_location:type_name -> resilience.v1.GeoPoint
-	5,  // 28: resilience.v1.MissionBody.priority:type_name -> resilience.v1.Priority
-	10, // 29: resilience.v1.PackageEventBody.stage:type_name -> resilience.v1.PackageEventBody.Stage
-	5,  // 30: resilience.v1.EmergencyAlertBody.priority:type_name -> resilience.v1.Priority
-	13, // 31: resilience.v1.EmergencyAlertBody.area:type_name -> resilience.v1.GeoPoint
-	13, // 32: resilience.v1.LocationShareBody.public_point:type_name -> resilience.v1.GeoPoint
-	33, // [33:33] is the sub-list for method output_type
-	33, // [33:33] is the sub-list for method input_type
-	33, // [33:33] is the sub-list for extension type_name
-	33, // [33:33] is the sub-list for extension extendee
-	0,  // [0:33] is the sub-list for field type_name
+	6,  // 2: resilience.v1.GeoPoint.location_source:type_name -> resilience.v1.LocationSource
+	4,  // 3: resilience.v1.OrgCertificateBody.provenance:type_name -> resilience.v1.ProvenanceKind
+	1,  // 4: resilience.v1.ResourceBody.category:type_name -> resilience.v1.ResourceCategory
+	2,  // 5: resilience.v1.ResourceBody.amount:type_name -> resilience.v1.AmountBand
+	3,  // 6: resilience.v1.ResourceBody.availability:type_name -> resilience.v1.Availability
+	14, // 7: resilience.v1.ResourceBody.location:type_name -> resilience.v1.GeoPoint
+	4,  // 8: resilience.v1.ResourceBody.provenance:type_name -> resilience.v1.ProvenanceKind
+	2,  // 9: resilience.v1.ResourceUpdateBody.amount:type_name -> resilience.v1.AmountBand
+	3,  // 10: resilience.v1.ResourceUpdateBody.availability:type_name -> resilience.v1.Availability
+	10, // 11: resilience.v1.ObservationBody.kind:type_name -> resilience.v1.ObservationBody.Kind
+	2,  // 12: resilience.v1.ObservationBody.observed_amount:type_name -> resilience.v1.AmountBand
+	1,  // 13: resilience.v1.HelpRequestBody.categories:type_name -> resilience.v1.ResourceCategory
+	5,  // 14: resilience.v1.HelpRequestBody.priority:type_name -> resilience.v1.Priority
+	14, // 15: resilience.v1.HelpRequestBody.location:type_name -> resilience.v1.GeoPoint
+	1,  // 16: resilience.v1.HelpOfferBody.categories:type_name -> resilience.v1.ResourceCategory
+	2,  // 17: resilience.v1.HelpOfferBody.amount:type_name -> resilience.v1.AmountBand
+	3,  // 18: resilience.v1.HelpOfferBody.availability:type_name -> resilience.v1.Availability
+	14, // 19: resilience.v1.HelpOfferBody.location:type_name -> resilience.v1.GeoPoint
+	7,  // 20: resilience.v1.TransportOfferBody.mode:type_name -> resilience.v1.TransportMode
+	8,  // 21: resilience.v1.TransportOfferBody.capacity:type_name -> resilience.v1.CapacityBand
+	3,  // 22: resilience.v1.TransportOfferBody.availability:type_name -> resilience.v1.Availability
+	14, // 23: resilience.v1.TransportOfferBody.location:type_name -> resilience.v1.GeoPoint
+	9,  // 24: resilience.v1.ChannelCreatedBody.type:type_name -> resilience.v1.ChannelType
+	5,  // 25: resilience.v1.MessageBody.priority:type_name -> resilience.v1.Priority
+	1,  // 26: resilience.v1.MissionBody.cargo_category:type_name -> resilience.v1.ResourceCategory
+	14, // 27: resilience.v1.MissionBody.pickup_location:type_name -> resilience.v1.GeoPoint
+	14, // 28: resilience.v1.MissionBody.destination_location:type_name -> resilience.v1.GeoPoint
+	5,  // 29: resilience.v1.MissionBody.priority:type_name -> resilience.v1.Priority
+	11, // 30: resilience.v1.PackageEventBody.stage:type_name -> resilience.v1.PackageEventBody.Stage
+	5,  // 31: resilience.v1.EmergencyAlertBody.priority:type_name -> resilience.v1.Priority
+	14, // 32: resilience.v1.EmergencyAlertBody.area:type_name -> resilience.v1.GeoPoint
+	14, // 33: resilience.v1.LocationShareBody.public_point:type_name -> resilience.v1.GeoPoint
+	34, // [34:34] is the sub-list for method output_type
+	34, // [34:34] is the sub-list for method input_type
+	34, // [34:34] is the sub-list for extension type_name
+	34, // [34:34] is the sub-list for extension extendee
+	0,  // [0:34] is the sub-list for field type_name
 }
 
 func init() { file_resilience_v1_event_proto_init() }
@@ -3426,7 +3502,7 @@ func file_resilience_v1_event_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_resilience_v1_event_proto_rawDesc), len(file_resilience_v1_event_proto_rawDesc)),
-			NumEnums:      11,
+			NumEnums:      12,
 			NumMessages:   28,
 			NumExtensions: 0,
 			NumServices:   0,

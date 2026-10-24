@@ -270,24 +270,32 @@ void main() {
 
   group('languages', () {
     test('French and Mandarin cover every English key', () {
-      final en = <String>{};
-      // Probe through the public lookup: any key English knows must resolve to
-      // something other than the key itself in fr and zh.
-      for (final k in kStringsFr.keys) {
-        en.add(k);
-      }
+      // English is the source of truth. Diff the real English key set against
+      // fr and zh so a future dropped key in any one language fails CI.
+      final en = L10n.englishKeys;
+      expect(en, isNotEmpty);
+
+      final missingFr = en.difference(kStringsFr.keys.toSet());
+      expect(missingFr, isEmpty, reason: 'fr is missing keys: $missingFr');
+
+      final missingZh = en.difference(kStringsZh.keys.toSet());
+      expect(missingZh, isEmpty, reason: 'zh is missing keys: $missingZh');
+
+      // And guard the reverse direction too: fr/zh must not carry stray keys
+      // that English does not define (those would never be reachable).
+      final extraFr = kStringsFr.keys.toSet().difference(en);
+      expect(extraFr, isEmpty, reason: 'fr has keys English lacks: $extraFr');
+      final extraZh = kStringsZh.keys.toSet().difference(en);
+      expect(extraZh, isEmpty, reason: 'zh has keys English lacks: $extraZh');
+
+      // Every English key must also resolve to real (non-key) English text.
       const l = L10n(Locale('en'));
       for (final k in en) {
         // Two English words are spelled exactly like their key.
         if (k == 'confirmations' || k == 'disputes') continue;
         expect(l.t(k), isNot(k), reason: 'English is missing $k');
       }
-      for (final k in kStringsZh.keys) {
-        expect(kStringsFr.containsKey(k), isTrue, reason: 'fr missing $k');
-      }
-      for (final k in kStringsFr.keys) {
-        expect(kStringsZh.containsKey(k), isTrue, reason: 'zh missing $k');
-      }
+
       expect(L10n.supportedLocales.map((e) => e.languageCode),
           containsAll(['en', 'es', 'fr', 'zh']));
       expect(const L10n(Locale('zh')).t('nav_map'), '地图');

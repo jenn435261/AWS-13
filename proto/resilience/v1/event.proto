@@ -165,6 +165,18 @@ enum Priority {
   PRIORITY_CRITICAL = 4; // SOS / official alert / revocation
 }
 
+// How a GeoPoint's coordinates were obtained. Lets the UI/fold reason about
+// trust and staleness of an attached position (e.g. a manual pin vs a live GPS
+// fix vs a cached last-known fix). UNSPECIFIED is treated as gps/unknown for
+// back-compat with events written before this field existed.
+enum LocationSource {
+  LOCATION_SOURCE_UNSPECIFIED = 0;
+  LOCATION_SOURCE_GPS = 1;         // live device GPS fix
+  LOCATION_SOURCE_LAST_KNOWN = 2;  // cached last-known device fix
+  LOCATION_SOURCE_MANUAL = 3;      // user dropped/entered the point by hand
+  LOCATION_SOURCE_ESTIMATED = 4;   // inferred/approximated (e.g. from H3 cell)
+}
+
 // Approximate-by-default location. Exact coords only populated when the author
 // deliberately shares them (e.g. with an assigned courier via a restricted
 // channel). `h3_cell` gives a coarse bucket safe to broadcast.
@@ -176,6 +188,7 @@ message GeoPoint {
   double exact_lon = 5;
   bool has_exact = 6;
   string address = 7;        // exact postal address, only when shared
+  LocationSource location_source = 8; // how these coords were obtained (unset => gps/unknown)
 }
 
 // --- Event bodies ------------------------------------------------------------

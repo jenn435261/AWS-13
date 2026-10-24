@@ -4,11 +4,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../app/providers.dart';
+import '../../auth/authenticator.dart';
 import '../../identity/identity_card.dart';
 import '../../l10n/strings.dart';
 import '../components/common.dart';
+import '../components/reveal_gate.dart';
 import '../components/toast.dart';
 import 'qr_scan_screen.dart';
+import 'qr_transfer_screen.dart';
 
 /// Contacts: people / organizations / verified. Contacts are public identity
 /// cards saved on this device. A single expandable "Add contact" button at the
@@ -61,10 +64,31 @@ class ContactsScreen extends ConsumerWidget {
                               fontFamily: 'Roboto',
                               fontSize: 16,
                               fontWeight: FontWeight.w600)),
-                      const SizedBox(height: 4),
-                      CopyableText(
-                        value: id.resilienceId,
-                        copiedMessage: l.t('copied'),
+                      const SizedBox(height: 8),
+                      // The ID is sensitive: hidden behind a Reveal that
+                      // requires a device unlock when the user turned that on,
+                      // and auto-hides after 30s or on background.
+                      RevealGate(
+                        revealLabel: l.t('reveal_id'),
+                        builder: (ctx, hide) => Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            CopyableText(
+                              value: id.resilienceId,
+                              copiedMessage: l.t('copied'),
+                            ),
+                            const SizedBox(height: 4),
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: TextButton.icon(
+                                onPressed: hide,
+                                icon: const Icon(Icons.visibility_off_rounded,
+                                    size: 18),
+                                label: Text(l.t('hide')),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
@@ -241,6 +265,8 @@ class _AddContactMenuState extends ConsumerState<_AddContactMenu> {
           mini(Icons.qr_code_rounded, l.t('my_qr'), () => _showMyQr(context)),
           mini(Icons.qr_code_scanner_rounded, l.t('scan_qr'),
               () => _scan(context)),
+          mini(Icons.sync_alt_rounded, l.t('transfer_by_qr'),
+              () => _transferByQr(context)),
         ],
         FloatingActionButton.extended(
           heroTag: 'add_contact',
@@ -260,12 +286,30 @@ class _AddContactMenuState extends ConsumerState<_AddContactMenu> {
     await _addFromCode(context, code);
   }
 
+  Future<void> _transferByQr(BuildContext context) async {
+    await Navigator.of(context).push<void>(
+        MaterialPageRoute(builder: (_) => const QrTransferScreen()));
+  }
+
   Future<void> _showMyQr(BuildContext context) async {
     final l = L10n.of(context);
+    // The identity QR is sensitive. If the user requires an unlock, gate it the
+    // same way the ID card does (biometric on native, honest confirm on web).
+    final settings = ref.read(settingsValueProvider);
+    if (settings.requireUnlock) {
+      final allowed = await _unlockForQr(context);
+      if (allowed != true || !context.mounted) return;
+    }
     final id = await ref.read(identityProvider.future);
     if (!context.mounted) return;
-    final card =
-        IdentityCard.fromIdentityKeys(id.keys, displayName: id.displayName);
+    // Anonymous by default: embed a name ONLY when the user both set one and
+    // toggled "include name". Otherwise the QR carries an empty display name.
+    final includeName =
+        settings.includeNameInQr && settings.displayName.trim().isNotEmpty;
+    final card = IdentityCard.fromIdentityKeys(
+      id.keys,
+      displayName: includeName ? settings.displayName.trim() : '',
+    );
     final payload = card.toQrPayload();
     await showModalBottomSheet<void>(
       context: context,
@@ -303,6 +347,36 @@ class _AddContactMenuState extends ConsumerState<_AddContactMenu> {
         ),
       ),
     );
+  }
+
+  /// Unlock flow reused for the identity QR: biometric on native, an explicit
+  /// confirm + "no biometric available" warning on web / unsupported. Returns
+  /// true when the user is allowed to see the QR. Nothing is persisted.
+  Future<bool?> _unlockForQr(BuildContext context) async {
+    final l = L10n.of(context);
+    final auth = ref.read(authenticatorProvider);
+    final available = await auth.isBiometricAvailable();
+    if (!context.mounted) return false;
+    if (!available) {
+      return showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(l.t('reveal_id')),
+          content: Text(l.t('no_biometric_warning'),
+              style: const TextStyle(fontFamily: 'Roboto', fontSize: 16)),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: Text(l.t('cancel'))),
+            FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: Text(l.t('reveal_anyway'))),
+          ],
+        ),
+      );
+    }
+    final outcome = await auth.authenticate(reason: l.t('unlock_reason'));
+    return outcome == AuthOutcome.approved;
   }
 
   Future<void> _enterCode(BuildContext context) async {

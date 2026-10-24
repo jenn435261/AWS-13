@@ -1,0 +1,35 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "id": "us7000abcd",
+      "geometry": { "type": "Point", "coordinates": [-122.81, 38.82, 5.1] },
+      "properties": {
+        "mag": 6.4,
+        "place": "12km NW of Healdsburg, CA",
+        "time": 1769000000000,
+        "title": "M 6.4 - 12km NW of Healdsburg, CA",
+        "alert": "yellow"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "us7000efgh",
+      "geometry": { "type": "Point", "coordinates": [142.37, 38.30, 24.0] },
+      "properties": {
+        "mag": 7.8,
+        "place": "near the east coast of Honshu, Japan",
+        "time": 1769100000000,
+        "title": "M 7.8 - near the east coast of Honshu, Japan",
+        "alert": "red"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "",
+      "geometry": { "type": "Point", "coordinates": [0, 0] },
+      "properties": { "mag": 3.0, "place": "nowhere", "time": 1769200000000 }
+    }
+  ]
+}

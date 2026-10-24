@@ -46,6 +46,16 @@ class L10n {
     }
   }
 
+  /// The complete set of English keys — the union of the original [_data]
+  /// English map and the later [kStringsNew] English additions. English is the
+  /// source of truth, so this is the key set every other locale must cover.
+  /// Exposed so tests can pin l10n parity against the real English set rather
+  /// than a proxy.
+  static Set<String> get englishKeys => <String>{
+        ...?_data['en']?.keys,
+        ...?kStringsNew['en']?.keys,
+      };
+
   /// Human-readable language name for a code (for the language switcher).
   static String languageName(String code) {
     switch (code) {

@@ -7,6 +7,7 @@ package api
 
 import (
 	"context"
+	"crypto/ed25519"
 	"crypto/subtle"
 	"encoding/json"
 	"errors"
@@ -20,6 +21,7 @@ import (
 	resiliencev1 "github.com/resilience-network/aws13/cloud/gen/resilience/v1"
 	"github.com/resilience-network/aws13/cloud/internal/ai"
 	"github.com/resilience-network/aws13/cloud/internal/org"
+	"github.com/resilience-network/aws13/cloud/internal/packages"
 	"github.com/resilience-network/aws13/cloud/internal/store"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -75,6 +77,17 @@ type Server struct {
 	// /app-config.json. webDir is the Flutter web bundle directory (see web.go).
 	webKey string
 	webDir string
+
+	// packages serves cloud map/guidance packs (PMTiles) with Range + a
+	// cloud-signed manifest. Nil when no pack directory is configured.
+	packages *packages.Server
+
+	// feedPubkey is the cloud-service feed signing key's PUBLIC key (32 bytes).
+	// When set, /v1/alerts serves the EMERGENCY_ALERT events authored by it and
+	// /app-config.json advertises its hex so the app trusts it as a root
+	// (rendering feed alerts as Official). When nil, /v1/alerts returns an empty
+	// set (the deployment has no feed configured).
+	feedPubkey []byte
 
 	// blobs holds opaque, content-addressed encrypted attachment blobs
 	// (photos/audio). The server only ever sees ciphertext. blobLimiter rate
@@ -145,6 +158,24 @@ func WithClientTokens(tokens []string) Option {
 	}
 }
 
+// WithFeedPubkey installs the cloud-service feed signing key's PUBLIC key
+// (32-byte Ed25519). /v1/alerts serves the EMERGENCY_ALERT events authored by
+// it, and /app-config.json advertises its hex as the trusted feed root so the
+// app labels those alerts Official. An invalid length is ignored.
+func WithFeedPubkey(pub []byte) Option {
+	return func(s *Server) {
+		if len(pub) == ed25519.PublicKeySize {
+			s.feedPubkey = append([]byte(nil), pub...)
+		}
+	}
+}
+
+// WithPackages installs the cloud package server (PMTiles map/guidance packs
+// served with Range + a cloud-signed manifest). Nil disables the routes.
+func WithPackages(p *packages.Server) Option {
+	return func(s *Server) { s.packages = p }
+}
+
 // WithTrustedOrgs installs the verified-org signing-key set used to validate
 // and tag EMERGENCY_ALERT events (ORG_TRUSTED_PUBKEYS).
 func WithTrustedOrgs(t *org.TrustedOrgs) Option {
@@ -181,11 +212,18 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/v1/events", s.clientGate(s.handlePush))
 	mux.HandleFunc("/v1/events/pull", s.clientGate(s.handlePull))
 	mux.HandleFunc("/v1/blobs/", s.clientGate(s.handleBlob))
+	mux.HandleFunc("/v1/alerts", s.clientGate(s.handleAlerts))
+	mux.HandleFunc("/v1/safe-places", s.clientGate(s.handleSafePlaces))
 	mux.HandleFunc("/v1/ai/structure", s.clientGate(s.handleAIStructure))
 	mux.HandleFunc("/v1/ai/translate", s.clientGate(s.handleAITranslate))
 	mux.HandleFunc("/v1/ai/summarize", s.clientGate(s.handleAISummarize))
 	mux.HandleFunc("/v1/ai/dedup", s.clientGate(s.handleAIDedup))
 	mux.HandleFunc("/v1/org/needs", s.handleOrgNeeds)
+	if s.packages != nil {
+		// The pack endpoints are gated by the same client key as the sync/AI
+		// routes so a public deployment is not an open file server.
+		s.packages.Register(mux, s.clientGate)
+	}
 	mux.HandleFunc("/healthz", s.handleHealthz)
 	mux.HandleFunc("/readyz", s.handleReadyz)
 	s.mountWeb(mux)

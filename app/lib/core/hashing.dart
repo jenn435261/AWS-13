@@ -27,6 +27,16 @@ const int blake2bDigestLengthBytes = 32;
 final DartBlake2b _blake2b256 =
     DartBlake2b(hashLengthInBytes: blake2bDigestLengthBytes);
 
+/// The synchronous pure-Dart SHA-256 hasher. Used where a *standard* SHA-256 is
+/// required (QR transfer integrity, blob addressing) rather than the BLAKE2b
+/// event-id hash. Deterministic and platform-independent.
+final DartSha256 _sha256 = const DartSha256();
+
+/// Computes the SHA-256 (32-byte) digest of [data]. Synchronous and
+/// deterministic. Distinct from [blake2b256] which is used for event ids.
+Uint8List sha256(List<int> data) =>
+    Uint8List.fromList(_sha256.hashSync(data).bytes);
+
 /// Computes the BLAKE2b-256 (32-byte) digest of [data].
 ///
 /// Deterministic and synchronous. Returns a freshly-allocated [Uint8List] of

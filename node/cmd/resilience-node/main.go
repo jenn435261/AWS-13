@@ -16,12 +16,14 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
 	"github.com/resilience-network/aws13/node/internal/cache"
 	"github.com/resilience-network/aws13/node/internal/gateway"
+	"github.com/resilience-network/aws13/node/internal/lora"
 	"github.com/resilience-network/aws13/node/internal/packages"
 	"github.com/resilience-network/aws13/node/internal/pairing"
 	"github.com/resilience-network/aws13/node/internal/syncserver"
@@ -40,6 +42,10 @@ type config struct {
 	publicURL    string
 	signingKey   string
 	syncInterval time.Duration
+
+	// LoRa / Meshtastic serial gateway (opt-in; NEEDS REAL HARDWARE).
+	loraSerialPort string
+	loraBaud       int
 }
 
 func loadConfig() config {
@@ -54,6 +60,8 @@ func loadConfig() config {
 		publicURL:    envOr("PUBLIC_URL", ""),
 		signingKey:   envOr("PACKAGES_SIGNING_KEY", ""),
 		syncInterval: 15 * time.Second,
+		loraSerialPort: strings.TrimSpace(os.Getenv("LORA_SERIAL_PORT")),
+		loraBaud:       envIntOr("LORA_BAUD", 115200),
 	}
 	flag.StringVar(&c.httpAddr, "http-addr", c.httpAddr, "HTTP listen address (env HTTP_ADDR)")
 	flag.StringVar(&c.dataDir, "data-dir", c.dataDir, "directory for the append-only event log (env DATA_DIR); empty = in-memory only")
@@ -65,6 +73,8 @@ func loadConfig() config {
 	flag.StringVar(&c.publicURL, "public-url", c.publicURL, "address advertised in the pairing QR; default is the address the phone used (env PUBLIC_URL)")
 	flag.StringVar(&c.signingKey, "packages-signing-key", c.signingKey, "path to a hex-encoded Ed25519 private key (64 bytes) or seed (32 bytes) used to sign the package manifest (env PACKAGES_SIGNING_KEY); empty disables the signed manifest endpoint")
 	flag.DurationVar(&c.syncInterval, "sync-interval", c.syncInterval, "cloud/mesh sync cadence")
+	flag.StringVar(&c.loraSerialPort, "lora-serial-port", c.loraSerialPort, "serial device of a Meshtastic radio to run the LoRa gateway (env LORA_SERIAL_PORT); empty disables it. NEEDS REAL HARDWARE")
+	flag.IntVar(&c.loraBaud, "lora-baud", c.loraBaud, "baud rate for the LoRa serial device (env LORA_BAUD)")
 	flag.Parse()
 	return c
 }
@@ -146,6 +156,22 @@ func run(cfg config, logger *slog.Logger) error {
 			logger.Error("gateway loop error", "err", gwErr)
 		}
 	}()
+
+	// Optional LoRa / Meshtastic serial gateway (opt-in; NEEDS REAL HARDWARE).
+	if cfg.loraSerialPort != "" {
+		src, sink, lerr := lora.OpenSerial(cfg.loraSerialPort, cfg.loraBaud)
+		if lerr != nil {
+			return fmt.Errorf("open lora serial %q: %w", cfg.loraSerialPort, lerr)
+		}
+		lgw := lora.New(store, sink, logger)
+		go func() {
+			defer src.Close()
+			logger.Info("lora gateway started", "port", cfg.loraSerialPort, "baud", cfg.loraBaud)
+			if n, lerr := lgw.Run(ctx, src); lerr != nil && !errors.Is(lerr, context.Canceled) {
+				logger.Error("lora gateway loop error", "err", lerr, "stored", n)
+			}
+		}()
+	}
 
 	// Serve.
 	serveErr := make(chan error, 1)
@@ -261,4 +287,16 @@ func envOr(key, def string) string {
 		return v
 	}
 	return def
+}
+
+func envIntOr(key string, def int) int {
+	v := strings.TrimSpace(os.Getenv(key))
+	if v == "" {
+		return def
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil {
+		return def
+	}
+	return n
 }

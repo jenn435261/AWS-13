@@ -295,6 +295,7 @@ class GeoPoint extends $pb.GeneratedMessage {
     $core.double? exactLon,
     $core.bool? hasExact,
     $core.String? address,
+    LocationSource? locationSource,
   }) {
     final result = GeoPoint._();
     if (h3Cell != null) result.h3Cell = h3Cell;
@@ -304,6 +305,7 @@ class GeoPoint extends $pb.GeneratedMessage {
     if (exactLon != null) result.exactLon = exactLon;
     if (hasExact != null) result.hasExact = hasExact;
     if (address != null) result.address = address;
+    if (locationSource != null) result.locationSource = locationSource;
     return result;
   }
 
@@ -328,6 +330,8 @@ class GeoPoint extends $pb.GeneratedMessage {
     ..aD(5, _omitFieldNames ? '' : 'exactLon')
     ..aOB(6, _omitFieldNames ? '' : 'hasExact')
     ..aOS(7, _omitFieldNames ? '' : 'address')
+    ..aE<LocationSource>(8, _omitFieldNames ? '' : 'locationSource',
+        enumValues: LocationSource.values)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -412,6 +416,15 @@ class GeoPoint extends $pb.GeneratedMessage {
   $core.bool hasAddress() => $_has(6);
   @$pb.TagNumber(7)
   void clearAddress() => $_clearField(7);
+
+  @$pb.TagNumber(8)
+  LocationSource get locationSource => $_getN(7);
+  @$pb.TagNumber(8)
+  set locationSource(LocationSource value) => $_setField(8, value);
+  @$pb.TagNumber(8)
+  $core.bool hasLocationSource() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearLocationSource() => $_clearField(8);
 }
 
 class IdentityCertificateBody extends $pb.GeneratedMessage {

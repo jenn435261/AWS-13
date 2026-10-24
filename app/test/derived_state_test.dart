@@ -460,4 +460,77 @@ void main() {
     expect(
         world.resources['inc']!.resource.amount, AmountBand.AMOUNT_BAND_LOW);
   });
+
+  // FEAT-003 §3.1: a multi-item supply is published as one event per item.
+  // Extra UI items (fuel/hygiene/comms/baby/pets) map onto existing proto
+  // categories plus a free-text label; the fold keys each by its own resource
+  // id, so every item lands as its own ResourceView with its own inventory.
+  test('multi-item supply folds into one ResourceView per item', () async {
+    final KeyPairData owner = await signer.generateKeyPair();
+
+    ResourceBody item(String id, ResourceCategory cat, String title) =>
+        ResourceBody(
+          resourceId: id,
+          category: cat,
+          title: title,
+          amount: AmountBand.AMOUNT_BAND_SOME,
+          availability: Availability.AVAILABILITY_NOW,
+          provenance: ProvenanceKind.PROVENANCE_KIND_COMMUNITY,
+        );
+
+    final List<SignedEvent> log = <SignedEvent>[
+      // water (direct), fuel->POWER label "Fuel", hygiene->MEDICINE "Hygiene".
+      await _build(owner, EventType.EVENT_TYPE_RESOURCE_CREATED,
+          item('m-water', ResourceCategory.RESOURCE_CATEGORY_WATER, 'Water'),
+          createdAtMs: kNow),
+      await _build(
+          owner,
+          EventType.EVENT_TYPE_INVENTORY_SNAPSHOT,
+          InventorySnapshotBody(
+              resourceId: 'm-water',
+              quantity: Int64(12),
+              unit: 'bottles',
+              asOfMs: Int64(kNow)),
+          createdAtMs: kNow),
+      await _build(owner, EventType.EVENT_TYPE_RESOURCE_CREATED,
+          item('m-fuel', ResourceCategory.RESOURCE_CATEGORY_POWER, 'Fuel'),
+          createdAtMs: kNow),
+      await _build(
+          owner,
+          EventType.EVENT_TYPE_INVENTORY_SNAPSHOT,
+          InventorySnapshotBody(
+              resourceId: 'm-fuel',
+              quantity: Int64(5),
+              unit: 'cans',
+              asOfMs: Int64(kNow)),
+          createdAtMs: kNow),
+      await _build(
+          owner,
+          EventType.EVENT_TYPE_RESOURCE_CREATED,
+          item('m-hyg', ResourceCategory.RESOURCE_CATEGORY_MEDICINE, 'Hygiene'),
+          createdAtMs: kNow),
+    ];
+
+    final WorldState world = WorldState(clock: () => kNow);
+    world.rebuildFromEvents(log);
+
+    // All three items are present, each with its own category + label.
+    expect(world.resources.keys,
+        containsAll(<String>['m-water', 'm-fuel', 'm-hyg']));
+    expect(world.resources['m-water']!.resource.category,
+        ResourceCategory.RESOURCE_CATEGORY_WATER);
+    expect(world.resources['m-fuel']!.resource.category,
+        ResourceCategory.RESOURCE_CATEGORY_POWER);
+    expect(world.resources['m-fuel']!.resource.title, 'Fuel');
+    expect(world.resources['m-hyg']!.resource.category,
+        ResourceCategory.RESOURCE_CATEGORY_MEDICINE);
+    expect(world.resources['m-hyg']!.resource.title, 'Hygiene');
+
+    // Per-item inventory folds independently.
+    expect(world.resources['m-water']!.inventory?.quantity, 12);
+    expect(world.resources['m-water']!.inventory?.unit, 'bottles');
+    expect(world.resources['m-fuel']!.inventory?.quantity, 5);
+    // The hygiene item carries no snapshot, so no inventory — not cross-leaked.
+    expect(world.resources['m-hyg']!.inventory, isNull);
+  });
 }
