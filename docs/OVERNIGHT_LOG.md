@@ -87,3 +87,37 @@ Built the app's sync client and wired it end to end.
 
 - NOT run: the full browser two-profile click-through (build web + puppeteer-core + two Chrome contexts against a locally-run cloud+node+served web build). The combined one-shell-call orchestration (release web build, three background servers, puppeteer npm install, two profiles, screenshots, teardown) was deemed too fragile/slow for the single-shell-invocation constraint this round.
 - Ran instead: a Go-level two-client integration test, `TestTwoProfileSyncThroughCloud`, against a **real local cloud API** (`httptest.NewServer`). Two distinct Ed25519 identities model profiles A and B: A publishes a help request + supply + emergency alert + identity certificate and pushes them via `POST /v1/events`; B pulls via `POST /v1/events/pull` from an empty watermark and receives all four **byte-identical** (so verified/community provenance in the body survives), then a re-pull from the new watermark returns zero (idempotence). This exercises the exact cloud endpoints and request/response types `CloudSync` uses.
+
+### 2026-10-24 — FEAT-003 (Item B): secure messaging with photos and audio
+
+Made the Messages Direct tab work end to end over the FEAT-002 sync client.
+
+**What shipped:**
+
+- **Durable Signal store (Drift, schema v2).** `app/lib/db/database.dart` gains six `Signal*` tables (identity, one-time prekeys, signed prekeys, sessions, sender keys, trusted remote keys); `schemaVersion` bumped 1→2 with an `onUpgrade` migration; `wipeAll()` clears them. `app/lib/db/signal_dao.dart` (+ regenerated `signal_dao.g.dart`, `database.g.dart`) persists the bytes. `app/lib/messaging/drift_signal_store.dart` — `DriftSignalProtocolStore` write-through wrapper over the vetted libsignal records; `SignalKeys.loadDurableStore` generates+persists device keys on first run and re-hydrates afterward.
+- **Prekey publication over the log.** `app/lib/messaging/messaging_service.dart` publishes our bundle as an `EVENT_TYPE_PREKEY_BUNDLE` event and looks up a contact's bundle by folding the log, then runs X3DH — no new endpoint.
+- **Encrypted attachments.** `message_payload.dart` (`MessagePayload{kind,text,attachments[]}` + `Attachment{sha256,size,mime,key,thumbnail,…}`), `attachment_cipher.dart` (AES-256-GCM encrypt/decrypt + sha256 verify), `blob_transport.dart` (PUT/GET cloud+node, in-memory fake for tests). `message_flow.dart` gains `sendPayload`/`receivePayload`/`attachBytes`/`fetchAttachment`.
+- **Blob endpoints.** `cloud/internal/api/{blobstore.go,server.go}` → `PUT/GET /v1/blobs/{sha256}` (client-key gated, 2 MiB cap, hash-match, rate limit, 7-day purge). `node/internal/syncserver/{blobstore.go,server.go}` → `/node/v1/blobs/{sha256}` (same guards, local Wi-Fi).
+- **Media.** `photo_prep.dart` (downscale ≤1600px, ≤8KB thumbnail, **EXIF/GPS strip**), `voice_note.dart` (hold-to-record AAC mono ≤60s + cancel/play/duration), `recorded_bytes*.dart` (platform byte reader). Packages added: `image`, `image_picker`, `record`, `audioplayers` — all web-safe; `flutter build web --release` verified green after adding them.
+- **UI.** `app/lib/ui/screens/messages_screen.dart` rewritten: Direct tab lists contacts with messages (newest first), opens a conversation view with delivery states (queued/propagating/delivered/read), and a bottom composer (text ≥16px + photo + hold-to-record voice). Community/Mission stay honest. `messaging_providers.dart` wires the service + blob transport.
+- **l10n.** Added `community_not_wired`, `mission_not_wired`, `no_messages_yet`, `photo`, `voice_note`, `attachment_failed`, `cannot_start_chat`, `attach_photo`, `hold_to_record`, `mic_unavailable` to EN+ES (`strings_new.dart`), FR, ZH.
+
+**Tests added:**
+
+- `app/test/messaging_e2e_test.dart` (4) — A→B text+photo+audio round trip through the store+sync seam; delivery-state progression queued→propagating→delivered→read; the blob store holds **only ciphertext**; tampered attachment ciphertext fails hash/auth and is not shown; tampered message ciphertext is rejected and not shown.
+- `app/test/drift_signal_store_test.dart` (2) — identity re-hydrates across restart; a session established before "restart" keeps decrypting.
+- `app/test/photo_prep_test.dart` (2) — downscale ≤1600px, EXIF stripped from output, thumbnail ≤8KB; non-image returns null.
+- `cloud/internal/api/blob_test.go` (6) + `node/internal/syncserver/blob_test.go` (5) — round-trip, hash-mismatch 400, over-cap 413, cloud 401 without key, rate-limit 429, and the **ciphertext-only** privacy assertion (server never holds plaintext or key).
+
+**Verification (all green):**
+
+- `cd app && flutter analyze` → `No issues found!` (with `ulimit -n 8192`).
+- `cd app && flutter test $(ls test/*.dart | grep -v screenshots_test.dart)` → **135 passed** (127 + 8 new).
+- `cd cloud && go vet ./... && go test ./...` → all `ok`.
+- `cd node && go vet ./... && go test ./...` → all `ok`.
+- `cd app && flutter build web --release` → `✓ Built build/web` (media packages did not break it).
+
+**Browser click-through — what ran vs. what was substituted (honest record):**
+
+- **Ran:** a single-shell-call orchestration that built the cloud+node binaries, served the release web bundle THROUGH the cloud (same-origin, `WEB_DIR=cloud/web`, `PORT`, `CLIENT_API_KEYS=devkey`) on one port and ran the node on another, then with `puppeteer-core` + `/usr/local/bin/chrome` (headless, `--no-sandbox --disable-dev-shm-usage`, 412px viewport) loaded the app in **two separate browser profiles** (distinct `userDataDir`). Both booted `flutter-view` same-origin reading `/app-config.json`, with **zero console/page errors** (benign favicon/manifest 404s ignored); screenshots saved to `/tmp/feat003_{A,B}_*.png`. In the same call, the cloud+node blob endpoints were exercised **A→B**: A encrypts a sensitive "photo" (with embedded fake GPS text) using a random AES-256-GCM key, PUTs the ciphertext to both cloud and node; the run asserts the servers return **exactly the ciphertext** (never the plaintext or key), that B decrypts it with the key (which never touched a server), that the cloud endpoint is **401 without the devkey**, and that a **hash/content mismatch is 400**.
+- **NOT driven through the Flutter UI:** adding contacts by code and composing a photo/voice note by tapping the semantics tree. Reason: a headless browser has **no microphone** (hold-to-record is unobservable) and `image_picker`'s native file dialog cannot be driven headlessly. These paths are instead proven by the Dart A→B text+photo+audio round-trip test (`messaging_e2e_test.dart`) and the Go ciphertext-only assertions above. No browser UI result is claimed that was not actually produced.
