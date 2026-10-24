@@ -1600,4 +1600,100 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get resourceNotFound => 'This place is no longer on the map.';
+
+  @override
+  String get netStatusSending => 'Sending';
+
+  @override
+  String netStatusSendingSub(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count items on their way',
+      one: '1 item on its way',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String netStatusWaiting(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Waiting for a connection: $count items held',
+      one: 'Waiting for a connection: 1 item held',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get netStatusWaitingSub =>
+      'Saved on this phone. It goes as soon as any link appears.';
+
+  @override
+  String get netStatusSent => 'Everything is sent';
+
+  @override
+  String get netStatusOffline => 'No connection right now';
+
+  @override
+  String get netStatusOfflineSub =>
+      'New messages and requests wait safely on this phone.';
+
+  @override
+  String get netConnections => 'Connections';
+
+  @override
+  String get netAws => 'AWS';
+
+  @override
+  String get netAwsDirect => 'Reached over the internet';
+
+  @override
+  String get netAwsMesh => 'Reached through the mesh';
+
+  @override
+  String get netAwsNone => 'Out of reach for now';
+
+  @override
+  String get netAdvanced => 'Advanced';
+
+  @override
+  String get netAdvancedSub => 'Each link, sync times, and the demo switch';
+
+  @override
+  String get netLinkCloud => 'AWS over the internet';
+
+  @override
+  String get netLinkNode => 'Resilience node on Wi-Fi';
+
+  @override
+  String get netLinkLora => 'LoRa radio';
+
+  @override
+  String get netLinkWifi => 'Phones over Wi-Fi';
+
+  @override
+  String get netLinkBluetooth => 'Phones over Bluetooth';
+
+  @override
+  String get netLinkUp => 'Working';
+
+  @override
+  String get netLinkDown => 'Not in range';
+
+  @override
+  String get netLinkUnavailable => 'Not set up on this phone';
+
+  @override
+  String netLinkConfirmed(String time) {
+    return 'Last confirmed $time';
+  }
+
+  @override
+  String get privacyLocationTitle => 'Your location';
+
+  @override
+  String get privacyLocationBody =>
+      'Your location stays on this phone. It is shared only while you carry a delivery, so the people waiting can see it coming, and it stops when the delivery ends. A help request or SOS carries only the place you chose to send with it.';
 }

@@ -83,6 +83,14 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
         builder: (context, _) => ListView(
           padding: EdgeInsets.only(bottom: bottomClearance(context)),
           children: [
+            // The rule itself lives in the data layer (LocationPolicy);
+            // this says it in plain words.
+            ListTile(
+              leading: const Icon(Icons.location_on_outlined),
+              title: Text(l.privacyLocationTitle),
+              subtitle: Text(l.privacyLocationBody),
+            ),
+            const Divider(),
             SwitchListTile(
               secondary: const Icon(Icons.fingerprint),
               title: Text(l.phoneLock),

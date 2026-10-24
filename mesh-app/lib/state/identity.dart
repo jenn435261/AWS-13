@@ -59,6 +59,11 @@ class Identity {
     );
   }
 
+  /// Signs raw bytes with this phone's key: the 64-byte Ed25519 signature
+  /// the team's wire format puts on every event (data/wire/event_codec.dart).
+  Future<List<int>> signBytes(List<int> message) async =>
+      (await _ed25519.sign(message, keyPair: _keyPair)).bytes;
+
   /// Checks that [event] was signed by this identity and not changed since.
   /// Returns false, never throws, for a malformed or foreign signature.
   Future<bool> verify(SignedEvent event) async {

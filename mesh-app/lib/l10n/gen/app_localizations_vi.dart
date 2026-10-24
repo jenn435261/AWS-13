@@ -1585,4 +1585,99 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get resourceNotFound => 'Địa điểm này không còn trên bản đồ.';
+
+  @override
+  String get netStatusSending => 'Đang gửi';
+
+  @override
+  String netStatusSendingSub(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count mục đang trên đường đi',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String netStatusWaiting(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Đang chờ kết nối: $count mục được giữ lại',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get netStatusWaitingSub =>
+      'Đã lưu trên điện thoại này. Sẽ gửi ngay khi có bất kỳ kết nối nào.';
+
+  @override
+  String get netStatusSent => 'Đã gửi hết';
+
+  @override
+  String get netStatusOffline => 'Hiện không có kết nối';
+
+  @override
+  String get netStatusOfflineSub =>
+      'Tin nhắn và yêu cầu mới được giữ an toàn trên điện thoại này.';
+
+  @override
+  String get netConnections => 'Kết nối';
+
+  @override
+  String get netAws => 'AWS';
+
+  @override
+  String get netAwsDirect => 'Kết nối qua internet';
+
+  @override
+  String get netAwsMesh => 'Kết nối qua mạng bộ đàm';
+
+  @override
+  String get netAwsNone => 'Hiện chưa liên lạc được';
+
+  @override
+  String get netAdvanced => 'Nâng cao';
+
+  @override
+  String get netAdvancedSub =>
+      'Từng kết nối, thời gian đồng bộ và công tắc thử nghiệm';
+
+  @override
+  String get netLinkCloud => 'AWS qua internet';
+
+  @override
+  String get netLinkNode => 'Trạm Resilience qua Wi-Fi';
+
+  @override
+  String get netLinkLora => 'Bộ đàm LoRa';
+
+  @override
+  String get netLinkWifi => 'Điện thoại qua Wi-Fi';
+
+  @override
+  String get netLinkBluetooth => 'Điện thoại qua Bluetooth';
+
+  @override
+  String get netLinkUp => 'Đang hoạt động';
+
+  @override
+  String get netLinkDown => 'Ngoài tầm';
+
+  @override
+  String get netLinkUnavailable => 'Chưa thiết lập trên điện thoại này';
+
+  @override
+  String netLinkConfirmed(String time) {
+    return 'Xác nhận lần cuối $time';
+  }
+
+  @override
+  String get privacyLocationTitle => 'Vị trí của bạn';
+
+  @override
+  String get privacyLocationBody =>
+      'Vị trí của bạn ở lại trên điện thoại này. Vị trí chỉ được chia sẻ khi bạn đang chở một chuyến giao hàng, để người đang chờ thấy bạn đến, và sẽ ngừng khi chuyến giao kết thúc. Yêu cầu giúp đỡ hoặc SOS chỉ kèm theo địa điểm bạn đã chọn gửi.';
 }
