@@ -25,7 +25,8 @@ enum _Precision { exact, approximate }
 class _State extends ConsumerState<LocationShareScreen> {
   _Audience _audience = _Audience.contact;
   _Precision _precision = _Precision.approximate;
-  Duration _ttl = const Duration(minutes: 15);
+  /// null => until the user stops sharing.
+  Duration? _ttl = const Duration(minutes: 15);
   bool _sharing = false;
   DateTime? _expiresAt;
 
@@ -56,8 +57,10 @@ class _State extends ConsumerState<LocationShareScreen> {
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        '${l.t('sharing_active')} — ${l.t('expires_in')} '
-                        '${_remaining()}',
+                        _expiresAt == null
+                            ? '${l.t('sharing_active')} — ${l.t('sharing_until_stopped')}'
+                            : '${l.t('sharing_active')} — ${l.t('expires_in')} '
+                                '${_remaining()}',
                         style: const TextStyle(fontFamily: 'Roboto', 
                             fontSize: 16, fontWeight: FontWeight.w600),
                       ),
@@ -134,25 +137,33 @@ class _State extends ConsumerState<LocationShareScreen> {
                 style:
                     const TextStyle(fontFamily: 'Roboto', fontSize: 18, fontWeight: FontWeight.w600)),
             const SizedBox(height: 10),
-            Wrap(spacing: 10, children: [
-              ChoiceChip(
-                label: Text(l.t('dur_15m')),
-                selected: _ttl == const Duration(minutes: 15),
-                onSelected: (_) =>
-                    setState(() => _ttl = const Duration(minutes: 15)),
-              ),
-              ChoiceChip(
-                label: Text(l.t('dur_1h')),
-                selected: _ttl == const Duration(hours: 1),
-                onSelected: (_) =>
-                    setState(() => _ttl = const Duration(hours: 1)),
-              ),
+            Wrap(spacing: 10, runSpacing: 4, children: [
+              for (final (String key, Duration? d) in <(String, Duration?)>[
+                ('dur_15m', const Duration(minutes: 15)),
+                ('dur_1h', const Duration(hours: 1)),
+                ('dur_4h', const Duration(hours: 4)),
+                ('dur_24h', const Duration(hours: 24)),
+                ('dur_indefinite', null),
+              ])
+                ChoiceChip(
+                  label: Text(l.t(key)),
+                  selected: _ttl == d,
+                  onSelected: (_) => setState(() => _ttl = d),
+                ),
             ]),
+            const SizedBox(height: 12),
+            Text(l.t('location_not_connected'),
+                style: TextStyle(
+                    fontFamily: 'Roboto',
+                    fontSize: 16,
+                    color: scheme.outline)),
 
             const SizedBox(height: 28),
             if (!_sharing)
               FilledButton.icon(
-                onPressed: _start,
+                // Disabled until a position source and delivery path exist; a
+                // live "sharing" state would claim a share that is not sent.
+                onPressed: null,
                 icon: const Icon(Icons.my_location_rounded),
                 label: Text(l.t('share_location')),
               )
@@ -186,16 +197,6 @@ class _State extends ConsumerState<LocationShareScreen> {
     if (left.isNegative) return '0m';
     final m = left.inMinutes;
     return m >= 60 ? '${m ~/ 60}h ${m % 60}m' : '${m}m';
-  }
-
-  void _start() {
-    HapticFeedback.mediumImpact();
-    setState(() {
-      _sharing = true;
-      _expiresAt = DateTime.now().add(_ttl);
-    });
-    Toast.show(context, L10n.of(context).t('location_shared'),
-        undoLabel: L10n.of(context).t('stop_sharing'), onUndo: _stop);
   }
 
   void _stop() {

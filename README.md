@@ -54,7 +54,7 @@ Toolchain: Flutter (Dart 3.11+), Go 1.26, protoc/buf.
 
 ```bash
 # App
-cd app && flutter pub get && flutter test            # 103 tests (excluding screenshots_test, which needs the original author's sandbox font path)
+cd app && flutter pub get && flutter test            # 107 tests (excluding screenshots_test, which needs the original author's sandbox font path)
 
 # Cloud (Go)
 cd cloud && go test ./...                            # events/store/api/ai/org
@@ -115,6 +115,22 @@ the proxy may be enabled with SSL/TLS mode **Full**.
 event account (`WSParticipantRole`) denies `iam:CreateRole`/`PassRole`, so
 `cdk bootstrap` fails (re-confirmed). It deploys on any normal AWS account
 (`infra/deploy.sh`). See `infra/DEPLOY_NOTES.md`. S3 and Bedrock were proven live.
+
+## What works today (verified by clicking through the web build)
+
+| Area | State |
+|------|-------|
+| Signed event log, local DB (SQLite-WASM on web, SQLite on mobile) | Working. "I Need Help"/"Offer Help" create signed events, persisted locally; My Requests / My Supplies read them back |
+| Contacts | Working: add by QR scan (camera), by pasted code, show/copy my QR; saved locally; remove with undo |
+| AI assist (Bedrock via the Go API) | Working when the API is reachable and AWS credentials are valid; otherwise local rules (`degraded`) |
+| Network status | Real: probes the cloud `/healthz` (latency, last checked). Nearby peers unavailable in browsers; node and LoRa not set up |
+| Offline downloads | Probes a Resilience Node address you enter and lists only what it confirms |
+| Trusted organizations | Shows installed trust roots (empty until a readiness package installs one) |
+| Data controls | Erase-all really wipes events, contacts and identity; clear-cache rebuilds derived state |
+| Location sharing | **Not connected.** Audience/precision/duration (15m, 1h, 4h, 24h, until I stop) UI exists, but there is no position source or delivery path, so the button is disabled |
+| Secure messaging | **Not connected.** Crypto engines are tested (Signal X3DH/Double Ratchet), but chats need prekey publication, a durable Signal store and an app-side sync client that do not exist yet |
+| App-side cloud sync (push/pull events) | **Not built.** The API endpoints exist and are tested; the app does not call them yet |
+| Cloud event store | In-memory on the Heroku dyno (resets on restart) unless `RESILIENCE_PG_DSN` is set |
 
 ## Status
 

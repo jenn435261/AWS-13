@@ -15,7 +15,7 @@ class Toast {
     String message, {
     String? undoLabel,
     VoidCallback? onUndo,
-    Duration duration = const Duration(seconds: 4),
+    Duration duration = const Duration(seconds: 5),
     bool urgent = false,
   }) {
     HapticFeedback.lightImpact();
@@ -25,6 +25,9 @@ class Toast {
       SnackBar(
         content: Text(message),
         duration: duration,
+        // SnackBars that carry an action stay on screen until dismissed unless
+        // persist is false; every toast here must auto-dismiss.
+        persist: false,
         backgroundColor: urgent ? Theme.of(context).colorScheme.error : null,
         action: (onUndo != null)
             ? SnackBarAction(

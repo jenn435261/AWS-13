@@ -9,6 +9,8 @@ import '../core/event_store.dart';
 import '../core/lamport_clock.dart';
 import '../core/signing.dart';
 import '../db/database.dart';
+import '../identity/contact_store.dart';
+import '../identity/identity_card.dart';
 import '../identity/identity_store.dart';
 import '../state/derived_state.dart';
 import '../trust/trust_roots.dart';
@@ -140,3 +142,16 @@ final showDeliveriesProvider = StateProvider<bool>((ref) => false);
 
 /// The current app locale (for the language switcher). Null = system default.
 final localeProvider = StateProvider<Locale?>((ref) => null);
+
+
+/// Saved contacts (public identity cards), persisted in the local database.
+final contactStoreProvider =
+    Provider<ContactStore>((ref) => ContactStore(ref.watch(databaseProvider)));
+
+/// Bumped after the contact list changes so [contactsProvider] reloads.
+final contactsRevisionProvider = StateProvider<int>((ref) => 0);
+
+final contactsProvider = FutureProvider<List<IdentityCard>>((ref) async {
+  ref.watch(contactsRevisionProvider);
+  return ref.watch(contactStoreProvider).list();
+});

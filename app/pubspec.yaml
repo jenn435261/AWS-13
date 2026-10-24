@@ -23,7 +23,10 @@ dependencies:
   local_auth: ^2.3.0
 
   # Local database (locked stack)
-  drift: ^2.20.0
+  # drift + sqlite3 are pinned: web/sqlite3.wasm and web/drift_worker.js are the
+  # matching release assets (drift-2.35.3 / sqlite3-3.8.0); bump all four together.
+  drift: 2.35.3
+  sqlite3: 3.8.0
   sqlite3_flutter_libs: ^0.5.24
   path_provider: ^2.1.4
   path: ^1.9.0

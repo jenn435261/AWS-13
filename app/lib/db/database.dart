@@ -68,6 +68,13 @@ class AppDatabase extends _$AppDatabase {
   /// Opens the on-device database (native file; WASM/IndexedDB on web).
   factory AppDatabase.open() => AppDatabase(conn.openConnection());
 
+  /// Deletes every event and every key/value row (contacts, settings). Used by
+  /// the "Full wipe" data control.
+  Future<void> wipeAll() => transaction(() async {
+        await delete(events).go();
+        await delete(keyValue).go();
+      });
+
   @override
   int get schemaVersion => 1;
 

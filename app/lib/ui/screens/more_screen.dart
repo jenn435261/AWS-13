@@ -2,11 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../identity/identity_store.dart';
 import '../../l10n/strings.dart';
 import '../components/toast.dart';
+import '../../app/providers.dart';
 import 'location_share_screen.dart';
+import 'my_posts_screen.dart';
 import 'network_status_screen.dart';
+import 'offline_downloads_screen.dart';
 import 'settings_screen.dart';
+import 'trusted_orgs_screen.dart';
 
 /// The "More" hub: itemized secondary actions with icons + readable labels
 /// (keeps the primary screens uncluttered). Includes data controls
@@ -27,16 +32,19 @@ class MoreScreen extends ConsumerWidget {
               Navigator.of(context).push(MaterialPageRoute(
                   builder: (_) => const LocationShareScreen()));
             }),
-            _tile(context, Icons.inventory_2_outlined, l.t('my_supplies')),
-            _tile(context, Icons.help_outline_rounded, l.t('my_requests')),
-            _tile(context, Icons.download_outlined, l.t('offline_downloads')),
+            _tile(context, Icons.inventory_2_outlined, l.t('my_supplies'),
+                onTap: () => _open(context, const MyPostsScreen(requests: false))),
+            _tile(context, Icons.help_outline_rounded, l.t('my_requests'),
+                onTap: () => _open(context, const MyPostsScreen(requests: true))),
+            _tile(context, Icons.download_outlined, l.t('offline_downloads'),
+                onTap: () => _open(context, const OfflineDownloadsScreen())),
             _tile(context, Icons.network_check_rounded, l.t('network_status'),
                 onTap: () {
               Navigator.of(context).push(MaterialPageRoute(
                   builder: (_) => const NetworkStatusScreen()));
             }),
-            _tile(context, Icons.verified_outlined,
-                l.t('trusted_organizations')),
+            _tile(context, Icons.verified_outlined, l.t('trusted_organizations'),
+                onTap: () => _open(context, const TrustedOrgsScreen())),
             _tile(context, Icons.settings_outlined, l.t('settings'), onTap: () {
               Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const SettingsScreen()));
@@ -53,8 +61,11 @@ class MoreScreen extends ConsumerWidget {
             _tile(context, Icons.cleaning_services_outlined, l.t('clear_cache'),
                 onTap: () {
               HapticFeedback.mediumImpact();
-              Toast.show(context, l.t('clear_cache'),
-                  undoLabel: l.t('undo'), onUndo: () {});
+              // The only cache is the derived world-state projection (rebuilt
+              // from the signed log); no event data is touched.
+              ref.invalidate(worldStateProvider);
+              ref.invalidate(cloudProbeProvider);
+              Toast.show(context, l.t('cache_cleared'));
             }),
             _tile(
               context,
@@ -89,10 +100,22 @@ class MoreScreen extends ConsumerWidget {
         ],
       ),
     );
-    if (ok == true && context.mounted) {
+    if (ok == true) {
       HapticFeedback.heavyImpact();
-      Toast.show(context, l.t('full_wipe'), urgent: true);
+      await ref.read(databaseProvider).wipeAll();
+      await IdentityStore(ref.read(secretStoreProvider)).clear();
+      ref.invalidate(identityProvider);
+      ref.invalidate(contactsProvider);
+      ref.invalidate(worldStateProvider);
+      bumpWorld(ref);
+      if (context.mounted) {
+        Toast.show(context, l.t('data_erased'), urgent: true);
+      }
     }
+  }
+
+  void _open(BuildContext context, Widget screen) {
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
   }
 
   Widget _tile(BuildContext context, IconData icon, String title,
