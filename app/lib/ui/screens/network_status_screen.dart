@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
@@ -7,8 +6,10 @@ import '../../app/providers.dart';
 import '../../l10n/strings.dart';
 import '../../nodes/node_store.dart';
 import '../../sync/sync_providers.dart';
+import '../../transport/transport_status.dart';
 import '../theme/app_theme.dart';
 import 'nodes_screen.dart';
+import 'qr_transfer_screen.dart';
 
 /// Result of probing the cloud API's /healthz.
 class CloudProbe {
@@ -98,24 +99,20 @@ class NetworkStatusScreen extends ConsumerWidget {
       body: SafeArea(
         child: ListView(
           children: [
-            _row(context, Icons.public_rounded, l.t('conn_internet'), internet),
-            _row(
-                context,
-                Icons.wifi_tethering_rounded,
-                l.t('nearby_peers'),
-                _Row(
-                    kIsWeb
-                        ? l.t('status_unavailable_here')
-                        : l.t('status_not_configured'),
-                    _Tone.neutral)),
+            // Cloud + Node are driven by live probes.
+            _row(context, Icons.public_rounded, l.t('transport_cloud'),
+                internet),
             InkWell(
               onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const NodesScreen())),
-              child: _row(context, Icons.router_rounded, l.t('resilience_node'),
+              child: _row(context, Icons.router_rounded, l.t('transport_node'),
                   nodeRow),
             ),
-            _row(context, Icons.cell_tower_rounded, l.t('lora'),
-                _Row(l.t('status_not_supported'), _Tone.neutral)),
+            // Radio + QR transports: honest state, never a fake "connected".
+            // In this build no live BLE/LoRa/Nearby session is wired into the
+            // provider graph yet, so they report their honest resting state
+            // (unavailable on web; needs real devices/hardware on native).
+            ..._radioRows(context, l),
             const Divider(),
             _syncTile(context, ref, l),
             ListTile(
@@ -132,6 +129,39 @@ class NetworkStatusScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  /// The honest radio + QR transport rows (Nearby, BLE, LoRa, QR).
+  List<Widget> _radioRows(BuildContext context, L10n l) {
+    final rows = radioTransportRows();
+    return rows.map((s) {
+      final icon = switch (s.labelKey) {
+        'transport_nearby' => Icons.wifi_tethering_rounded,
+        'transport_ble' => Icons.bluetooth_rounded,
+        'transport_lora' => Icons.cell_tower_rounded,
+        'transport_qr' => Icons.qr_code_2_rounded,
+        _ => Icons.hub_rounded,
+      };
+      final tone = switch (s.tone) {
+        StatusTone.good => _Tone.good,
+        StatusTone.bad => _Tone.bad,
+        StatusTone.neutral => _Tone.neutral,
+      };
+      String text = l.t(s.stateKey);
+      if (s.lastActivityMs != null) {
+        text = '$text · ${l.t('status_last_activity').replaceFirst('{time}', _clock(DateTime.fromMillisecondsSinceEpoch(s.lastActivityMs!)))}';
+      }
+      final row = _row(context, icon, l.t(s.labelKey), _Row(text, tone));
+      // QR transfer is actionable: tapping it opens the Transfer-by-QR screen.
+      if (s.labelKey == 'transport_qr') {
+        return InkWell(
+          onTap: () => Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => const QrTransferScreen())),
+          child: row,
+        );
+      }
+      return row;
+    }).toList();
   }
 
   static String _clock(DateTime t) =>
