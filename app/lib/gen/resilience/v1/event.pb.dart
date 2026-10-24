@@ -1552,6 +1552,92 @@ class HelpOfferBody extends $pb.GeneratedMessage {
   GeoPoint ensureLocation() => $_ensure(5);
 }
 
+/// Closes/cancels a prior HELP_REQUESTED. Honored ONLY when signed by the same
+/// author that signed the original request (owner-only; a close from any other
+/// key is ignored by the fold). References the request by id.
+class HelpRequestClosedBody extends $pb.GeneratedMessage {
+  factory HelpRequestClosedBody({
+    $core.String? requestId,
+    $core.String? reason,
+    $fixnum.Int64? closedAtMs,
+  }) {
+    final result = HelpRequestClosedBody._();
+    if (requestId != null) result.requestId = requestId;
+    if (reason != null) result.reason = reason;
+    if (closedAtMs != null) result.closedAtMs = closedAtMs;
+    return result;
+  }
+
+  HelpRequestClosedBody._();
+
+  factory HelpRequestClosedBody.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      HelpRequestClosedBody()..mergeFromBuffer(data, registry);
+  factory HelpRequestClosedBody.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      HelpRequestClosedBody()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'HelpRequestClosedBody',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'resilience.v1'),
+      createEmptyInstance: HelpRequestClosedBody.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'requestId')
+    ..aOS(2, _omitFieldNames ? '' : 'reason')
+    ..aInt64(3, _omitFieldNames ? '' : 'closedAtMs')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  HelpRequestClosedBody clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  HelpRequestClosedBody copyWith(
+          void Function(HelpRequestClosedBody) updates) =>
+      super.copyWith((message) => updates(message as HelpRequestClosedBody))
+          as HelpRequestClosedBody;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use HelpRequestClosedBody() / HelpRequestClosedBody.new instead')
+  static HelpRequestClosedBody create() => HelpRequestClosedBody._();
+  static $pb.GeneratedMessage $_createMessage() => HelpRequestClosedBody._();
+  @$core.override
+  HelpRequestClosedBody createEmptyInstance() => HelpRequestClosedBody._();
+  @$core.pragma('dart2js:noInline')
+  static HelpRequestClosedBody getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<HelpRequestClosedBody>(
+          HelpRequestClosedBody.$_createMessage);
+  static HelpRequestClosedBody? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get requestId => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set requestId($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasRequestId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearRequestId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get reason => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set reason($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasReason() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearReason() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $fixnum.Int64 get closedAtMs => $_getI64(2);
+  @$pb.TagNumber(3)
+  set closedAtMs($fixnum.Int64 value) => $_setInt64(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasClosedAtMs() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearClosedAtMs() => $_clearField(3);
+}
+
 class TransportOfferBody extends $pb.GeneratedMessage {
   factory TransportOfferBody({
     $core.String? offerId,

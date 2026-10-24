@@ -53,8 +53,9 @@ class MapScreen extends ConsumerWidget {
     var unplaced = 0;
     final w = world.valueOrNull;
     if (w != null) {
-      for (final r in w.rankedResources()) {
-        if (r.withdrawn) continue;
+      // mapResources() already excludes withdrawn and expired supplies
+      // (auto-hide past available_until_ms via the fold's injected clock).
+      for (final r in w.mapResources()) {
         final pos = latLngOf(r.resource.hasLocation() ? r.resource.location : null);
         if (pos == null) {
           unplaced++;
@@ -74,6 +75,7 @@ class MapScreen extends ConsumerWidget {
         ));
       }
       for (final q in w.helpRequests) {
+        if (q.closed) continue; // closed/cancelled requests leave the map
         final pos = latLngOf(q.body.hasLocation() ? q.body.location : null);
         if (pos == null) {
           unplaced++;

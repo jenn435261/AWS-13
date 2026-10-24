@@ -118,15 +118,42 @@ class ResourceView {
     final int avail = inv.quantity - reservedQuantity;
     return avail < 0 ? 0 : avail;
   }
+
+  /// Whether this supply has passed its `available_until_ms` relative to [now].
+  /// A supply with no end date (`available_until_ms == 0`) never expires.
+  /// Expired supplies are auto-hidden from the map (see [WorldState.mapResources])
+  /// but remain visible, marked "expired", in the owner's My Supplies list.
+  bool isExpired(int now) {
+    final int until = resource.availableUntilMs.toInt();
+    return until > 0 && until <= now;
+  }
 }
 
 /// A help request view.
+///
+/// [closed] is true once the request's AUTHOR has published a
+/// `HELP_REQUEST_CLOSED` for it (owner-only; a close from any other key is
+/// ignored by the fold). A closed request is kept in the projection — marked,
+/// struck through, filterable — rather than deleted, so the history stays
+/// verifiable and helpers who already saw it understand it was resolved.
 class HelpRequestView {
   final String requestId;
   final Uint8List author;
   final HelpRequestBody body;
-  const HelpRequestView(
-      {required this.requestId, required this.author, required this.body});
+
+  /// Whether the author has closed/cancelled this request.
+  final bool closed;
+
+  /// Optional freeform reason the author gave when closing (may be empty).
+  final String closeReason;
+
+  const HelpRequestView({
+    required this.requestId,
+    required this.author,
+    required this.body,
+    this.closed = false,
+    this.closeReason = '',
+  });
 }
 
 /// A help offer view.
@@ -306,6 +333,19 @@ class WorldState {
     final Map<String, _ShareFold> shareByKey = <String, _ShareFold>{};
     final Map<String, _StopFold> stopByAuthor = <String, _StopFold>{};
 
+    // Help requests folded per request id so a HELP_REQUEST_CLOSED can mark the
+    // matching request closed. The owner (first author of the id) is the only
+    // key whose close is honored. `requestOrder` preserves first-seen order.
+    final Map<String, _RequestFold> requestByKey = <String, _RequestFold>{};
+    int requestOrder = 0;
+
+    // Emergency alerts folded per alert id. An alert is recalled by publishing
+    // a NEW EMERGENCY_ALERT with the SAME alert_id and `expires_ms` in the past
+    // (author-only). The latest event for an id by its original author wins, so
+    // a recalled/expired alert simply drops out below.
+    final Map<String, _AlertFold> alertByKey = <String, _AlertFold>{};
+    int alertOrder = 0;
+
     for (final SignedEvent e in _log) {
       final EventHeader h = e.header;
       final Uint8List author = Uint8List.fromList(h.authorPubkey);
@@ -392,8 +432,30 @@ class WorldState {
 
         case EventType.EVENT_TYPE_HELP_REQUESTED:
           final HelpRequestBody body = _helpRequest(e);
-          helpRequests.add(HelpRequestView(
-              requestId: body.requestId, author: author, body: body));
+          if (body.requestId.isEmpty) break;
+          // First writer of a request id owns it; a later HELP_REQUESTED under
+          // the same id from a different key cannot hijack it.
+          final _RequestFold? prevReq = requestByKey[body.requestId];
+          if (prevReq != null && !_sameKey(prevReq.author, author)) break;
+          requestByKey[body.requestId] = _RequestFold(
+            author: author,
+            body: body,
+            closed: prevReq?.closed ?? false,
+            closeReason: prevReq?.closeReason ?? '',
+            order: requestOrder++,
+          );
+          break;
+
+        case EventType.EVENT_TYPE_HELP_REQUEST_CLOSED:
+          final HelpRequestClosedBody close = _helpClose(e);
+          if (close.requestId.isEmpty) break;
+          final _RequestFold? req = requestByKey[close.requestId];
+          // Owner-only: a close is honored ONLY when authored by the same key
+          // that authored the original request. A close from any other key is
+          // ignored (abuse rule enforced here, not by convention).
+          if (req == null || !_sameKey(req.author, author)) break;
+          req.closed = true;
+          req.closeReason = close.reason;
           break;
 
         case EventType.EVENT_TYPE_HELP_OFFERED:
@@ -422,6 +484,7 @@ class WorldState {
 
         case EventType.EVENT_TYPE_EMERGENCY_ALERT:
           final EmergencyAlertBody body = _alert(e);
+          if (body.alertId.isEmpty) break;
           // Alerts are authoritative: only verified organization members may
           // issue one. A community member's "alert" is ignored, not shown.
           if (engine.certGraph.provenanceOf(author,
@@ -429,8 +492,20 @@ class WorldState {
               ProvenanceKind.PROVENANCE_KIND_VERIFIED_ORG) {
             break;
           }
-          emergencyAlerts.add(EmergencyAlertView(
-              alertId: body.alertId, author: author, body: body));
+          final _AlertFold? prevAlert = alertByKey[body.alertId];
+          // Author-only recall/update: only the original author of an alert_id
+          // may supersede (recall) it. A different verified org cannot recall
+          // someone else's alert.
+          if (prevAlert != null && !_sameKey(prevAlert.author, author)) break;
+          final int lamport = h.lamport.toInt();
+          if (prevAlert == null || lamport >= prevAlert.lamport) {
+            alertByKey[body.alertId] = _AlertFold(
+              author: author,
+              body: body,
+              lamport: lamport,
+              order: prevAlert?.order ?? alertOrder++,
+            );
+          }
           break;
 
         case EventType.EVENT_TYPE_LOCATION_SHARE:
@@ -497,6 +572,32 @@ class WorldState {
               ResourceCategory.RESOURCE_CATEGORY_SHELTER) {
         shelters.add(view);
       }
+    }
+
+    // Materialize help requests in first-seen order, carrying the closed flag.
+    final List<_RequestFold> reqs = requestByKey.values.toList()
+      ..sort((a, b) => a.order.compareTo(b.order));
+    for (final _RequestFold r in reqs) {
+      helpRequests.add(HelpRequestView(
+        requestId: r.body.requestId,
+        author: r.author,
+        body: r.body,
+        closed: r.closed,
+        closeReason: r.closeReason,
+      ));
+    }
+
+    // Materialize emergency alerts: drop any whose latest version has expired
+    // (which also covers an author recall — a re-issue of the same alert_id
+    // with expires_ms in the past). An alert with no expiry (expires_ms == 0)
+    // never expires.
+    final List<_AlertFold> alertList = alertByKey.values.toList()
+      ..sort((a, b) => a.order.compareTo(b.order));
+    for (final _AlertFold a in alertList) {
+      final int expires = a.body.expiresMs.toInt();
+      if (expires != 0 && expires <= now) continue; // expired or recalled
+      emergencyAlerts.add(EmergencyAlertView(
+          alertId: a.body.alertId, author: a.author, body: a.body));
     }
 
     // Materialize the still-active location shares. A share survives only while
@@ -581,6 +682,18 @@ class WorldState {
     return all;
   }
 
+  /// Resources eligible to show on the map: ranked, excluding withdrawn
+  /// supplies and supplies whose `available_until_ms` has passed relative to
+  /// the fold's injected clock (auto-hide expired supplies). Expired supplies
+  /// are NOT removed from the projection — the owner still sees them, marked
+  /// "expired", in My Supplies — they are only filtered off the shared map.
+  List<ResourceView> mapResources() {
+    final int now = clock();
+    return rankedResources()
+        .where((ResourceView r) => !r.withdrawn && !r.isExpired(now))
+        .toList(growable: false);
+  }
+
   // --- decode helpers (never throw into the fold) ---
 
   ResourceBody _resource(SignedEvent e) {
@@ -636,6 +749,14 @@ class WorldState {
       return HelpOfferBody.fromBuffer(e.body);
     } catch (_) {
       return HelpOfferBody();
+    }
+  }
+
+  HelpRequestClosedBody _helpClose(SignedEvent e) {
+    try {
+      return HelpRequestClosedBody.fromBuffer(e.body);
+    } catch (_) {
+      return HelpRequestClosedBody();
     }
   }
 
@@ -714,4 +835,37 @@ class _ShareFold {
 class _StopFold {
   bool stopAll = false;
   final Set<String> stoppedIds = <String>{};
+}
+
+/// Fold accumulator for a help request and its owner-only close state.
+class _RequestFold {
+  _RequestFold({
+    required this.author,
+    required this.body,
+    required this.closed,
+    required this.closeReason,
+    required this.order,
+  });
+
+  final Uint8List author;
+  final HelpRequestBody body;
+  bool closed;
+  String closeReason;
+  final int order;
+}
+
+/// Fold accumulator for the latest `EMERGENCY_ALERT` per alert id (author-only
+/// supersede/recall).
+class _AlertFold {
+  _AlertFold({
+    required this.author,
+    required this.body,
+    required this.lamport,
+    required this.order,
+  });
+
+  final Uint8List author;
+  final EmergencyAlertBody body;
+  final int lamport;
+  final int order;
 }

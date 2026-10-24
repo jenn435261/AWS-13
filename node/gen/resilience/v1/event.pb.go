@@ -39,10 +39,11 @@ const (
 	EventType_EVENT_TYPE_INVENTORY_SNAPSHOT EventType = 16 // authoritative count by owner
 	EventType_EVENT_TYPE_RESERVATION        EventType = 17 // owner-signed reservation
 	// Help flows
-	EventType_EVENT_TYPE_HELP_REQUESTED    EventType = 20
-	EventType_EVENT_TYPE_HELP_OFFERED      EventType = 21
-	EventType_EVENT_TYPE_SHELTER_CREATED   EventType = 22
-	EventType_EVENT_TYPE_TRANSPORT_OFFERED EventType = 23
+	EventType_EVENT_TYPE_HELP_REQUESTED      EventType = 20
+	EventType_EVENT_TYPE_HELP_OFFERED        EventType = 21
+	EventType_EVENT_TYPE_SHELTER_CREATED     EventType = 22
+	EventType_EVENT_TYPE_TRANSPORT_OFFERED   EventType = 23
+	EventType_EVENT_TYPE_HELP_REQUEST_CLOSED EventType = 24 // author closes/cancels their request
 	// Messaging (ciphertext payloads; relays cannot read)
 	EventType_EVENT_TYPE_MESSAGE_SENT       EventType = 30
 	EventType_EVENT_TYPE_MESSAGE_DELIVERED  EventType = 31 // delivery receipt
@@ -86,6 +87,7 @@ var (
 		21: "EVENT_TYPE_HELP_OFFERED",
 		22: "EVENT_TYPE_SHELTER_CREATED",
 		23: "EVENT_TYPE_TRANSPORT_OFFERED",
+		24: "EVENT_TYPE_HELP_REQUEST_CLOSED",
 		30: "EVENT_TYPE_MESSAGE_SENT",
 		31: "EVENT_TYPE_MESSAGE_DELIVERED",
 		32: "EVENT_TYPE_MESSAGE_READ",
@@ -121,6 +123,7 @@ var (
 		"EVENT_TYPE_HELP_OFFERED":         21,
 		"EVENT_TYPE_SHELTER_CREATED":      22,
 		"EVENT_TYPE_TRANSPORT_OFFERED":    23,
+		"EVENT_TYPE_HELP_REQUEST_CLOSED":  24,
 		"EVENT_TYPE_MESSAGE_SENT":         30,
 		"EVENT_TYPE_MESSAGE_DELIVERED":    31,
 		"EVENT_TYPE_MESSAGE_READ":         32,
@@ -730,7 +733,7 @@ func (x PackageEventBody_Stage) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use PackageEventBody_Stage.Descriptor instead.
 func (PackageEventBody_Stage) EnumDescriptor() ([]byte, []int) {
-	return file_resilience_v1_event_proto_rawDescGZIP(), []int{22, 0}
+	return file_resilience_v1_event_proto_rawDescGZIP(), []int{23, 0}
 }
 
 // Top-level signed, self-describing unit that travels over every transport.
@@ -1818,6 +1821,69 @@ func (x *HelpOfferBody) GetLocation() *GeoPoint {
 	return nil
 }
 
+// Closes/cancels a prior HELP_REQUESTED. Honored ONLY when signed by the same
+// author that signed the original request (owner-only; a close from any other
+// key is ignored by the fold). References the request by id.
+type HelpRequestClosedBody struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RequestId     string                 `protobuf:"bytes,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	Reason        string                 `protobuf:"bytes,2,opt,name=reason,proto3" json:"reason,omitempty"`                              // optional freeform ("resolved", "no longer needed")
+	ClosedAtMs    int64                  `protobuf:"varint,3,opt,name=closed_at_ms,json=closedAtMs,proto3" json:"closed_at_ms,omitempty"` // optional advisory wall-clock of the close
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *HelpRequestClosedBody) Reset() {
+	*x = HelpRequestClosedBody{}
+	mi := &file_resilience_v1_event_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HelpRequestClosedBody) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HelpRequestClosedBody) ProtoMessage() {}
+
+func (x *HelpRequestClosedBody) ProtoReflect() protoreflect.Message {
+	mi := &file_resilience_v1_event_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HelpRequestClosedBody.ProtoReflect.Descriptor instead.
+func (*HelpRequestClosedBody) Descriptor() ([]byte, []int) {
+	return file_resilience_v1_event_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *HelpRequestClosedBody) GetRequestId() string {
+	if x != nil {
+		return x.RequestId
+	}
+	return ""
+}
+
+func (x *HelpRequestClosedBody) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+func (x *HelpRequestClosedBody) GetClosedAtMs() int64 {
+	if x != nil {
+		return x.ClosedAtMs
+	}
+	return 0
+}
+
 type TransportOfferBody struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	OfferId       string                 `protobuf:"bytes,1,opt,name=offer_id,json=offerId,proto3" json:"offer_id,omitempty"`
@@ -1831,7 +1897,7 @@ type TransportOfferBody struct {
 
 func (x *TransportOfferBody) Reset() {
 	*x = TransportOfferBody{}
-	mi := &file_resilience_v1_event_proto_msgTypes[13]
+	mi := &file_resilience_v1_event_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1843,7 +1909,7 @@ func (x *TransportOfferBody) String() string {
 func (*TransportOfferBody) ProtoMessage() {}
 
 func (x *TransportOfferBody) ProtoReflect() protoreflect.Message {
-	mi := &file_resilience_v1_event_proto_msgTypes[13]
+	mi := &file_resilience_v1_event_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1856,7 +1922,7 @@ func (x *TransportOfferBody) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TransportOfferBody.ProtoReflect.Descriptor instead.
 func (*TransportOfferBody) Descriptor() ([]byte, []int) {
-	return file_resilience_v1_event_proto_rawDescGZIP(), []int{13}
+	return file_resilience_v1_event_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *TransportOfferBody) GetOfferId() string {
@@ -1906,7 +1972,7 @@ type ChannelCreatedBody struct {
 
 func (x *ChannelCreatedBody) Reset() {
 	*x = ChannelCreatedBody{}
-	mi := &file_resilience_v1_event_proto_msgTypes[14]
+	mi := &file_resilience_v1_event_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1918,7 +1984,7 @@ func (x *ChannelCreatedBody) String() string {
 func (*ChannelCreatedBody) ProtoMessage() {}
 
 func (x *ChannelCreatedBody) ProtoReflect() protoreflect.Message {
-	mi := &file_resilience_v1_event_proto_msgTypes[14]
+	mi := &file_resilience_v1_event_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1931,7 +1997,7 @@ func (x *ChannelCreatedBody) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ChannelCreatedBody.ProtoReflect.Descriptor instead.
 func (*ChannelCreatedBody) Descriptor() ([]byte, []int) {
-	return file_resilience_v1_event_proto_rawDescGZIP(), []int{14}
+	return file_resilience_v1_event_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ChannelCreatedBody) GetChannelId() string {
@@ -1974,7 +2040,7 @@ type ChannelMembershipBody struct {
 
 func (x *ChannelMembershipBody) Reset() {
 	*x = ChannelMembershipBody{}
-	mi := &file_resilience_v1_event_proto_msgTypes[15]
+	mi := &file_resilience_v1_event_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1986,7 +2052,7 @@ func (x *ChannelMembershipBody) String() string {
 func (*ChannelMembershipBody) ProtoMessage() {}
 
 func (x *ChannelMembershipBody) ProtoReflect() protoreflect.Message {
-	mi := &file_resilience_v1_event_proto_msgTypes[15]
+	mi := &file_resilience_v1_event_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1999,7 +2065,7 @@ func (x *ChannelMembershipBody) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ChannelMembershipBody.ProtoReflect.Descriptor instead.
 func (*ChannelMembershipBody) Descriptor() ([]byte, []int) {
-	return file_resilience_v1_event_proto_rawDescGZIP(), []int{15}
+	return file_resilience_v1_event_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ChannelMembershipBody) GetChannelId() string {
@@ -2045,7 +2111,7 @@ type MessageBody struct {
 
 func (x *MessageBody) Reset() {
 	*x = MessageBody{}
-	mi := &file_resilience_v1_event_proto_msgTypes[16]
+	mi := &file_resilience_v1_event_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2057,7 +2123,7 @@ func (x *MessageBody) String() string {
 func (*MessageBody) ProtoMessage() {}
 
 func (x *MessageBody) ProtoReflect() protoreflect.Message {
-	mi := &file_resilience_v1_event_proto_msgTypes[16]
+	mi := &file_resilience_v1_event_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2070,7 +2136,7 @@ func (x *MessageBody) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MessageBody.ProtoReflect.Descriptor instead.
 func (*MessageBody) Descriptor() ([]byte, []int) {
-	return file_resilience_v1_event_proto_rawDescGZIP(), []int{16}
+	return file_resilience_v1_event_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *MessageBody) GetMessageId() string {
@@ -2125,7 +2191,7 @@ type ReceiptBody struct {
 
 func (x *ReceiptBody) Reset() {
 	*x = ReceiptBody{}
-	mi := &file_resilience_v1_event_proto_msgTypes[17]
+	mi := &file_resilience_v1_event_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2137,7 +2203,7 @@ func (x *ReceiptBody) String() string {
 func (*ReceiptBody) ProtoMessage() {}
 
 func (x *ReceiptBody) ProtoReflect() protoreflect.Message {
-	mi := &file_resilience_v1_event_proto_msgTypes[17]
+	mi := &file_resilience_v1_event_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2150,7 +2216,7 @@ func (x *ReceiptBody) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReceiptBody.ProtoReflect.Descriptor instead.
 func (*ReceiptBody) Descriptor() ([]byte, []int) {
-	return file_resilience_v1_event_proto_rawDescGZIP(), []int{17}
+	return file_resilience_v1_event_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *ReceiptBody) GetMessageId() string {
@@ -2182,7 +2248,7 @@ type PrekeyBundleBody struct {
 
 func (x *PrekeyBundleBody) Reset() {
 	*x = PrekeyBundleBody{}
-	mi := &file_resilience_v1_event_proto_msgTypes[18]
+	mi := &file_resilience_v1_event_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2194,7 +2260,7 @@ func (x *PrekeyBundleBody) String() string {
 func (*PrekeyBundleBody) ProtoMessage() {}
 
 func (x *PrekeyBundleBody) ProtoReflect() protoreflect.Message {
-	mi := &file_resilience_v1_event_proto_msgTypes[18]
+	mi := &file_resilience_v1_event_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2207,7 +2273,7 @@ func (x *PrekeyBundleBody) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PrekeyBundleBody.ProtoReflect.Descriptor instead.
 func (*PrekeyBundleBody) Descriptor() ([]byte, []int) {
-	return file_resilience_v1_event_proto_rawDescGZIP(), []int{18}
+	return file_resilience_v1_event_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *PrekeyBundleBody) GetIdentityPubkey() []byte {
@@ -2277,7 +2343,7 @@ type MissionBody struct {
 
 func (x *MissionBody) Reset() {
 	*x = MissionBody{}
-	mi := &file_resilience_v1_event_proto_msgTypes[19]
+	mi := &file_resilience_v1_event_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2289,7 +2355,7 @@ func (x *MissionBody) String() string {
 func (*MissionBody) ProtoMessage() {}
 
 func (x *MissionBody) ProtoReflect() protoreflect.Message {
-	mi := &file_resilience_v1_event_proto_msgTypes[19]
+	mi := &file_resilience_v1_event_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2302,7 +2368,7 @@ func (x *MissionBody) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MissionBody.ProtoReflect.Descriptor instead.
 func (*MissionBody) Descriptor() ([]byte, []int) {
-	return file_resilience_v1_event_proto_rawDescGZIP(), []int{19}
+	return file_resilience_v1_event_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *MissionBody) GetMissionId() string {
@@ -2385,7 +2451,7 @@ type MissionAcceptBody struct {
 
 func (x *MissionAcceptBody) Reset() {
 	*x = MissionAcceptBody{}
-	mi := &file_resilience_v1_event_proto_msgTypes[20]
+	mi := &file_resilience_v1_event_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2397,7 +2463,7 @@ func (x *MissionAcceptBody) String() string {
 func (*MissionAcceptBody) ProtoMessage() {}
 
 func (x *MissionAcceptBody) ProtoReflect() protoreflect.Message {
-	mi := &file_resilience_v1_event_proto_msgTypes[20]
+	mi := &file_resilience_v1_event_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2410,7 +2476,7 @@ func (x *MissionAcceptBody) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MissionAcceptBody.ProtoReflect.Descriptor instead.
 func (*MissionAcceptBody) Descriptor() ([]byte, []int) {
-	return file_resilience_v1_event_proto_rawDescGZIP(), []int{20}
+	return file_resilience_v1_event_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *MissionAcceptBody) GetMissionId() string {
@@ -2438,7 +2504,7 @@ type MissionMatchBody struct {
 
 func (x *MissionMatchBody) Reset() {
 	*x = MissionMatchBody{}
-	mi := &file_resilience_v1_event_proto_msgTypes[21]
+	mi := &file_resilience_v1_event_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2450,7 +2516,7 @@ func (x *MissionMatchBody) String() string {
 func (*MissionMatchBody) ProtoMessage() {}
 
 func (x *MissionMatchBody) ProtoReflect() protoreflect.Message {
-	mi := &file_resilience_v1_event_proto_msgTypes[21]
+	mi := &file_resilience_v1_event_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2463,7 +2529,7 @@ func (x *MissionMatchBody) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MissionMatchBody.ProtoReflect.Descriptor instead.
 func (*MissionMatchBody) Descriptor() ([]byte, []int) {
-	return file_resilience_v1_event_proto_rawDescGZIP(), []int{21}
+	return file_resilience_v1_event_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *MissionMatchBody) GetMissionId() string {
@@ -2502,7 +2568,7 @@ type PackageEventBody struct {
 
 func (x *PackageEventBody) Reset() {
 	*x = PackageEventBody{}
-	mi := &file_resilience_v1_event_proto_msgTypes[22]
+	mi := &file_resilience_v1_event_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2514,7 +2580,7 @@ func (x *PackageEventBody) String() string {
 func (*PackageEventBody) ProtoMessage() {}
 
 func (x *PackageEventBody) ProtoReflect() protoreflect.Message {
-	mi := &file_resilience_v1_event_proto_msgTypes[22]
+	mi := &file_resilience_v1_event_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2527,7 +2593,7 @@ func (x *PackageEventBody) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PackageEventBody.ProtoReflect.Descriptor instead.
 func (*PackageEventBody) Descriptor() ([]byte, []int) {
-	return file_resilience_v1_event_proto_rawDescGZIP(), []int{22}
+	return file_resilience_v1_event_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *PackageEventBody) GetPackageId() string {
@@ -2586,7 +2652,7 @@ type CapabilityBody struct {
 
 func (x *CapabilityBody) Reset() {
 	*x = CapabilityBody{}
-	mi := &file_resilience_v1_event_proto_msgTypes[23]
+	mi := &file_resilience_v1_event_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2598,7 +2664,7 @@ func (x *CapabilityBody) String() string {
 func (*CapabilityBody) ProtoMessage() {}
 
 func (x *CapabilityBody) ProtoReflect() protoreflect.Message {
-	mi := &file_resilience_v1_event_proto_msgTypes[23]
+	mi := &file_resilience_v1_event_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2611,7 +2677,7 @@ func (x *CapabilityBody) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CapabilityBody.ProtoReflect.Descriptor instead.
 func (*CapabilityBody) Descriptor() ([]byte, []int) {
-	return file_resilience_v1_event_proto_rawDescGZIP(), []int{23}
+	return file_resilience_v1_event_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *CapabilityBody) GetCapabilityId() string {
@@ -2670,7 +2736,7 @@ type EmergencyAlertBody struct {
 
 func (x *EmergencyAlertBody) Reset() {
 	*x = EmergencyAlertBody{}
-	mi := &file_resilience_v1_event_proto_msgTypes[24]
+	mi := &file_resilience_v1_event_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2682,7 +2748,7 @@ func (x *EmergencyAlertBody) String() string {
 func (*EmergencyAlertBody) ProtoMessage() {}
 
 func (x *EmergencyAlertBody) ProtoReflect() protoreflect.Message {
-	mi := &file_resilience_v1_event_proto_msgTypes[24]
+	mi := &file_resilience_v1_event_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2695,7 +2761,7 @@ func (x *EmergencyAlertBody) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EmergencyAlertBody.ProtoReflect.Descriptor instead.
 func (*EmergencyAlertBody) Descriptor() ([]byte, []int) {
-	return file_resilience_v1_event_proto_rawDescGZIP(), []int{24}
+	return file_resilience_v1_event_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *EmergencyAlertBody) GetAlertId() string {
@@ -2788,7 +2854,7 @@ type LocationShareBody struct {
 
 func (x *LocationShareBody) Reset() {
 	*x = LocationShareBody{}
-	mi := &file_resilience_v1_event_proto_msgTypes[25]
+	mi := &file_resilience_v1_event_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2800,7 +2866,7 @@ func (x *LocationShareBody) String() string {
 func (*LocationShareBody) ProtoMessage() {}
 
 func (x *LocationShareBody) ProtoReflect() protoreflect.Message {
-	mi := &file_resilience_v1_event_proto_msgTypes[25]
+	mi := &file_resilience_v1_event_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2813,7 +2879,7 @@ func (x *LocationShareBody) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LocationShareBody.ProtoReflect.Descriptor instead.
 func (*LocationShareBody) Descriptor() ([]byte, []int) {
-	return file_resilience_v1_event_proto_rawDescGZIP(), []int{25}
+	return file_resilience_v1_event_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *LocationShareBody) GetShareId() string {
@@ -2884,7 +2950,7 @@ type LocationStopBody struct {
 
 func (x *LocationStopBody) Reset() {
 	*x = LocationStopBody{}
-	mi := &file_resilience_v1_event_proto_msgTypes[26]
+	mi := &file_resilience_v1_event_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2896,7 +2962,7 @@ func (x *LocationStopBody) String() string {
 func (*LocationStopBody) ProtoMessage() {}
 
 func (x *LocationStopBody) ProtoReflect() protoreflect.Message {
-	mi := &file_resilience_v1_event_proto_msgTypes[26]
+	mi := &file_resilience_v1_event_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2909,7 +2975,7 @@ func (x *LocationStopBody) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LocationStopBody.ProtoReflect.Descriptor instead.
 func (*LocationStopBody) Descriptor() ([]byte, []int) {
-	return file_resilience_v1_event_proto_rawDescGZIP(), []int{26}
+	return file_resilience_v1_event_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *LocationStopBody) GetShareId() string {
@@ -3044,7 +3110,13 @@ const file_resilience_v1_event_proto_rawDesc = "" +
 	"\x06amount\x18\x03 \x01(\x0e2\x19.resilience.v1.AmountBandR\x06amount\x12?\n" +
 	"\favailability\x18\x04 \x01(\x0e2\x1b.resilience.v1.AvailabilityR\favailability\x12\x14\n" +
 	"\x05notes\x18\x05 \x01(\tR\x05notes\x123\n" +
-	"\blocation\x18\x06 \x01(\v2\x17.resilience.v1.GeoPointR\blocation\"\x90\x02\n" +
+	"\blocation\x18\x06 \x01(\v2\x17.resilience.v1.GeoPointR\blocation\"p\n" +
+	"\x15HelpRequestClosedBody\x12\x1d\n" +
+	"\n" +
+	"request_id\x18\x01 \x01(\tR\trequestId\x12\x16\n" +
+	"\x06reason\x18\x02 \x01(\tR\x06reason\x12 \n" +
+	"\fclosed_at_ms\x18\x03 \x01(\x03R\n" +
+	"closedAtMs\"\x90\x02\n" +
 	"\x12TransportOfferBody\x12\x19\n" +
 	"\boffer_id\x18\x01 \x01(\tR\aofferId\x120\n" +
 	"\x04mode\x18\x02 \x01(\x0e2\x1c.resilience.v1.TransportModeR\x04mode\x127\n" +
@@ -3154,7 +3226,7 @@ const file_resilience_v1_event_proto_rawDesc = "" +
 	"\x03seq\x18\b \x01(\x04R\x03seq\"Q\n" +
 	"\x10LocationStopBody\x12\x19\n" +
 	"\bshare_id\x18\x01 \x01(\tR\ashareId\x12\"\n" +
-	"\rstopped_at_ms\x18\x02 \x01(\x03R\vstoppedAtMs*\xb8\b\n" +
+	"\rstopped_at_ms\x18\x02 \x01(\x03R\vstoppedAtMs*\xdc\b\n" +
 	"\tEventType\x12\x1a\n" +
 	"\x16EVENT_TYPE_UNSPECIFIED\x10\x00\x12#\n" +
 	"\x1fEVENT_TYPE_IDENTITY_CERTIFICATE\x10\x01\x12\x1a\n" +
@@ -3172,7 +3244,8 @@ const file_resilience_v1_event_proto_rawDesc = "" +
 	"\x19EVENT_TYPE_HELP_REQUESTED\x10\x14\x12\x1b\n" +
 	"\x17EVENT_TYPE_HELP_OFFERED\x10\x15\x12\x1e\n" +
 	"\x1aEVENT_TYPE_SHELTER_CREATED\x10\x16\x12 \n" +
-	"\x1cEVENT_TYPE_TRANSPORT_OFFERED\x10\x17\x12\x1b\n" +
+	"\x1cEVENT_TYPE_TRANSPORT_OFFERED\x10\x17\x12\"\n" +
+	"\x1eEVENT_TYPE_HELP_REQUEST_CLOSED\x10\x18\x12\x1b\n" +
 	"\x17EVENT_TYPE_MESSAGE_SENT\x10\x1e\x12 \n" +
 	"\x1cEVENT_TYPE_MESSAGE_DELIVERED\x10\x1f\x12\x1b\n" +
 	"\x17EVENT_TYPE_MESSAGE_READ\x10 \x12\x1e\n" +
@@ -3260,7 +3333,7 @@ func file_resilience_v1_event_proto_rawDescGZIP() []byte {
 }
 
 var file_resilience_v1_event_proto_enumTypes = make([]protoimpl.EnumInfo, 11)
-var file_resilience_v1_event_proto_msgTypes = make([]protoimpl.MessageInfo, 27)
+var file_resilience_v1_event_proto_msgTypes = make([]protoimpl.MessageInfo, 28)
 var file_resilience_v1_event_proto_goTypes = []any{
 	(EventType)(0),                  // 0: resilience.v1.EventType
 	(ResourceCategory)(0),           // 1: resilience.v1.ResourceCategory
@@ -3286,20 +3359,21 @@ var file_resilience_v1_event_proto_goTypes = []any{
 	(*ReservationBody)(nil),         // 21: resilience.v1.ReservationBody
 	(*HelpRequestBody)(nil),         // 22: resilience.v1.HelpRequestBody
 	(*HelpOfferBody)(nil),           // 23: resilience.v1.HelpOfferBody
-	(*TransportOfferBody)(nil),      // 24: resilience.v1.TransportOfferBody
-	(*ChannelCreatedBody)(nil),      // 25: resilience.v1.ChannelCreatedBody
-	(*ChannelMembershipBody)(nil),   // 26: resilience.v1.ChannelMembershipBody
-	(*MessageBody)(nil),             // 27: resilience.v1.MessageBody
-	(*ReceiptBody)(nil),             // 28: resilience.v1.ReceiptBody
-	(*PrekeyBundleBody)(nil),        // 29: resilience.v1.PrekeyBundleBody
-	(*MissionBody)(nil),             // 30: resilience.v1.MissionBody
-	(*MissionAcceptBody)(nil),       // 31: resilience.v1.MissionAcceptBody
-	(*MissionMatchBody)(nil),        // 32: resilience.v1.MissionMatchBody
-	(*PackageEventBody)(nil),        // 33: resilience.v1.PackageEventBody
-	(*CapabilityBody)(nil),          // 34: resilience.v1.CapabilityBody
-	(*EmergencyAlertBody)(nil),      // 35: resilience.v1.EmergencyAlertBody
-	(*LocationShareBody)(nil),       // 36: resilience.v1.LocationShareBody
-	(*LocationStopBody)(nil),        // 37: resilience.v1.LocationStopBody
+	(*HelpRequestClosedBody)(nil),   // 24: resilience.v1.HelpRequestClosedBody
+	(*TransportOfferBody)(nil),      // 25: resilience.v1.TransportOfferBody
+	(*ChannelCreatedBody)(nil),      // 26: resilience.v1.ChannelCreatedBody
+	(*ChannelMembershipBody)(nil),   // 27: resilience.v1.ChannelMembershipBody
+	(*MessageBody)(nil),             // 28: resilience.v1.MessageBody
+	(*ReceiptBody)(nil),             // 29: resilience.v1.ReceiptBody
+	(*PrekeyBundleBody)(nil),        // 30: resilience.v1.PrekeyBundleBody
+	(*MissionBody)(nil),             // 31: resilience.v1.MissionBody
+	(*MissionAcceptBody)(nil),       // 32: resilience.v1.MissionAcceptBody
+	(*MissionMatchBody)(nil),        // 33: resilience.v1.MissionMatchBody
+	(*PackageEventBody)(nil),        // 34: resilience.v1.PackageEventBody
+	(*CapabilityBody)(nil),          // 35: resilience.v1.CapabilityBody
+	(*EmergencyAlertBody)(nil),      // 36: resilience.v1.EmergencyAlertBody
+	(*LocationShareBody)(nil),       // 37: resilience.v1.LocationShareBody
+	(*LocationStopBody)(nil),        // 38: resilience.v1.LocationStopBody
 }
 var file_resilience_v1_event_proto_depIdxs = []int32{
 	12, // 0: resilience.v1.SignedEvent.header:type_name -> resilience.v1.EventHeader
@@ -3353,7 +3427,7 @@ func file_resilience_v1_event_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_resilience_v1_event_proto_rawDesc), len(file_resilience_v1_event_proto_rawDesc)),
 			NumEnums:      11,
-			NumMessages:   27,
+			NumMessages:   28,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

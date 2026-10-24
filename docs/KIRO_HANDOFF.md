@@ -48,9 +48,16 @@ then images, then audio. Acceptance: A and B add each other, A sends text, a pho
 one-shot position. Build: encrypt to chosen contacts (task 2), send a short-lived `LOCATION_SHARE` event with an expiry
 (null = until stopped), publish `LOCATION_STOP` on stop, show "people sharing with you". Then enable the button.
 
-### 4. Provider gaps (spec §1.1)
-Mission list and assignment for providers (`MISSION_MATCHED`), alert recall, org-wide missions view, request close
-(`HELP_REQUEST_CLOSED` event), auto-hide supplies past `available_until_ms`, certificate depth limit (spec §1).
+### 4. Provider gaps (spec §1.1) — DONE (FEAT-005)
+Shipped: a Missions board for providers + carriers in the Deliveries tab (`deliveries_screen.dart`, buckets from
+`logistics/mission.dart`); **verified-provider-only** mission create/assign via `MISSION_MATCHED` (a non-provider
+create/assign is ignored in the fold — abuse rule) and carrier accept via `MISSION_ACCEPTED`; **alert recall** = a new
+`EMERGENCY_ALERT` with the same `alert_id` and `expires_ms` in the past, author-only (Recall action on the provider
+screen); **request close** via the new `EVENT_TYPE_HELP_REQUEST_CLOSED = 24` event + `HelpRequestClosedBody` (owner-only
+close from My Requests; a close from any other key is ignored); **auto-hide supplies** past `available_until_ms` from the
+map (`WorldState.mapResources()`), shown as Expired in My Supplies; **certificate chain depth limit = 2** enforced in
+`OrgCertGraph.provenanceOf` (depth 3+ grants no badge). All with fold + abuse tests; proto regenerated for Dart + Go and
+copied into `node/gen`. See `docs/DECISIONS.md` (FEAT-005) and `docs/OVERNIGHT_LOG.md`.
 
 ### 5. Offline map
 Serve PMTiles from a node and render them (spec §2). OSM raster tiles are a demo-grade stopgap.

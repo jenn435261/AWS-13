@@ -225,30 +225,56 @@ class _Action extends StatelessWidget {
       );
 }
 
+/// A row in the "my alerts & missions" panel. [alertId] is non-empty only for
+/// an alert that is still active (so it can be recalled); empty otherwise.
+class _Broadcast {
+  final EventType type;
+  final String label;
+  final int atMs;
+
+  /// The alert id, when this row is a live (recallable) alert.
+  final String alertId;
+  const _Broadcast(this.type, this.label, this.atMs, {this.alertId = ''});
+}
+
 /// Alerts and missions this device has published, read from the local log.
+/// Uses the folded [WorldState] for alerts so a row is shown as "live" (and
+/// recallable) only while the alert is actually active.
 final _myBroadcastsProvider =
-    FutureProvider.autoDispose<List<(EventType, String, int)>>((ref) async {
+    FutureProvider.autoDispose<List<_Broadcast>>((ref) async {
   ref.watch(worldRevisionProvider);
   final me = await ref.watch(identityProvider.future);
+  final world = await ref.watch(worldStateProvider.future);
   final all = await ref.watch(databaseProvider).eventDao.allEvents();
-  final out = <(EventType, String, int)>[];
+
+  // Which of my alert ids are currently live (not expired/recalled)?
+  final liveAlertIds = <String>{
+    for (final a in world.emergencyAlerts)
+      if (_eq(a.author, me.keys.signingPublicKey)) a.alertId,
+  };
+
+  final out = <_Broadcast>[];
+  final seenAlerts = <String>{};
   for (final e in all) {
-    final mine = e.header.authorPubkey.length == me.keys.signingPublicKey.length &&
-        _eq(e.header.authorPubkey, me.keys.signingPublicKey);
+    final mine =
+        e.header.authorPubkey.length == me.keys.signingPublicKey.length &&
+            _eq(e.header.authorPubkey, me.keys.signingPublicKey);
     if (!mine) continue;
     final t = e.header.type;
     try {
       if (t == EventType.EVENT_TYPE_EMERGENCY_ALERT) {
         final b = EmergencyAlertBody.fromBuffer(e.body);
-        out.add((t, b.title, e.header.createdAtMs.toInt()));
+        if (!seenAlerts.add(b.alertId)) continue; // one row per alert id
+        out.add(_Broadcast(t, b.title, e.header.createdAtMs.toInt(),
+            alertId: liveAlertIds.contains(b.alertId) ? b.alertId : ''));
       } else if (t == EventType.EVENT_TYPE_MISSION_CREATED) {
         final b = MissionBody.fromBuffer(e.body);
-        out.add((t, '#${b.missionId} · ${b.cargoDescription}',
+        out.add(_Broadcast(t, '#${b.missionId} · ${b.cargoDescription}',
             e.header.createdAtMs.toInt()));
       }
     } catch (_) {}
   }
-  out.sort((a, b) => b.$3.compareTo(a.$3));
+  out.sort((a, b) => b.atMs.compareTo(a.atMs));
   return out;
 });
 
@@ -261,6 +287,33 @@ bool _eq(List<int> a, List<int> b) {
 
 class _MyBroadcasts extends ConsumerWidget {
   const _MyBroadcasts();
+
+  /// Recalls a live alert by publishing a NEW EMERGENCY_ALERT with the SAME
+  /// alert_id and `expires_ms` in the past. The fold (author-only) supersedes
+  /// the original with this expired version, so it disappears from the banner.
+  Future<void> _recall(
+      BuildContext context, WidgetRef ref, L10n l, String alertId,
+      String title) async {
+    final me = await ref.read(identityProvider.future);
+    final kp = await authorKeyPair(me);
+    final store = ref.read(eventStoreProvider);
+    final event = await ref.read(eventFactoryProvider).buildFromMessage(
+          keyPair: kp,
+          clock: store.clock,
+          type: EventType.EVENT_TYPE_EMERGENCY_ALERT,
+          body: EmergencyAlertBody(
+            alertId: alertId,
+            title: title,
+            // Expire one minute in the past so the fold drops it immediately.
+            expiresMs: Int64(
+                DateTime.now().millisecondsSinceEpoch - 60 * 1000),
+          ),
+        );
+    await store.apply(event);
+    bumpWorld(ref);
+    if (context.mounted) Toast.show(context, l.t('alert_recalled'));
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l = L10n.of(context);
@@ -276,14 +329,21 @@ class _MyBroadcasts extends ConsumerWidget {
       for (final r in rows)
         ListTile(
           contentPadding: EdgeInsets.zero,
-          leading: Icon(r.$1 == EventType.EVENT_TYPE_EMERGENCY_ALERT
+          leading: Icon(r.type == EventType.EVENT_TYPE_EMERGENCY_ALERT
               ? Icons.campaign_outlined
               : Icons.local_shipping_outlined),
-          title: Text(r.$2),
-          subtitle: Text(DateTime.fromMillisecondsSinceEpoch(r.$3)
+          title: Text(r.label),
+          subtitle: Text(DateTime.fromMillisecondsSinceEpoch(r.atMs)
               .toLocal()
               .toString()
               .substring(0, 16)),
+          trailing: r.alertId.isEmpty
+              ? null
+              : TextButton(
+                  onPressed: () =>
+                      _recall(context, ref, l, r.alertId, r.label),
+                  child: Text(l.t('recall_alert')),
+                ),
         ),
     ]);
   }

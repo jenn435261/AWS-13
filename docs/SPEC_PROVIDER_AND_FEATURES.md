@@ -38,7 +38,7 @@ Everything is a signed event; transports only move bytes.
 
 Provider screen layout (Built): status card (verified or not, why) → if not verified, three steps to become one → if verified, actions (publish supply, post alert, create mission, certify contact if root) → what I published → community needs → "what providers cannot do".
 
-**Gap for the next phase:** providers have no way to *assign* a mission to a named carrier or close it from the UI, no mission list across the org, and no alert recall. Spec: `MISSION_MATCHED` is the assignment; add a Missions tab for providers (created / accepted / in transit / completed buckets already exist in `logistics/mission.dart`); alert recall = a new `EMERGENCY_ALERT` with the same `alert_id` and `expires_ms` in the past (add the fold rule).
+**Mission assignment, acceptance and alert recall (Built, FEAT-005).** A verified provider assigns a mission to a named carrier (chosen from contacts) by emitting `MISSION_MATCHED`; the fold ignores a create/assign from a non-verified key (abuse rule). Carriers accept from the **Deliveries** tab by emitting `MISSION_ACCEPTED`. The Deliveries tab now renders the `MissionBucket` board (Assigned / Available / In transit / Awaiting handoff / Completed) from `logistics/mission.dart`. Alert recall is implemented as a new `EMERGENCY_ALERT` with the same `alert_id` and `expires_ms` in the past (author-only); the provider screen offers a **Recall** action on each live alert.
 
 ## 2. Map (Built)
 
@@ -48,7 +48,8 @@ Provider screen layout (Built): status card (verified or not, why) → if not ve
 - Privacy: published coordinates are rounded to 3 decimals (~110 m). `has_exact` stays false unless a flow deliberately sets it (none do yet).
 - Location is set per post with: use my location, pick on map, or none. Requests default to the last position the user read.
 - Offline: tiles need internet. When tile requests fail, a banner says so and markers still draw. **Spec only:** serve `<region>.pmtiles` from a node (`/node/v1/map/…`, Range supported) and render with a vector PMTiles layer; keep OSM raster as the online fallback. Respect the OSM tile usage policy: fine for a demo, not for sustained load; switch to the node PMTiles or a paid tile host before real use.
-- Emergency alerts from verified authors show as a banner above the map until `expires_ms`.
+- Emergency alerts from verified authors show as a banner above the map until `expires_ms`. An author may **recall** an alert by re-issuing the same `alert_id` with `expires_ms` in the past (FEAT-005); the fold drops it immediately.
+- Supplies past `available_until_ms` and closed requests are **auto-hidden** from the map (FEAT-005).
 
 ## 3. Supplies and availability (Built)
 
@@ -76,8 +77,9 @@ Lifecycle (My Supplies → ⋮ menu; log is append-only so nothing is erased):
 | Mark out of stock | Snapshot qty 0 + `RESOURCE_UPDATED amount=LOW` | Stays listed as "Out of stock" |
 | Take down ("delete") | `RESOURCE_UPDATED withdrawn=true` | Hidden from the map, struck through in My Supplies; undo toast |
 | Put back up | Re-publish `RESOURCE_CREATED` | Listed again. (A proto3 `withdrawn=false` is indistinguishable from "unset", so relisting cannot use an update) |
+| Expires | `available_until_ms` passes (no event) | **Auto-hidden** from the map; shown as **Expired** in My Supplies (FEAT-005) |
 
-Not built: my **requests** cannot yet be cancelled or marked fulfilled (no event type; add `HELP_REQUEST_CLOSED`). Reservations by missions reduce *available* quantity but never the snapshot (existing rule). Expiry (`available_until_ms` in the past) should auto-hide a supply on the map; the field is stored and shown, the hide rule is not implemented.
+My **requests** can be **closed/cancelled** (FEAT-005): My Requests shows a Close action that emits `HELP_REQUEST_CLOSED` (owner-only — a close from any other key is ignored). A closed request leaves the map and is struck through in My Requests; the record stays verifiable. Reservations by missions reduce *available* quantity but never the snapshot (existing rule). Supply expiry (`available_until_ms` in the past) now auto-hides a supply from the map via `WorldState.mapResources()` (FEAT-005).
 
 ## 4. Resilience nodes (Built) and the proof-of-concept node
 
@@ -112,8 +114,8 @@ English, Spanish, French, Mandarin (Simplified). Strings are in `lib/l10n/` (`st
 
 ## 8. Decisions needed from the team
 
-1. Transitive vs root-only certificate issuance (§1).
+1. Transitive vs root-only certificate issuance (§1). **Resolved for this run:** transitive issuance is allowed up to a **certificate chain depth of 2** from a trusted root (depth 3+ confers no badge). Enforced in `OrgCertGraph.provenanceOf`; see `docs/DECISIONS.md`.
 2. Which tile source for production (§2).
-3. Whether providers may *assign* missions to specific carriers from the UI, or only publish them for carriers to accept (§1.1).
-4. Retention: how long do requests and supplies stay on the map after their last update?
+3. Whether providers may *assign* missions to specific carriers from the UI, or only publish them for carriers to accept (§1.1). **Resolved for this run:** both — a verified provider may assign a carrier via `MISSION_MATCHED` (verified-only) and carriers may also accept available missions via `MISSION_ACCEPTED` from Deliveries (FEAT-005).
+4. Retention: how long do requests and supplies stay on the map after their last update? (Partially addressed: supplies past `available_until_ms` and closed requests now auto-hide from the map; a general time-based retention policy is still open.)
 5. Where blobs live in production and who pays (§6).

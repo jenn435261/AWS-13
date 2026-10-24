@@ -19,6 +19,8 @@ import 'package:latlong2/latlong.dart' show LatLng;
 import '../identity/contact_store.dart';
 import '../identity/identity_card.dart';
 import '../identity/identity_store.dart';
+import '../logistics/capabilities.dart';
+import '../logistics/mission.dart';
 import '../state/derived_state.dart';
 import '../trust/trust_roots.dart';
 
@@ -246,3 +248,29 @@ final packagesProvider = FutureProvider<List<SavedPackage>>((ref) async {
 
 /// The last position the user chose to read, or null. Never polled.
 final myPositionProvider = StateProvider<LatLng?>((ref) => null);
+
+// --- Missions (provider assignment + carrier acceptance) ----------------------
+
+/// All missions visible to this device, folded from the local log.
+///
+/// Mission creation and assignment are provider actions: the [MissionStore]
+/// gate ignores a `MISSION_CREATED`/`MISSION_MATCHED` signed by a key that is
+/// not a verified organization (`WorldState.provenanceOf == VERIFIED_ORG`), so
+/// a non-provider can never create or assign a mission (abuse rule). Carriers
+/// still accept via `MISSION_ACCEPTED`, which carries its own author signature.
+final missionsProvider = FutureProvider<List<MissionView>>((ref) async {
+  ref.watch(worldRevisionProvider);
+  final me = await ref.watch(identityProvider.future);
+  final world = await ref.watch(worldStateProvider.future);
+  final store = ref.watch(eventStoreProvider);
+  final events = await store.dao.allEvents();
+  final missions = MissionStore(factory: ref.watch(eventFactoryProvider));
+  return missions.missionsForViewer(
+    viewerPubkey: me.keys.signingPublicKey,
+    capabilities: CapabilitySet(const <String, Capability>{}),
+    events: events,
+    isVerifiedProvider: (author) =>
+        world.provenanceOf(author) ==
+        ProvenanceKind.PROVENANCE_KIND_VERIFIED_ORG,
+  );
+});

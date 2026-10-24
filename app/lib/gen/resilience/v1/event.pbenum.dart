@@ -53,6 +53,8 @@ class EventType extends $pb.ProtobufEnum {
       EventType._(22, _omitEnumNames ? '' : 'EVENT_TYPE_SHELTER_CREATED');
   static const EventType EVENT_TYPE_TRANSPORT_OFFERED =
       EventType._(23, _omitEnumNames ? '' : 'EVENT_TYPE_TRANSPORT_OFFERED');
+  static const EventType EVENT_TYPE_HELP_REQUEST_CLOSED =
+      EventType._(24, _omitEnumNames ? '' : 'EVENT_TYPE_HELP_REQUEST_CLOSED');
 
   /// Messaging (ciphertext payloads; relays cannot read)
   static const EventType EVENT_TYPE_MESSAGE_SENT =
@@ -114,6 +116,7 @@ class EventType extends $pb.ProtobufEnum {
     EVENT_TYPE_HELP_OFFERED,
     EVENT_TYPE_SHELTER_CREATED,
     EVENT_TYPE_TRANSPORT_OFFERED,
+    EVENT_TYPE_HELP_REQUEST_CLOSED,
     EVENT_TYPE_MESSAGE_SENT,
     EVENT_TYPE_MESSAGE_DELIVERED,
     EVENT_TYPE_MESSAGE_READ,

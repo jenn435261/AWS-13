@@ -1,9 +1,11 @@
 
+import 'package:fixnum/fixnum.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
+import '../../gen/resilience/v1/event.pb.dart';
 import '../../l10n/strings.dart';
 import '../../state/derived_state.dart';
 import '../components/common.dart';
@@ -56,7 +58,7 @@ class MyPostsScreen extends ConsumerWidget {
             final mine = me.valueOrNull?.keys.signingPublicKey;
             if (mine == null) return const SkeletonList();
             return requests
-                ? _requests(context, l, w, mine)
+                ? _requests(context, ref, l, w, mine)
                 : _supplies(context, ref, l, w, mine);
           },
         ),
@@ -64,13 +66,14 @@ class MyPostsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _requests(
-      BuildContext context, L10n l, WorldState w, List<int> mine) {
+  Widget _requests(BuildContext context, WidgetRef ref, L10n l, WorldState w,
+      List<int> mine) {
     final rows = w.helpRequests.where((r) => _same(r.author, mine)).toList();
     if (rows.isEmpty) {
       return _empty(context, l, Icons.help_outline_rounded, l.t('no_requests'),
           l.t('no_requests_hint'));
     }
+    final scheme = Theme.of(context).colorScheme;
     return ListView.separated(
       itemCount: rows.length,
       separatorBuilder: (_, i) => const Divider(height: 1),
@@ -78,13 +81,77 @@ class MyPostsScreen extends ConsumerWidget {
         final r = rows[i];
         final cats =
             r.body.categories.map((c) => categoryLabel(l, c)).join(', ');
+        final subtitle = <Widget>[
+          if (r.body.freeform.isNotEmpty) Text(r.body.freeform),
+          Text(
+            r.closed ? l.t('status_request_closed') : l.t('status_request_open'),
+            style: TextStyle(
+                color: r.closed ? scheme.outline : AppTheme.verified,
+                fontWeight: FontWeight.w700),
+          ),
+        ];
         return ListTile(
-          leading: const Icon(Icons.help_outline_rounded),
-          title: Text(cats.isEmpty ? '—' : cats),
-          subtitle: r.body.freeform.isEmpty ? null : Text(r.body.freeform),
+          isThreeLine: true,
+          leading: Icon(r.closed
+              ? Icons.check_circle_outline_rounded
+              : Icons.help_outline_rounded),
+          title: Text(cats.isEmpty ? '—' : cats,
+              style: TextStyle(
+                  decoration:
+                      r.closed ? TextDecoration.lineThrough : null)),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: subtitle,
+          ),
+          trailing: r.closed
+              ? null
+              : TextButton(
+                  onPressed: () => _closeRequest(context, ref, l, r),
+                  child: Text(l.t('close_request')),
+                ),
         );
       },
     );
+  }
+
+  /// Emits an owner-signed `HELP_REQUEST_CLOSED` for [r] after confirmation.
+  /// The fold honors this only because it is authored by the request's owner;
+  /// the closed request then shows as struck-through/closed here and drops off
+  /// the shared map.
+  Future<void> _closeRequest(
+      BuildContext context, WidgetRef ref, L10n l, HelpRequestView r) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l.t('close_request')),
+        content: Text(l.t('close_request_confirm')),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(l.t('cancel'))),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(l.t('close_request'))),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    final id = await ref.read(identityProvider.future);
+    final kp = await authorKeyPair(id);
+    final store = ref.read(eventStoreProvider);
+    final factory = ref.read(eventFactoryProvider);
+    final event = await factory.buildFromMessage(
+      keyPair: kp,
+      clock: store.clock,
+      type: EventType.EVENT_TYPE_HELP_REQUEST_CLOSED,
+      body: HelpRequestClosedBody(
+        requestId: r.requestId,
+        closedAtMs: Int64(DateTime.now().millisecondsSinceEpoch),
+      ),
+    );
+    await store.apply(event);
+    bumpWorld(ref);
+    if (context.mounted) Toast.show(context, l.t('request_closed'));
   }
 
   Widget _supplies(BuildContext context, WidgetRef ref, L10n l, WorldState w,
@@ -252,12 +319,15 @@ class _SupplyTile extends ConsumerWidget {
     final scheme = Theme.of(context).colorScheme;
     final inv = view.inventory;
     final out = inv != null && inv.quantity == 0;
+    final expired = view.isExpired(DateTime.now().millisecondsSinceEpoch);
 
     final (String status, Color color) = view.withdrawn
         ? (l.t('status_taken_down'), scheme.outline)
-        : out
-            ? (l.t('status_out'), scheme.error)
-            : (l.t('status_listed'), AppTheme.verified);
+        : expired
+            ? (l.t('status_expired'), scheme.outline)
+            : out
+                ? (l.t('status_out'), scheme.error)
+                : (l.t('status_listed'), AppTheme.verified);
 
     final details = <String>[
       categoryLabel(l, r.category),

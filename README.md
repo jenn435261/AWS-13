@@ -126,9 +126,11 @@ event account (`WSParticipantRole`) denies `iam:CreateRole`/`PassRole`, so
 | Network status | Real: probes the cloud `/healthz` (latency, last checked). Nearby peers unavailable in browsers; node and LoRa not set up |
 | Offline downloads | Pick a saved node, read its real package catalog, and keep your own library of package versions (add / edit / check / download / delete) |
 | Trusted organizations | You choose which organization keys to trust (from a contact, or your own key when founding one); persisted; untrust any time |
-| Map | Real OpenStreetMap map (pan/zoom, locate me). Requests, supplies and shelters plot at their true (rounded ~110 m) coordinates. Tiles need internet; offline PMTiles from a node are the planned replacement |
-| Supplies | Full lifecycle: add (type, item, number + free-text unit, amount level, available now / today / until a date, location), edit, restock, mark out of stock, take down, put back up. Only the owner's edits count |
-| Provider tools | Verified providers (a trusted root, or certified by one) can publish verified supplies, post emergency alerts and create missions; roots can certify contacts. Community users see how to become one |
+| Map | Real OpenStreetMap map (pan/zoom, locate me). Requests, supplies and shelters plot at their true (rounded ~110 m) coordinates. Supplies past their "available until" time and closed requests are auto-hidden. Tiles need internet; offline PMTiles from a node are the planned replacement |
+| Supplies | Full lifecycle: add (type, item, number + free-text unit, amount level, available now / today / until a date, location), edit, restock, mark out of stock, take down, put back up. Supplies past "available until" show as **Expired** and drop off the map. Only the owner's edits count |
+| Requests | My Requests can **close/cancel** a request (owner-only; it leaves the map, the record stays verifiable). A close from any other key is ignored |
+| Provider tools | Verified providers (a trusted root, or certified within **2 certificate hops** of one) can publish verified supplies, post emergency alerts (and **recall** their own alerts), and create + assign missions; roots can certify contacts. Community users see how to become one. Verified-org status requires a chain from a trusted root at most 2 hops deep |
+| Deliveries / missions | Verified providers assign a carrier to a mission (`MISSION_MATCHED`, verified-only — a non-provider assignment is ignored); carriers accept a mission from the Deliveries tab (`MISSION_ACCEPTED`). Buckets: Assigned / Available / In transit / Awaiting handoff / Completed |
 | Resilience nodes | Save several nodes (scan the node's QR or type an address), rename, set active, check reachability, delete |
 | Languages | English, Spanish, French, Mandarin (Simplified) |
 | Data controls | Erase-all really wipes events, contacts and identity; clear-cache rebuilds derived state |
