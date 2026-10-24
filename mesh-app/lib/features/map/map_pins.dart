@@ -175,15 +175,33 @@ class RadioDot extends StatelessWidget {
   }
 }
 
-/// You are here: a dot with a slow pulse, like the phone's own maps.
+/// You are here: a dot with a slow pulse, like the phone's own maps. A
+/// location the person set by hand is not [live]: it holds still and is
+/// hollow, so it never passes for GPS.
 class MeDot extends StatelessWidget {
-  const MeDot({super.key});
+  const MeDot({super.key, this.live = true});
+
+  final bool live;
 
   static const size = 64.0;
 
   @override
   Widget build(BuildContext context) {
     final c = Theme.of(context).colorScheme;
+    if (!live) {
+      return Center(
+        child: Container(
+          width: 26,
+          height: 26,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: Colors.white,
+            border: Border.all(color: c.primary, width: 6),
+            boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4)],
+          ),
+        ),
+      );
+    }
     return Center(
       child: Pulse(
         color: c.primary,

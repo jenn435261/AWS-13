@@ -865,5 +865,74 @@
   "mapOffline": "Street map needs internet",
   "mapLoading": "Loading street map",
   "missionNotFound": "This delivery is no longer available.",
-  "resourceNotFound": "This place is no longer on the map."
+  "resourceNotFound": "This place is no longer on the map.",
+  "mapAddHere": "Add here",
+  "mapAddHint": "Tap Add here, or hold the map, to add water, food, shelter or a problem you see.",
+  "mapAddEmpty": "Tap to add water, food, shelter or a problem you see.",
+  "mapSetLocation": "Set my location",
+  "mapSetLocationSub": "When GPS can't find you, move the map to where you are.",
+  "mapSetLocationTitle": "Where are you?",
+  "mapSetLocationHint": "Drag the map until the pin is where you are.",
+  "mapLocationNote": "What's here? (optional)",
+  "mapLocationNoteHint": "For example: Library, 2nd floor",
+  "mapUseLocation": "Use this location",
+  "mapLocationSaved": "Your location is set",
+  "mapSetByYou": "Set by you",
+  "mapSetByYouNamed": "Set by you: {label}",
+  "@mapSetByYouNamed": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "mapYouAreHere": "You are here",
+  "mapOpenDownloads": "Opens Offline downloads",
+  "mapOfflineTitle": "Offline street map",
+  "mapOsmCredit": "© OpenStreetMap contributors",
+  "mapOfflineAbout": "Streets for finding your way with no internet. Download it ahead of time from a Resilience Node on local Wi-Fi.",
+  "mapOfflineDownload": "Download street map",
+  "mapOfflineMegabytes": "{size} MB",
+  "@mapOfflineMegabytes": {
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "mapOfflineOnPhone": "{size} on this phone. Downloaded {time}",
+  "@mapOfflineOnPhone": {
+    "placeholders": {
+      "size": {
+        "type": "String"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "mapOfflineProgress": "{done} of {total}",
+  "@mapOfflineProgress": {
+    "placeholders": {
+      "done": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "mapOfflineCancel": "Stop download",
+  "mapOfflineUpdate": "Update",
+  "mapOfflineNewer": "A newer street map is ready on the Resilience Node.",
+  "mapOfflineDelete": "Delete",
+  "mapOfflineDeleteTitle": "Delete the offline street map?",
+  "mapOfflineDeleteBody": "Without it, streets show only with internet. You can download it again.",
+  "mapOfflineDeleted": "Offline street map deleted",
+  "mapOfflineDone": "Street map saved for offline use",
+  "mapOfflineUnreachable": "Can't reach the Resilience Node. Join its Wi-Fi, then try again.",
+  "mapOfflineNotFound": "The Resilience Node has no street map for this area yet.",
+  "mapOfflineNotAMap": "That download isn't a street map this app can read.",
+  "mapOfflineStorage": "This phone couldn't save the map. Free up some space, then try again.",
+  "mapCancel": "Cancel"
 }
