@@ -48,11 +48,49 @@ verified-only alerts enforced in the fold.
 Tests: `supply_and_provider_test.dart`, `package_manifest_test.dart`, Go `internal/pairing`, `internal/packages`
 (catalog + manifest + Range-resume), `internal/api` (CORS preflight).
 
+## Round 2 (branch `kiro/round2`): also built
+
+See `docs/HOW_IT_WORKS.md` for the honest transport matrix and `docs/OVERNIGHT_LOG.md` for the Round-2 report.
+
+- **Proto**: `LocationSource` enum + `GeoPoint.location_source` (regenerated Dart + Go; `node/gen` synced byte-identical).
+- **Connectivity indicator** (`lib/sync/connectivity.dart`): live Online / Cloud unreachable / Node connected / Offline banner.
+- **Offline app shell**: a hand-written cache-first service worker (`app/web/sw.js`) + cacheable cloud headers
+  (`cloud/internal/api/web.go`, `web_test.go`).
+- **Map**: refresh button + fold-invalidation regression test.
+- **Location**: auto last-known fix cached ("last known, <age>"); manual pin recording `location_source = MANUAL`;
+  estimated dead-reckoning position **native-only** via `sensors_plus` (web honestly unavailable); editable pins with
+  non-owner abuse tests.
+- **Supplies/needs**: multi-select categories + items (`lib/supplies/supply_catalog.dart`), extra items mapped to
+  existing `ResourceCategory` (no proto change); confirm-closes-sheet + undo.
+- **Haptics** (`lib/core/haptics/`): gated helper + Settings toggle (default on; native only).
+- **Identity**: optional profile (Settings > Identity, never auto-verified, include-name QR); reveal-gated Resilience
+  ID with `local_auth` behind an authenticator interface (`lib/auth/authenticator.dart`, `FakeAuthenticator`) +
+  30s/background auto-hide + "Require unlock" toggle.
+- **Cloud feeds** (`cloud/internal/feeds`): NWS/NOAA CAP, USGS, wildfire, FEMA, GDACS adapters + checked-in fixtures;
+  `cmd/feedworker` gated on `FEED_SIGNING_KEY`; `source=official_feed` encoded with no proto change; `GET /v1/alerts`;
+  feed alerts in `/v1/events/pull`; `GET /v1/safe-places` (sources + age, no fabrication, rules/Bedrock summary);
+  `GET /v1/packages` cloud-signed manifest + Range (`cloud/internal/packages`).
+- **App downloads** (`lib/packages`): alert poller + severe-alert banner + "Prepare now" consent download; resumable
+  chunked downloads (`DriftChunkStore`); storage screen; Cloud/Node source labels + first-run prompt;
+  `docs/FEED_AND_DOWNLOADS.md`.
+- **Transports**: animated QR fountain transfer (`lib/transport/qr_fountain.dart`, `qr_transfer*.dart`, loss-tolerant,
+  SHA-256 + signature verify, ingest via `EventStore.apply`, exposed as "Transfer by QR"); BLE GATT behind the
+  `Transport` abstraction (`lib/transport/ble_*`, `flutter_blue_plus` native-only, MTU chunking, 6-digit pairing,
+  AES-GCM session, Android/iOS permissions), which **needs a real device**; LoRa Meshtastic (`lib/transport/lora_*`,
+  <=222-byte envelope, fragmentation/dedupe) + node Go serial gateway (`node/internal/lora`, `go.bug.st/serial`, opt-in
+  `--lora-serial-port`), which **needs real hardware**; Network Status transport matrix with honest labels.
+- **Demo/docs**: `scripts/seed-demo.sh` + `cloud/cmd/seed-demo` (runnable org/providers/supplies/alert seeder);
+  `docs/NODE_SETUP.md`, `docs/DEMO_ORG_SETUP.md`, `docs/HOW_IT_WORKS.md`, `docs/VIDEO_GUIDE.md`.
+
 ## Still open / partial
 
-- **Nearby peers (BLE/Wi-Fi Direct)**: `nearby_service` transport exists but is unavailable in browsers and not
-  exercised on-device in this run.
-- **LoRa**: not set up.
+- **Nearby peers (BLE/Wi-Fi Direct)**: `nearby_service` transport exists; BLE GATT transport added in Round 2 with
+  chunking/pairing/encryption unit-tested, but both are unavailable in browsers and **need a real device** (not
+  exercised on-device here).
+- **LoRa**: the compact codec/fragmenter (Dart) and the node serial gateway (Go) are built and unit-tested, but a
+  physical Meshtastic radio is required, so it **needs real hardware** and was not exercised here.
+- **Web Push / VAPID**: not built (needs a service-worker push subscription + a server push endpoint). Native local
+  notifications + background polling need a plugin + a real device; the in-app banner covers the open-app case.
 - **Node discovery (mDNS)**: not implemented (nodes are added by QR or typed address).
 - **Mixed content on web**: an HTTPS page cannot reach a plain-HTTP LAN node; give the node HTTPS for web use
   (native is fine). The signed-manifest checksum flow therefore verifies best from a native build or an HTTPS node.

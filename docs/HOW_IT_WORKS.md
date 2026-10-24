@@ -4,7 +4,7 @@ Resilience Network is **local-first**: the phone creates, signs and shows
 everything immediately, then distributes it opportunistically over whatever
 transport exists. No connection is required; each connection only improves
 synchronisation. The rule that governs the whole system and this document: the
-UI never claims something works that is not wired — it shows an honest state.
+UI never claims something works that is not wired - it shows an honest state.
 
 ## Architecture + data flow
 
@@ -14,8 +14,8 @@ flowchart TD
     UI["Map-first UI (Flutter, Riverpod)"]
     EF["EventFactory: sign (Ed25519) + content hash (BLAKE2b-256)"]
     ES["EventStore.apply: verify-before-store"]
-    DB[("Drift / SQLite\n(SQLite-WASM on web)")]
-    FOLD["WorldState fold\n(derived_state.dart)"]
+    DB[("Drift / SQLite<br/>(SQLite-WASM on web)")]
+    FOLD["WorldState fold<br/>(derived_state.dart)"]
     UI --> EF --> ES --> DB
     DB --> FOLD --> UI
   end
@@ -37,9 +37,9 @@ flowchart TD
   ES <--> NET
 
   subgraph Node["Resilience Node (Go, offline-capable)"]
-    NCACHE[("Event cache\n+ append-only log")]
+    NCACHE[("Event cache<br/>+ append-only log")]
     NSYNC["/node/v1/push, /pull"]
-    NPKG["/node/v1/manifest (signed)\nmap packs, Range"]
+    NPKG["/node/v1/manifest (signed)<br/>map packs, Range"]
     NLORA["LoRa serial gateway (opt-in)"]
   end
   LAN --> NSYNC --> NCACHE
@@ -47,9 +47,9 @@ flowchart TD
   LORA <--> NLORA
 
   subgraph Cloud["Cloud API (Go, authoritative, optional)"]
-    CSTORE[("Event store\n(in-mem or Postgres)")]
+    CSTORE[("Event store<br/>(in-mem or Postgres)")]
     CSYNC["/v1/events, /v1/events/pull"]
-    CFEED["Feed ingest -> signed EMERGENCY_ALERT\n(NWS/USGS/wildfire/FEMA/GDACS)"]
+    CFEED["Feed ingest -> signed EMERGENCY_ALERT<br/>(NWS/USGS/wildfire/FEMA/GDACS)"]
     CPKG["/v1/packages (signed manifest, Range)"]
     CAI["/v1/ai/* (Bedrock + rules fallback)"]
   end
@@ -65,8 +65,8 @@ Every action is a content-addressed, Lamport/DAG-ordered, **Ed25519-signed**
 event. The id is `BLAKE2b-256(canonicalHeader(no id) || body)`; the signature is
 `Ed25519(canonicalHeader(with id) || body)`. State is derived by **folding** the
 log (`app/lib/state/derived_state.dart`), so independent devices converge even
-with wrong clocks. Every ingest path — local write, cloud/node pull, QR, BLE,
-LoRa — goes through `EventStore.apply`, which verifies signature + hash **before
+with wrong clocks. Every ingest path - local write, cloud/node pull, QR, BLE,
+LoRa - goes through `EventStore.apply`, which verifies signature + hash **before
 storing**. A forged or tampered event is rejected everywhere; relays carry
 opaque bytes and are never trusted.
 
@@ -90,8 +90,7 @@ opaque bytes and are never trusted.
 - Messaging is end-to-end (Signal: X3DH + Double Ratchet + sender keys);
   attachments are AES-256-GCM, content-addressed, EXIF-stripped. Relays/cloud
   see only ciphertext.
-- Only owners edit their own things; only verified authors issue alerts —
-  enforced in the fold with abuse tests. Logs never record message content,
+- Only owners edit their own things; only verified authors issue alerts - enforced in the fold with abuse tests. Logs never record message content,
   keys, or coordinates.
 
 ## Transport matrix (works where, Android vs iPhone)
@@ -105,18 +104,18 @@ passing web build, not by clicking.
 
 | Transport | Android | iPhone | Web | State / how proven |
 | --- | --- | --- | --- | --- |
-| Internet / cloud sync | yes | yes | yes | **works today** — `cloud_sync_test.dart`, Go `server_test.go`; web build boots zero-error |
-| LAN / node sync | yes | yes | yes (HTTPS node only; mixed content blocks plain-HTTP) | **works today** — node `syncserver` + `packages` tests; `package_manifest_test.dart` |
-| Animated QR transfer | yes | yes | camera-dependent | **works today (codec + verify)** — `qr_fountain` + `qr_transfer` tests (loss tolerance, SHA-256 + signature, ingest via `EventStore.apply`); on-camera scan not drivable headlessly |
-| BLE GATT | yes | yes | no (browser has no BLE) | **needs real device** — chunker/pairing/encryption unit-tested (`ble_*` + Dart tests); radio behind `flutter_blue_plus`, native-only, not exercised here |
-| Nearby (Wi-Fi/BLE) | yes | limited | no | **needs real device** — transport exists (`nearby_transport.dart`); not driven on-device in this run |
-| LoRa / Meshtastic | yes (BLE/serial) | yes (BLE) | no | **needs real hardware** — pure-Dart codec/fragmenter tested (`lora_codec`); node Go serial gateway tested from a canned stream; a physical Meshtastic radio is required |
-| Estimated (dead-reckoning) position | yes | yes | **unavailable (honest)** | **native-only** — `sensors_plus`; web has no sensor stream and says so |
+| Internet / cloud sync | yes | yes | yes | **works today** - `cloud_sync_test.dart`, Go `server_test.go`; web build boots zero-error |
+| LAN / node sync | yes | yes | yes (HTTPS node only; mixed content blocks plain-HTTP) | **works today** - node `syncserver` + `packages` tests; `package_manifest_test.dart` |
+| Animated QR transfer | yes | yes | camera-dependent | **works today (codec + verify)** - `qr_fountain` + `qr_transfer` tests (loss tolerance, SHA-256 + signature, ingest via `EventStore.apply`); on-camera scan not drivable headlessly |
+| BLE GATT | yes | yes | no (browser has no BLE) | **needs real device** - chunker/pairing/encryption unit-tested (`ble_*` + Dart tests); radio behind `flutter_blue_plus`, native-only, not exercised here |
+| Nearby (Wi-Fi/BLE) | yes | limited | no | **needs real device** - transport exists (`nearby_transport.dart`); not driven on-device in this run |
+| LoRa / Meshtastic | yes (BLE/serial) | yes (BLE) | no | **needs real hardware** - pure-Dart codec/fragmenter tested (`lora_codec`); node Go serial gateway tested from a canned stream; a physical Meshtastic radio is required |
+| Estimated (dead-reckoning) position | yes | yes | **unavailable (honest)** | **native-only** - `sensors_plus`; web has no sensor stream and says so |
 
 Android vs iPhone caveats: BLE background and Nearby behave differently per OS
 and need entitlements/permissions (declared in the Android manifest and iOS
 `Info.plist`); LoRa on iPhone is BLE-only (no USB serial). None of the radios
-were exercised here — they need real devices.
+were exercised here - they need real devices.
 
 ## Works today vs needs real device vs not built
 

@@ -73,7 +73,7 @@ The image is multi-stage and runs on distroless as a non-root user.
 - The node speaks plain HTTP on `HTTP_ADDR` (default `:8090`). On a LAN this is
   fine: phones reach it at e.g. `http://192.168.4.1:8090`.
 - **Mixed content:** an HTTPS web page (e.g. the cloud-hosted web app) **cannot**
-  fetch a plain-HTTP LAN node — the browser blocks it. For web clients, either
+  fetch a plain-HTTP LAN node - the browser blocks it. For web clients, either
   put the node behind HTTPS (a reverse proxy with a cert, or a self-signed cert
   the phones trust) or use the **native** app (no mixed-content rule). The
   native build is the reliable path for the node/manifest flow.
@@ -107,7 +107,7 @@ The image is multi-stage and runs on distroless as a non-root user.
    algorithm:"ed25519"}` where the signature is a detached Ed25519 over the
    canonical compact JSON of the manifest, with a per-file SHA-256
    (`node/internal/packages/manifest.go`). Without a key the endpoint returns
-   **503** — the node will never hand out an unsigned manifest that merely looks
+   **503** - the node will never hand out an unsigned manifest that merely looks
    trustworthy.
 5. In the app, build with `--dart-define=PACKAGES_TRUSTED_ROOT=<that public
    hex>`. Offline Downloads then shows a **verified** manifest banner and can
@@ -175,8 +175,7 @@ radio). The pure-Go parse/reassemble/verify/store/rebroadcast path is
 unit-tested from a canned stream (`node/internal/lora`); only the serial adapter
 (`serial.go`) touches a device.
 
-1. **Hardware:** an ESP32/nRF52 LoRa board flashed with **Meshtastic firmware** —
-   Heltec V3, LilyGO T-Beam, or RAK4631 are known-good boards.
+1. **Hardware:** an ESP32/nRF52 LoRa board flashed with **Meshtastic firmware** - Heltec V3, LilyGO T-Beam, or RAK4631 are known-good boards.
 2. **Region/frequency:** set the correct band for your country (US915, EU868,
    ...) in the Meshtastic app/CLI **on the device**, not in the node. Using the
    wrong band is illegal and will not interoperate.
@@ -199,7 +198,7 @@ unit-tested from a canned stream (`node/internal/lora`); only the serial adapter
    rebroadcasts fresh SOS/alerts back to the mesh. Oversized or media-bearing
    events are refused rather than corrupted.
 6. **Topology:** a phone with no internet reaches an internet-connected node by
-   hopping over the mesh — the phone's LoRa transport sends compact signed
+   hopping over the mesh - the phone's LoRa transport sends compact signed
    events to a nearby node running this gateway. On the phone side the Meshtastic
    link is BLE/serial and needs a real device; see `docs/HOW_IT_WORKS.md` for the
    transport matrix.

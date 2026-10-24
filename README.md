@@ -54,7 +54,7 @@ Toolchain: Flutter (Dart 3.11+), Go 1.26, protoc/buf.
 
 ```bash
 # App
-cd app && flutter pub get && flutter test            # 164 tests (excluding screenshots_test, which needs the original author's sandbox font path)
+cd app && flutter pub get && flutter test $(ls test/*.dart | grep -v screenshots_test.dart)   # 266 tests (screenshots_test excluded: hard-coded sandbox font path)
 
 # Cloud (Go)
 cd cloud && go test ./...                            # events/store/api/ai/org
@@ -116,7 +116,43 @@ event account (`WSParticipantRole`) denies `iam:CreateRole`/`PassRole`, so
 `cdk bootstrap` fails (re-confirmed). It deploys on any normal AWS account
 (`infra/deploy.sh`). See `infra/DEPLOY_NOTES.md`. S3 and Bedrock were proven live.
 
-## What works today (verified by clicking through the web build)
+## What works today
+
+Honest states below. **Working** = exercised by tests + the passing web build.
+**Native-only** = works on device, honestly unavailable on web. **Needs real
+device/hardware** = code + unit tests exist, but a radio/second device is
+required and was not exercised here. **Not built** = deliberately absent.
+Interaction-level UI driving is not possible headlessly in this sandbox (the
+Flutter semantics tree publishes no aria-label nodes), so UI behaviour is proven
+by Dart fold/abuse/widget tests + Go endpoint tests + a zero-console-error web
+boot, not by clicking. See `docs/HOW_IT_WORKS.md` for the full transport matrix.
+
+### Round 2 additions
+
+| Area | State |
+|------|-------|
+| Connectivity indicator | Working: a live banner shows Online / Cloud unreachable / Node connected / Offline from `lib/sync/connectivity.dart` |
+| Offline service-worker app shell | Working: a hand-written cache-first service worker (`app/web/sw.js`) + cacheable cloud headers (`cloud/internal/api/web.go`) serve the shell offline |
+| Map refresh + fold-driven updates | Working: a refresh button and a fold-invalidation regression test (map updates when the world changes) |
+| Auto / last-known location | Working: a last-known fix is cached and shown as "last known, <age>" when a live fix is unavailable |
+| Manual pin | Working: drop a pin by hand; the point records `location_source = MANUAL` |
+| Estimated (dead-reckoning) position | Native-only via `sensors_plus`; web is honestly unavailable |
+| Multi-select supplies / needs | Working: pick multiple categories + items with qty/unit/free text, mapped to existing proto categories (no proto change) |
+| Haptics | Working (native): gated helper + Settings toggle (default on); web has no haptics |
+| Optional identity | Working: Settings > Identity, never auto-verified, include-name QR |
+| Reveal-gated Resilience ID + biometric lock | Working: `local_auth` behind an authenticator interface (`FakeAuthenticator` in tests), 30s/background auto-hide, Settings "Require unlock" toggle |
+| Cloud alert feed / official alerts | Working (server): pluggable ingest (NWS/NOAA CAP, USGS, wildfire, FEMA, GDACS) to signed `official_feed` alerts; `GET /v1/alerts`; feed alerts in `/v1/events/pull`. Worker gated on `FEED_SIGNING_KEY`. Feed fixtures + Go tests |
+| Safe places | Working (server): `GET /v1/safe-places` returns sources + age, never fabricates, with a rules/Bedrock summary |
+| Prepare-now downloads + resumable | Working (native best): consent download with a MB cap; resumable chunked download keeps verified chunks. Web has no persistent partial file (IndexedDB/OPFS only) |
+| Cloud packages | Working: `GET /v1/packages` with a cloud-signed manifest + Range, mirroring the node; the app reuses one verifier |
+| Animated QR transfer | Working (codec + verify): loss-tolerant fountain code, SHA-256 + signature verified, ingested via `EventStore.apply`, exposed as "Transfer by QR". On-camera scan needs a device |
+| BLE GATT transport | Needs real device: MTU chunking, 6-digit pairing, AES-GCM session behind `flutter_blue_plus` (native-only, conditional import), Android/iOS permissions declared. Unit-tested; no radio here |
+| LoRa transport + node gateway | Needs real hardware: <=222-byte envelope, fragmentation/dedupe, compact kinds only; node Go serial gateway (opt-in `--lora-serial-port`). Unit-tested from a canned stream; needs a Meshtastic radio |
+| Network Status transport matrix | Working: honest per-transport labels (reachable / connected / idle / needs device / needs hardware / unavailable here) |
+| Web Push / VAPID | Not built (needs a service-worker push subscription + a server push endpoint) |
+| Native local notifications + background polling | Needs real device (needs a plugin + device); the in-app banner covers the open-app case |
+
+### Round 1 foundation
 
 | Area | State |
 |------|-------|
@@ -144,5 +180,11 @@ event account (`WSParticipantRole`) denies `iam:CreateRole`/`PassRole`, so
 
 Offline foundation, two-phone sync (convergence proven), community trust, secure
 messaging, logistics, optional cloud (Bedrock-validated), the node daemon, and a
-complete map-first UI are implemented and tested. See the PR for the full
-breakdown.
+complete map-first UI are implemented and tested. Round 2 added the connectivity
+indicator, an offline service-worker shell, auto/last-known/manual/estimated
+location, multi-select supplies, gated haptics, optional identity with a
+reveal-gated biometric-locked Resilience ID, a cloud official-alert feed +
+safe-places + resumable signed downloads, and QR/BLE/LoRa transports (BLE/LoRa
+need real radios). See `docs/HOW_IT_WORKS.md` for the honest works-today vs
+needs-real-device vs not-built breakdown, and `docs/OVERNIGHT_LOG.md` for the
+Round-2 report.

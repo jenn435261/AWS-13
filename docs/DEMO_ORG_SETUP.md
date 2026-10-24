@@ -5,7 +5,7 @@ providers, understanding the certificate depth limit, what "verified" means in
 the UI, how to revoke, and how to seed a self-consistent set of demo data with
 the runnable `scripts/seed-demo.sh`. It also explains how the cloud feed key
 (FEAT-004) is trusted. Rule that holds throughout: nothing here fabricates
-trust — every certificate and every demo event is a real Ed25519-signed event
+trust - every certificate and every demo event is a real Ed25519-signed event
 that the fold/store verifies before accepting.
 
 ## 1. Trust model in one paragraph
@@ -77,7 +77,7 @@ What it creates:
 
 - an **org root** identity (prints its public key to install as a trusted org);
 - **provider A**, certified directly by the root (`ORG_CERTIFICATE`, depth 1);
-- **provider B**, certified by provider A (`ORG_CERTIFICATE`, depth 2 — the
+- **provider B**, certified by provider A (`ORG_CERTIFICATE`, depth 2 - the
   maximum);
 - **two verified supplies** (water from A, first-aid from B);
 - **one emergency alert** signed by provider A.
@@ -106,7 +106,7 @@ demo org seed - built and locally verified 6 signed events
 ```
 
 Every event is re-checked with `events.VerifyEvent`; a build/verify failure
-exits non-zero. This is the smoke step — if it prints the six events it works.
+exits non-zero. This is the smoke step - if it prints the six events it works.
 
 ### Push to a running cloud API
 
@@ -129,7 +129,7 @@ Install the printed **org root public key** in the app under **Trusted
 organisations**. Pull the seeded events (cloud or node sync). The two supplies
 and the alert now render as **verified** because their authors chain to the
 trusted root within depth 2. Without installing the root, they show honestly as
-community — the script never forces a badge.
+community - the script never forces a badge.
 
 ## 7. Revoke a key (`KEY_REVOKED`)
 
@@ -145,7 +145,7 @@ demonstrate it.)
 
 Official alerts from public feeds (NWS/NOAA CAP, USGS, wildfire, FEMA, GDACS)
 are signed by a dedicated **cloud feed key** and marked `source=official_feed`
-(encoded in the alert body, no proto change — see `docs/FEED_AND_DOWNLOADS.md`).
+(encoded in the alert body, no proto change - see `docs/FEED_AND_DOWNLOADS.md`).
 The app labels such an alert **Official** only when it verifies against the feed
 root:
 
@@ -155,7 +155,7 @@ root:
 - **Native:** pass `--dart-define=FEED_PUBKEY=<hex>` at build time.
 
 With no feed key configured, the app shows an honest unverified state and
-`/v1/alerts` returns an empty set — never a fabricated official alert. The feed
+`/v1/alerts` returns an empty set - never a fabricated official alert. The feed
 **private** key lives only in a Heroku config var (`FEED_SIGNING_KEY`), never in
 git.
 
@@ -164,12 +164,12 @@ git.
 Capture these into `docs/screenshots/` (create the folder) when you do the live
 click-through:
 
-- `demo-trusted-orgs.png` — Trusted organisations with the demo root installed.
-- `demo-provider-verified.png` — the provider status card showing verified +
+- `demo-trusted-orgs.png` - Trusted organisations with the demo root installed.
+- `demo-provider-verified.png` - the provider status card showing verified +
   which root/hops.
-- `demo-supply-verified.png` — a seeded supply on the map with the verified
+- `demo-supply-verified.png` - a seeded supply on the map with the verified
   (checkmark) provenance.
-- `demo-alert-official.png` — the seeded/official alert banner, honestly labelled.
-- `demo-revoke.png` — a key after `KEY_REVOKED` losing its badge (optional).
+- `demo-alert-official.png` - the seeded/official alert banner, honestly labelled.
+- `demo-revoke.png` - a key after `KEY_REVOKED` losing its badge (optional).
 
 These are capture targets for the human; they are not committed by this run.

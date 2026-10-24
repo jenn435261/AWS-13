@@ -1,6 +1,6 @@
 # Spec: providers, map, supplies, nodes, packages, media, languages
 
-Status key: **Built** (in the app, tested) · **Partial** · **Spec only** (designed here, not built).
+Status key: **Built** (in the app, tested) · **Partial** · **Needs real device/hardware** (code + unit tests exist, but a radio/second device is required and was not exercised here) · **Spec only** (designed here, not built).
 Everything here follows one rule: the UI never claims something works that is not wired.
 
 ## 1. Roles and what each can do
@@ -52,6 +52,9 @@ Provider screen layout (Built): status card (verified or not, why) → if not ve
 - Offline: online tiles need internet. **Built (FEAT-006):** when the active node serves `<region>.pmtiles` (`/node/v1/map/…`, Range supported), `app/lib/ui/map/pmtiles_tile_provider.dart` opens the archive over HTTP and renders its **raster** tiles; when no node map is available (or a tile is vector/unreachable) it falls back to the online OSM raster layer and shows an honest offline banner. (A full **vector** PMTiles renderer is still out of scope — `maplibre_gl` breaks the web build.) Respect the OSM tile usage policy: fine for a demo, not for sustained load; switch to the node PMTiles or a paid tile host before real use.
 - Emergency alerts from verified authors show as a banner above the map until `expires_ms`. An author may **recall** an alert by re-issuing the same `alert_id` with `expires_ms` in the past (FEAT-005); the fold drops it immediately.
 - Supplies past `available_until_ms` and closed requests are **auto-hidden** from the map (FEAT-005).
+- **Round 2 (FEAT-002, Built):** a **refresh** button on the map, with a fold-invalidation regression test so the map updates when the world changes. Location now records how a point was obtained via the new `GeoPoint.location_source` (`LocationSource` enum: GPS / LAST_KNOWN / MANUAL / ESTIMATED; unset = GPS/unknown, back-compatible). A cached **last-known** fix is used and shown as "last known, <age>" when a live fix is unavailable; a **manual pin** records `location_source = MANUAL`; an **estimated** dead-reckoning position is **native-only** (via `sensors_plus`) and honestly **unavailable on web**. Pins are editable with non-owner abuse tests.
+- **Round 2 (FEAT-002, Built):** an honest **connectivity indicator** banner (`lib/sync/connectivity.dart`): Online / Cloud unreachable / Node connected / Offline. An offline **service-worker app shell** (`app/web/sw.js`, cache-first) plus cacheable cloud headers (`cloud/internal/api/web.go`) serve the shell without a network.
+- **Round 2 (FEAT-004, Built, server):** **official alerts** from public feeds (NWS/NOAA CAP, USGS, wildfire, FEMA, GDACS) are ingested and signed with a cloud feed key, marked `source=official_feed` (no proto change), and surfaced via `GET /v1/alerts` and the ordinary `/v1/events/pull`. The app shows a **severe-alert banner** and a **"Prepare now"** consent download. `GET /v1/safe-places` returns places with sources + age (never fabricated) and a rules/Bedrock summary. The feed worker (`cmd/feedworker`) is gated on `FEED_SIGNING_KEY`.
 
 ## 3. Supplies and availability (Built)
 
@@ -81,6 +84,8 @@ Lifecycle (My Supplies → ⋮ menu; log is append-only so nothing is erased):
 | Put back up | Re-publish `RESOURCE_CREATED` | Listed again. (A proto3 `withdrawn=false` is indistinguishable from "unset", so relisting cannot use an update) |
 | Expires | `available_until_ms` passes (no event) | **Auto-hidden** from the map; shown as **Expired** in My Supplies (FEAT-005) |
 
+**Round 2 (FEAT-003, Built):** supplies and needs now support **multi-select** categories + items with qty/unit/free text (`lib/supplies/supply_catalog.dart`); extra items are mapped to existing `ResourceCategory` values (no proto change). Confirm closes the sheet with an undo. **Gated haptics** (`lib/core/haptics/`, Settings toggle, default on, native only) fire on key actions.
+
 My **requests** can be **closed/cancelled** (FEAT-005): My Requests shows a Close action that emits `HELP_REQUEST_CLOSED` (owner-only — a close from any other key is ignored). A closed request leaves the map and is struck through in My Requests; the record stays verifiable. Reservations by missions reduce *available* quantity but never the snapshot (existing rule). Supply expiry (`available_until_ms` in the past) now auto-hides a supply from the map via `WorldState.mapResources()` (FEAT-005).
 
 ## 4. Resilience nodes (Built) and the proof-of-concept node
@@ -98,7 +103,9 @@ My **requests** can be **closed/cancelled** (FEAT-005): My Requests shows a Clos
 
 My library = your own list of package versions: kind (app / map / readiness / other), name, version, link, notes. Add by hand or "Save to my library" from a node's catalog (version defaults to the file's modified date). Several versions of one name sit together, newest first. Per entry: download (opens the link), check link (HEAD), copy link, edit, delete with undo. Nothing is claimed to be downloaded on-device: the app stores *where* each version is; the browser/OS handles the file.
 
-**Built (FEAT-007): checksum verification against a signed manifest.** When the node serves a signed manifest that verifies against the configured trusted root (`--dart-define=PACKAGES_TRUSTED_ROOT=<hex>`), Offline Downloads shows an honest manifest-trust banner and offers **Verify checksum**: it downloads the file and compares its SHA-256 to the signed entry, rejecting a mismatch loudly. The node serves files with HTTP **Range** so a large download can **resume** from a byte offset (proven in `node/internal/packages/manifest_test.go` `TestRangeResumeDownload`). Still spec only: true on-device background download with a progress bar + persistent partial-file resume (limited on web, which has no filesystem — the UI stays honest about this), and "keep the last N versions" pruning.
+**Built (FEAT-007): checksum verification against a signed manifest.** When the node serves a signed manifest that verifies against the configured trusted root (`--dart-define=PACKAGES_TRUSTED_ROOT=<hex>`), Offline Downloads shows an honest manifest-trust banner and offers **Verify checksum**: it downloads the file and compares its SHA-256 to the signed entry, rejecting a mismatch loudly. The node serves files with HTTP **Range** so a large download can **resume** from a byte offset (proven in `node/internal/packages/manifest_test.go` `TestRangeResumeDownload`). Still spec only: "keep the last N versions" pruning.
+
+**Round 2 (FEAT-004, Built): resumable chunked downloads + cloud packages.** "Prepare now" resolves the source (node on LAN else cloud), fetches + verifies the signed manifest, shows the size + a MB cap with explicit consent, then downloads map pack(s) **resumably** (chunked; every verified chunk is kept in a `DriftChunkStore`; it resumes and shows `N% of <region>, resume`), verifying each file's SHA-256 against the signed manifest before trusting it. A Storage screen shows per-pack size + delete. The cloud mirrors the node's signed-manifest flow at `GET /v1/packages` (+ Range), so the app reuses one verifier. **Honest limit:** on **web** there is no persistent partial file beyond IndexedDB/OPFS, so a true background download with the tab closed is not possible there (native is the best path); the UI never claims otherwise. **Web Push/VAPID and native background polling are not built** (the in-app banner covers the open-app case).
 
 ## 6. Messages with photos and audio (Built, FEAT-003)
 
@@ -112,6 +119,19 @@ built (relays/cloud see only ciphertext):
 - **Blob store:** `PUT/GET /v1/blobs/{sha256}` on the cloud and `/node/v1/blobs/{sha256}` on a node; content-addressed, size cap 2 MB, rate-limited, gated by the client API key, purged after 7 days. The recipient verifies the hash after decrypting.
 - **UI:** attach button (camera / gallery), hold-to-record mic with cancel and 60 s cap, inline thumbnail with tap-to-load, audio bubble with play and duration, "queued" state while offline. Strip EXIF (including GPS) before encrypting.
 - **Safety:** warn before sending a photo with detectable location context; never auto-download from unknown contacts on mobile data.
+
+## 6a. Identity and the Resilience ID (Round 2, FEAT-003, Built)
+
+An **optional** profile lives in Settings > Identity: it is never auto-verified and you choose whether a QR includes your name. The **Resilience ID** is **reveal-gated**: the raw ID is hidden until you authenticate via `local_auth` (behind an authenticator interface, `app/lib/auth/authenticator.dart`, with a `FakeAuthenticator` for tests), and it **auto-hides** after 30s or when the app backgrounds. A Settings **"Require unlock"** toggle controls whether a reveal demands authentication. The honesty rule holds: identity is never shown as verified unless it chains to a trusted root.
+
+## 6b. Transports (Round 2, FEAT-005)
+
+The `Transport` abstraction (`app/lib/transport/transport.dart`) carries signed events over whatever is present; every inbound event is verified by `EventStore.apply` before storing. Honest states (see `docs/HOW_IT_WORKS.md` for the full matrix):
+
+- **Animated QR transfer (Built, codec + verify):** a loss-tolerant Luby-Transform fountain code (`qr_fountain.dart`, `qr_transfer*.dart`) so a frame-dropping camera still recovers the data; the payload is SHA-256 + signature verified before ingest; exposed as **"Transfer by QR"**. The on-camera scan needs a device (not drivable headlessly).
+- **BLE GATT (Needs real device):** MTU chunking, 6-digit pairing, AES-GCM session (`ble_*`, `flutter_blue_plus`, native-only behind a conditional import so the web build never pulls it in); Android manifest + iOS `Info.plist` permissions declared. Unit-tested; no radio exercised here.
+- **LoRa / Meshtastic (Needs real hardware):** a compact <=222-byte envelope with fragmentation/dedupe and compact-only kinds (`lora_*`), plus a node Go serial gateway (`node/internal/lora`, `go.bug.st/serial`, opt-in `--lora-serial-port`). Pure-logic code is unit-tested from a canned stream; a physical Meshtastic radio (Heltec V3 / T-Beam / RAK4631) is required.
+- **Network Status transport matrix (Built):** honest per-row labels (reachable / connected / idle / needs device / needs hardware / unavailable here).
 
 ## 7. Languages (Built)
 
