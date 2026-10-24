@@ -147,6 +147,15 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
                 ),
               ),
             ),
+            const Divider(),
+            // The rule itself lives in the data layer (LocationPolicy);
+            // this says it in plain words. It sits under the actions so
+            // Erase stays on screen when a notice is showing.
+            ListTile(
+              leading: const Icon(Icons.location_on_outlined),
+              title: Text(l.privacyLocationTitle),
+              subtitle: Text(l.privacyLocationBody),
+            ),
           ],
         ),
       ),

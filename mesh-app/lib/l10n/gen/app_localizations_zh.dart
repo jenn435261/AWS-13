@@ -1601,4 +1601,96 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get deliveryLocationOnlyWhileCarrying => '只有在你运送这件物资时，才会共享你的位置。';
+
+  @override
+  String get netStatusSending => '正在发送';
+
+  @override
+  String netStatusSendingSub(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count 项正在发送途中',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String netStatusWaiting(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '正在等待连接：已保存 $count 项',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get netStatusWaitingSub => '已保存在这部手机上。一有任何连接就会发出。';
+
+  @override
+  String get netStatusSent => '全部已发送';
+
+  @override
+  String get netStatusOffline => '目前没有连接';
+
+  @override
+  String get netStatusOfflineSub => '新的消息和求助会安全地保存在这部手机上。';
+
+  @override
+  String get netConnections => '连接';
+
+  @override
+  String get netAws => 'AWS';
+
+  @override
+  String get netAwsDirect => '通过互联网连接';
+
+  @override
+  String get netAwsMesh => '通过电台网络连接';
+
+  @override
+  String get netAwsNone => '暂时无法连接';
+
+  @override
+  String get netAdvanced => '高级';
+
+  @override
+  String get netAdvancedSub => '每条链路、同步时间和演示开关';
+
+  @override
+  String get netLinkCloud => '通过互联网连接 AWS';
+
+  @override
+  String get netLinkNode => '通过 Wi-Fi 连接韧性节点';
+
+  @override
+  String get netLinkLora => 'LoRa 电台';
+
+  @override
+  String get netLinkWifi => '通过 Wi-Fi 连接的手机';
+
+  @override
+  String get netLinkBluetooth => '通过蓝牙连接的手机';
+
+  @override
+  String get netLinkUp => '正常工作';
+
+  @override
+  String get netLinkDown => '不在范围内';
+
+  @override
+  String get netLinkUnavailable => '这部手机上未设置';
+
+  @override
+  String netLinkConfirmed(String time) {
+    return '上次确认：$time';
+  }
+
+  @override
+  String get privacyLocationTitle => '你的位置';
+
+  @override
+  String get privacyLocationBody =>
+      '你的位置只保存在这部手机上。只有在你运送物资时才会共享，让等待的人看到你正在赶来，送达后就会停止共享。求助或 SOS 只附带你选择一起发送的地点。';
 }

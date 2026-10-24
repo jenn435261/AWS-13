@@ -1649,4 +1649,101 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get deliveryLocationOnlyWhileCarrying =>
       'Tu ubicación se comparte solo mientras llevas esta entrega.';
+
+  @override
+  String get netStatusSending => 'Enviando';
+
+  @override
+  String netStatusSendingSub(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count elementos en camino',
+      one: '1 elemento en camino',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String netStatusWaiting(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Esperando conexión: $count elementos guardados',
+      one: 'Esperando conexión: 1 elemento guardado',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get netStatusWaitingSub =>
+      'Guardado en este teléfono. Sale en cuanto aparezca cualquier conexión.';
+
+  @override
+  String get netStatusSent => 'Todo está enviado';
+
+  @override
+  String get netStatusOffline => 'Sin conexión por ahora';
+
+  @override
+  String get netStatusOfflineSub =>
+      'Los mensajes y pedidos nuevos esperan seguros en este teléfono.';
+
+  @override
+  String get netConnections => 'Conexiones';
+
+  @override
+  String get netAws => 'AWS';
+
+  @override
+  String get netAwsDirect => 'Se llega por internet';
+
+  @override
+  String get netAwsMesh => 'Se llega a través de la red de radios';
+
+  @override
+  String get netAwsNone => 'Fuera de alcance por ahora';
+
+  @override
+  String get netAdvanced => 'Avanzado';
+
+  @override
+  String get netAdvancedSub =>
+      'Cada conexión, horas de sincronización y el interruptor de demostración';
+
+  @override
+  String get netLinkCloud => 'AWS por internet';
+
+  @override
+  String get netLinkNode => 'Nodo de resiliencia por Wi-Fi';
+
+  @override
+  String get netLinkLora => 'Radio LoRa';
+
+  @override
+  String get netLinkWifi => 'Teléfonos por Wi-Fi';
+
+  @override
+  String get netLinkBluetooth => 'Teléfonos por Bluetooth';
+
+  @override
+  String get netLinkUp => 'Funciona';
+
+  @override
+  String get netLinkDown => 'Fuera de alcance';
+
+  @override
+  String get netLinkUnavailable => 'No configurado en este teléfono';
+
+  @override
+  String netLinkConfirmed(String time) {
+    return 'Última confirmación $time';
+  }
+
+  @override
+  String get privacyLocationTitle => 'Tu ubicación';
+
+  @override
+  String get privacyLocationBody =>
+      'Tu ubicación se queda en este teléfono. Solo se comparte mientras llevas una entrega, para que quienes esperan te vean llegar, y deja de compartirse cuando la entrega termina. Un pedido de ayuda o un SOS lleva solo el lugar que elegiste enviar con él.';
 }

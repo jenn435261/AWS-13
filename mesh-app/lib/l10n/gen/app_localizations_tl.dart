@@ -1650,4 +1650,101 @@ class AppLocalizationsTl extends AppLocalizations {
   @override
   String get deliveryLocationOnlyWhileCarrying =>
       'Ibinabahagi lang ang lokasyon mo habang dala mo ang paghahatid na ito.';
+
+  @override
+  String get netStatusSending => 'Ipinapadala';
+
+  @override
+  String netStatusSendingSub(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count item ang papunta na',
+      one: '1 item ang papunta na',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String netStatusWaiting(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Naghihintay ng koneksyon: $count item ang nakatabi',
+      one: 'Naghihintay ng koneksyon: 1 item ang nakatabi',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get netStatusWaitingSub =>
+      'Nakaimbak sa teleponong ito. Ipapadala ito agad kapag may anumang koneksyon.';
+
+  @override
+  String get netStatusSent => 'Naipadala na lahat';
+
+  @override
+  String get netStatusOffline => 'Walang koneksyon ngayon';
+
+  @override
+  String get netStatusOfflineSub =>
+      'Ligtas na naghihintay sa teleponong ito ang mga bagong mensahe at hiling.';
+
+  @override
+  String get netConnections => 'Mga koneksyon';
+
+  @override
+  String get netAws => 'AWS';
+
+  @override
+  String get netAwsDirect => 'Naaabot sa internet';
+
+  @override
+  String get netAwsMesh => 'Naaabot sa pamamagitan ng mesh';
+
+  @override
+  String get netAwsNone => 'Hindi maabot sa ngayon';
+
+  @override
+  String get netAdvanced => 'Mas detalyado';
+
+  @override
+  String get netAdvancedSub =>
+      'Bawat koneksyon, oras ng sync, at ang demo switch';
+
+  @override
+  String get netLinkCloud => 'AWS sa internet';
+
+  @override
+  String get netLinkNode => 'Resilience node sa Wi-Fi';
+
+  @override
+  String get netLinkLora => 'LoRa na radyo';
+
+  @override
+  String get netLinkWifi => 'Mga telepono sa Wi-Fi';
+
+  @override
+  String get netLinkBluetooth => 'Mga telepono sa Bluetooth';
+
+  @override
+  String get netLinkUp => 'Gumagana';
+
+  @override
+  String get netLinkDown => 'Wala sa abot';
+
+  @override
+  String get netLinkUnavailable => 'Hindi naka-set up sa teleponong ito';
+
+  @override
+  String netLinkConfirmed(String time) {
+    return 'Huling kumpirmasyon $time';
+  }
+
+  @override
+  String get privacyLocationTitle => 'Ang iyong lokasyon';
+
+  @override
+  String get privacyLocationBody =>
+      'Nananatili sa teleponong ito ang iyong lokasyon. Ibinabahagi lang ito habang may dala kang delivery, para makita ng mga naghihintay na papalapit ka na, at humihinto ito kapag tapos na ang delivery. Ang hiling ng tulong o SOS ay may kasama lang na lugar na pinili mong ipadala.';
 }

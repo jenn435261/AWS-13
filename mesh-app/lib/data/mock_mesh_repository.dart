@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../models/app_user.dart';
+import '../models/envelope.dart';
 import '../models/event.dart';
 import '../models/help.dart';
 import '../models/mesh_message.dart';
@@ -14,22 +15,63 @@ import '../models/network.dart';
 import '../models/resource.dart';
 import '../models/role.dart';
 import '../models/social.dart';
+import '../services/location_service.dart';
 import '../state/drafts.dart';
 import '../state/identity.dart';
 import 'demo_area.dart';
 import 'mesh_repository.dart';
+import 'transport/location_policy.dart';
+import 'transport/lora_transport.dart';
+import 'transport/mesh_transport.dart';
+import 'transport/outbox.dart';
+import 'transport/router.dart';
+import 'transport/simulated_transport.dart';
 
-/// Demo network for building the UI before the transports exist. It plays
-/// the other phones, the mesh and the cloud: they, not the screens, decide
-/// when something moves to its next stage.
+/// Demo network for building the UI before every transport exists. It
+/// plays the other phones, the mesh and the cloud: they, not the screens,
+/// decide when something moves to its next stage.
+///
+/// Everything that leaves the phone goes through a real [Outbox] and
+/// [TransportRouter]. By default every link is simulated; pass
+/// [transports] (a real Resilience Node, say) to use them in place of the
+/// simulated link of the same kind, and [locationProvider] to use the
+/// phone's GPS instead of the demo point.
 class MockMeshRepository implements MeshRepository {
   MockMeshRepository({
     required this.identity,
     this.simulateTraffic = true,
     this.loadDelay = const Duration(milliseconds: 900),
     this.stageDelay = const Duration(seconds: 1),
-  }) {
+    LocationProvider? locationProvider,
+    List<MeshTransport> transports = const [],
+  }) : _locationProvider = locationProvider {
+    final real = {for (final t in transports) t.kind};
+    _simulated = {
+      for (final kind in LinkKind.values)
+        if (!real.contains(kind))
+          kind: SimulatedTransport(
+            kind,
+            latency: stageDelay * 0.3,
+            accepts: kind == LinkKind.lora ? LoraTransport.carries : null,
+          ),
+    };
+    router = TransportRouter([...transports, ..._simulated.values]);
+    outbox = Outbox(
+      router: router,
+      policy: LocationPolicy(_sharingLocation),
+      retryDelay: stageDelay * 5,
+    );
+    _applySimulated(_offlineStart());
+    router.changes.addListener(_publishNetwork);
+    outbox.held.addListener(_publishNetwork);
+    _subscriptions.add(outbox.delivered.listen(_onDelivered));
+    for (final t in transports) {
+      _subscriptions.add(t.received.listen(_onReceived));
+      t.start();
+    }
+
     _missions.addListener(_updateSharing);
+    _location.addListener(_shareLivePosition);
     _load();
     if (simulateTraffic) {
       _timer = Timer.periodic(const Duration(seconds: 15), (_) => _tick());
@@ -46,6 +88,33 @@ class MockMeshRepository implements MeshRepository {
 
   /// Base unit for how fast things move through their stages.
   final Duration stageDelay;
+
+  /// Picks a route for everything that leaves the phone.
+  late final TransportRouter router;
+
+  /// Holds each message and event until a route confirms it.
+  late final Outbox outbox;
+
+  late final Map<LinkKind, SimulatedTransport> _simulated;
+  final LocationProvider? _locationProvider;
+  final _subscriptions = <StreamSubscription<Object?>>[];
+
+  /// What the person typed or dropped on the map, while it stands.
+  LocationFix? _manual;
+
+  /// The latest reading from GPS (or the demo point).
+  LocationFix? _device;
+
+  /// The delivery this phone is carrying, while it shares its position.
+  String? _carrying;
+  int _liveSeq = 0;
+
+  /// The newest signed copy of each of this phone's requests, so only it
+  /// starts the request on its way.
+  final _requestEnvelope = <String, String>{};
+
+  DateTime _lastSync = DateTime.now();
+  DateTime _lastGlobalSync = DateTime.now();
 
   final _loading = ValueNotifier(true);
   final _network = ValueNotifier(_offlineStart());
@@ -136,8 +205,6 @@ class MockMeshRepository implements MeshRepository {
   LatLng _at(double north, double east) =>
       offsetMeters(demoCenter, north, east);
 
-  bool get _hasRoute => _network.value.hasRoute;
-
   /// Loads every kind of data at the same time, never one after another.
   Future<void> _load() async {
     _loading.value = true;
@@ -158,8 +225,29 @@ class MockMeshRepository implements MeshRepository {
     if (!_disposed) seed();
   }
 
-  void _seedLocation() => _location.value =
-      LocationFix(_at(-90, -60), 25, source: LocationSource.demo);
+  /// Without a [LocationProvider] the demo point stands in for GPS, so the
+  /// demo works anywhere. With one, GPS starts with the first load (and
+  /// asks for permission then), and keeps running after a wipe.
+  void _seedLocation() {
+    final provider = _locationProvider;
+    if (provider == null) {
+      _onReading(LocationFix(_at(-90, -60), 25, source: LocationSource.demo));
+    } else {
+      _gps ??= provider.watch().listen(_onReading);
+    }
+  }
+
+  StreamSubscription<LocationFix?>? _gps;
+
+  /// A new reading: shown unless a manual location stands (see
+  /// [chooseLocation] for when GPS takes over again).
+  void _onReading(LocationFix? reading) {
+    if (_disposed) return;
+    _device = reading;
+    final choice = chooseLocation(manual: _manual, device: reading);
+    _manual = choice.manual;
+    _location.value = choice.shown;
+  }
 
   void _seedNodes() {
     final now = DateTime.now();
@@ -513,11 +601,150 @@ class MockMeshRepository implements MeshRepository {
     ];
   }
 
-  /// Signs and stores an event. Every change on this phone goes through here.
-  Future<void> _record(EventType type, String subject) async {
-    final event = await identity.sign('e${_seq++}', type, subject);
-    if (_disposed) return;
+  /// Signs and stores an event. Every change on this phone goes through
+  /// here. With [send], it is also queued to leave the phone as that kind
+  /// of envelope, about [about] (default: [subject]); without, it stays
+  /// here (contacts, for example). Returns the event id.
+  Future<String> _record(
+    EventType type,
+    String subject, {
+    EnvelopeKind? send,
+    String? about,
+    Map<String, Object?> fields = const {},
+    LatLng? location,
+  }) async {
+    final id = 'e${_seq++}';
+    final event = await identity.sign(id, type, subject);
+    if (_disposed) return id;
     _events.value = [event, ..._events.value];
+    if (send != null) {
+      _send(Envelope(
+        id: id,
+        kind: send,
+        subject: about ?? subject,
+        author: identity.resilienceId,
+        createdAt: event.at,
+        fields: fields,
+        location: location,
+      ));
+    }
+    return id;
+  }
+
+  void _send(Envelope envelope) => outbox.add(envelope);
+
+  /// The id another phone knows something by: this phone's own requests
+  /// and reports get its Resilience ID in front, so ids never collide.
+  String _ref(String id, {required bool mine}) =>
+      mine ? '${identity.resilienceId}-$id' : id;
+
+  /// A route confirmed an envelope: the mesh and the server take it from
+  /// here.
+  void _onDelivered(Delivery delivery) {
+    if (_disposed) return;
+    _lastSync = DateTime.now();
+    if (delivery.via == LinkKind.cloud) _lastGlobalSync = _lastSync;
+    final e = delivery.envelope;
+    switch (e.kind) {
+      case EnvelopeKind.helpRequest || EnvelopeKind.sos:
+        // An older copy (from before a cancel and undo) doesn't count.
+        if (_requestEnvelope[e.subject] != e.id) break;
+        final request = _requests.value.where((r) => r.id == e.subject).firstOrNull;
+        if (request != null && !_timers.containsKey(request.id)) {
+          _scheduleStages(request);
+        }
+      case EnvelopeKind.message:
+        _messageLeft(e.fields['messageId'] as String? ?? '', e.subject);
+      default:
+        break;
+    }
+    _publishNetwork();
+  }
+
+  /// Plays the far side of a message once it left the phone.
+  void _messageLeft(String id, String channelId) {
+    void set(DeliveryStatus s) => _messages.value = [
+          for (final m in _messages.value) m.id == id ? m.copyWith(status: s) : m,
+        ];
+    set(DeliveryStatus.propagating);
+    _later(id, 1.7, () => set(DeliveryStatus.delivered));
+    if (channelId.startsWith('dm-')) {
+      _later(id, 4.2, () => set(DeliveryStatus.read));
+    }
+  }
+
+  /// Something another phone sent, through a real transport.
+  void _onReceived(Envelope e) {
+    if (_disposed) return;
+    final from = e.author.length > 8 ? e.author.substring(0, 8) : e.author;
+    switch (e.kind) {
+      case EnvelopeKind.helpRequest || EnvelopeKind.sos:
+        if (e.subject.isEmpty || _requests.value.any((r) => r.id == e.subject)) return;
+        final now = DateTime.now();
+        final request = HelpRequest(
+          id: e.subject,
+          kind: HelpKind.values.asNameMap()[e.fields['kind']] ?? HelpKind.other,
+          urgency: Urgency.values.asNameMap()[e.fields['urgency']] ?? Urgency.now,
+          people: 1,
+          createdAt: e.createdAt,
+          senderName: from,
+          location: e.location,
+          locationNote: e.fields['locationNote'] as String? ?? '',
+          note: e.fields['note'] as String? ?? '',
+          sos: e.kind == EnvelopeKind.sos,
+          stage: RequestStage.mesh,
+          hops: 1,
+          stageTimes: {RequestStage.saved: e.createdAt, RequestStage.mesh: now},
+        );
+        _requests.value = [request, ..._requests.value];
+        _notices.add(NearbyRequestNotice(request));
+      case EnvelopeKind.message:
+        final id = e.fields['ref'] as String? ?? e.id;
+        final channel = e.fields['channelId'] as String? ?? e.subject;
+        if (!_channels.value.any((c) => c.id == channel) ||
+            _messages.value.any((m) => m.id == id)) {
+          return;
+        }
+        _messages.value = [
+          ..._messages.value,
+          MeshMessage(
+            id: id,
+            channelId: channel,
+            senderId: e.author,
+            senderName: from,
+            text: e.fields['text'] as String? ?? '',
+            timestamp: e.createdAt,
+          ),
+        ];
+      default:
+        break;
+    }
+  }
+
+  /// The network as the screens see it, from the links and the outbox.
+  void _publishNetwork() {
+    if (_disposed) return;
+    _network.value = router.status(
+      queued: outbox.held.value,
+      lastSync: _lastSync,
+      lastGlobalSync: _lastGlobalSync,
+      lastAcks: outbox.lastAcks,
+    );
+  }
+
+  /// Sets the simulated links to match [s]. Real links are left alone.
+  void _applySimulated(NetworkStatus s) {
+    _lastSync = s.lastSync;
+    _lastGlobalSync = s.lastGlobalSync;
+    // Nearby phones: two over Bluetooth for every one over Wi-Fi.
+    final wifi = s.peers ~/ 3;
+    final bluetooth = s.peers - wifi;
+    _simulated[LinkKind.cloud]?.set(up: s.internet, reachesCloud: true);
+    _simulated[LinkKind.node]?.set(up: s.node, reachesCloud: s.gatewayOnline);
+    _simulated[LinkKind.lora]?.set(up: s.lora, reachesCloud: s.gatewayOnline);
+    _simulated[LinkKind.bluetooth]?.set(up: bluetooth > 0, peers: bluetooth);
+    _simulated[LinkKind.wifi]?.set(up: wifi > 0, peers: wifi);
+    _publishNetwork();
   }
 
   void _later(String key, double units, VoidCallback run) {
@@ -546,7 +773,8 @@ class MockMeshRepository implements MeshRepository {
             ? n.copyWith(lastHeard: now, rssi: -90 - _random.nextInt(30))
             : n,
     ];
-    _network.value = _network.value.copyWith(lastSync: now);
+    _lastSync = now;
+    _publishNetwork();
 
     final openNearby = _requests.value.where((r) => !r.mine && r.isOpen);
     if (openNearby.length < 6 && _random.nextDouble() < 0.2) {
@@ -570,31 +798,79 @@ class MockMeshRepository implements MeshRepository {
     }
   }
 
-  /// Location leaves the phone only while it carries a delivery.
-  void _updateSharing() => _sharingLocation.value = _missions.value.any(
-        (m) =>
+  /// Location leaves the phone only while it carries a delivery. When the
+  /// delivery ends, positions still waiting are dropped, and the people
+  /// on it are told to stop showing this phone.
+  void _updateSharing() {
+    final active = _missions.value
+        .where((m) =>
             m.carrierIsMe &&
             m.stage != MissionStage.available &&
-            m.stage != MissionStage.delivered,
-      );
+            m.stage != MissionStage.delivered)
+        .firstOrNull;
+    final was = _carrying;
+    _carrying = active?.id;
+    _sharingLocation.value = active != null;
+    if (was != null && was != _carrying) {
+      outbox.purge((e) => e.kind == EnvelopeKind.liveLocation);
+      _send(Envelope(
+        id: 'stop${_seq++}',
+        kind: EnvelopeKind.locationStopped,
+        subject: was,
+        author: identity.resilienceId,
+        createdAt: DateTime.now(),
+      ));
+    }
+    if (_carrying != null && _carrying != was) _shareLivePosition();
+  }
+
+  /// The carrier's position, for the people on the delivery. The outbox
+  /// keeps only the newest one waiting.
+  void _shareLivePosition() {
+    final mission = _carrying;
+    final fix = _location.value;
+    if (_disposed || mission == null || fix == null || !_sharingLocation.value) return;
+    _send(Envelope(
+      id: 'live${_seq++}',
+      kind: EnvelopeKind.liveLocation,
+      subject: mission,
+      author: identity.resilienceId,
+      createdAt: DateTime.now(),
+      fields: {'seq': ++_liveSeq, 'meters': fix.accuracyMeters.round()},
+      location: fix.point,
+    ));
+  }
 
   @override
   Future<void> setManualLocation(LatLng point, {String label = ''}) async {
-    _location.value = LocationFix(
+    _manual = LocationFix(
       point,
       50,
       source: LocationSource.manual,
       label: label.trim(),
     );
+    _location.value = _manual;
+  }
+
+  @override
+  Future<void> clearManualLocation() async {
+    _manual = null;
+    _location.value = _device;
   }
 
   /// Lets tests start from any mix of routes, e.g. no route at all.
   @visibleForTesting
-  void debugSetNetwork(NetworkStatus status) => _network.value = status;
+  void debugSetNetwork(NetworkStatus status) => _applySimulated(status);
+
+  /// The simulated link of [kind], for tests and previews; null when a
+  /// real transport took its place.
+  SimulatedTransport? simulatedLink(LinkKind kind) => _simulated[kind];
 
   @override
   void setInternet(bool on) {
-    _network.value = _network.value.copyWith(internet: on);
+    if (on) _lastGlobalSync = DateTime.now();
+    _simulated[LinkKind.cloud]?.set(up: on);
+    _publishNetwork();
   }
 
   @override
@@ -613,18 +889,22 @@ class MockMeshRepository implements MeshRepository {
       status: DeliveryStatus.queued,
     );
     _messages.value = [..._messages.value, message];
-    await _record(EventType.messageSent, message.id);
-    if (!_hasRoute) return;
-
-    void set(DeliveryStatus s) => _messages.value = [
-          for (final m in _messages.value)
-            m.id == message.id ? m.copyWith(status: s) : m,
-        ];
-    _later(message.id, 0.8, () => set(DeliveryStatus.propagating));
-    _later(message.id, 2.5, () => set(DeliveryStatus.delivered));
-    if (channelId.startsWith('dm-')) {
-      _later(message.id, 5, () => set(DeliveryStatus.read));
-    }
+    final channel = _channels.value.where((c) => c.id == channelId).firstOrNull;
+    // It waits in the outbox until a route takes it; then it moves on.
+    await _record(
+      EventType.messageSent,
+      message.id,
+      send: EnvelopeKind.message,
+      about: channelId,
+      fields: {
+        'messageId': message.id,
+        'ref': _ref(message.id, mine: true),
+        'channelId': channelId,
+        'channelType':
+            (channel?.type ?? (channelId.startsWith('dm-') ? ChannelType.direct : ChannelType.public)).name,
+        'text': text,
+      },
+    );
   }
 
   @override
@@ -667,17 +947,36 @@ class MockMeshRepository implements MeshRepository {
         ),
       );
 
-  /// Saved and shown at once, signed, then handed to the network.
+  /// Saved and shown at once, signed, then handed to the outbox. The
+  /// stages start when a route confirms it left the phone.
   Future<HelpRequest> _queue(HelpRequest request) async {
     _requests.value = [request, ..._requests.value];
-    await _record(EventType.helpRequested, request.id);
-    _scheduleStages(request);
+    await _sendRequest(request);
     return request;
   }
 
-  /// Plays the mesh and the server: moves a request through its stages.
+  /// Queues [request] to leave the phone, with the place it carries.
+  Future<void> _sendRequest(HelpRequest request) async {
+    final id = await _record(
+      EventType.helpRequested,
+      request.id,
+      send: request.sos ? EnvelopeKind.sos : EnvelopeKind.helpRequest,
+      fields: {
+        'ref': _ref(request.id, mine: true),
+        'kind': request.kind.name,
+        'urgency': request.urgency.name,
+        'people': request.people,
+        if (request.note.isNotEmpty) 'note': request.note,
+        if (request.locationNote.isNotEmpty) 'locationNote': request.locationNote,
+      },
+      location: request.location,
+    );
+    _requestEnvelope[request.id] = id;
+  }
+
+  /// Plays the mesh and the server: moves a request through its stages,
+  /// from the moment a route took it.
   void _scheduleStages(HelpRequest request) {
-    if (!_hasRoute) return;
     final gateway = _network.value.gatewayOnline;
     final steps = <(RequestStage, double, String?)>[
       (RequestStage.mesh, 2.5, null),
@@ -706,20 +1005,40 @@ class MockMeshRepository implements MeshRepository {
   @override
   Future<void> cancelRequest(String id) async {
     _stop(id);
+    final request = _requests.value.where((r) => r.id == id).firstOrNull;
     _requests.value = [
       for (final r in _requests.value)
         if (r.id != id) r,
     ];
-    await _record(EventType.helpCancelled, id);
+    // Cancelled before it left the phone: take it back, and nothing is
+    // sent at all. Otherwise the network hears it was cancelled.
+    final waiting = _requestEnvelope[id];
+    final mine = request?.mine ?? false;
+    final unsent = waiting != null && outbox.withdraw(waiting);
+    await _record(
+      EventType.helpCancelled,
+      id,
+      send: mine && !unsent ? EnvelopeKind.helpCancelled : null,
+      fields: {'ref': _ref(id, mine: mine)},
+    );
   }
 
   @override
   Future<void> restoreRequest(HelpRequest request) async {
     if (_requests.value.any((r) => r.id == request.id)) return;
     _requests.value = [request, ..._requests.value];
-    await _record(EventType.helpRequested, request.id);
-    if (request.mine) _scheduleStages(request);
+    if (request.mine) {
+      await _sendRequest(request);
+    } else {
+      await _record(EventType.helpRequested, request.id);
+    }
   }
+
+  /// The id of someone else's request as the network knows it.
+  String _requestRef(String id) => _ref(
+        id,
+        mine: _requests.value.any((r) => r.id == id && r.mine),
+      );
 
   @override
   Future<void> acceptRequest(String id, {required AppUser helper}) async {
@@ -727,7 +1046,12 @@ class MockMeshRepository implements MeshRepository {
       for (final r in _requests.value)
         r.id == id && r.isOpen ? r.acceptedByMe(helper.name) : r,
     ];
-    await _record(EventType.helpAccepted, id);
+    await _record(
+      EventType.helpAccepted,
+      id,
+      send: EnvelopeKind.helpAccepted,
+      fields: {'ref': _requestRef(id)},
+    );
   }
 
   @override
@@ -736,15 +1060,34 @@ class MockMeshRepository implements MeshRepository {
       for (final r in _requests.value)
         r.id == id && r.helpingIsMe ? r.released() : r,
     ];
-    await _record(EventType.helpReleased, id);
+    await _record(
+      EventType.helpReleased,
+      id,
+      send: EnvelopeKind.helpReleased,
+      fields: {'ref': _requestRef(id)},
+    );
   }
 
   @override
   Future<void> setOffer(HelpOffer? offer) async {
     _offer.value = offer;
+    // An offer says what, never where.
     await _record(
       offer == null ? EventType.offerWithdrawn : EventType.helpOffered,
       'offer',
+      send: offer == null ? EnvelopeKind.offerWithdrawn : EnvelopeKind.offer,
+      fields: {
+        'ref': _ref('offer', mine: true),
+        if (offer != null) ...{
+          'kinds': [for (final k in offer.kinds) k.name],
+          'amount': offer.amount.name,
+          'availability': offer.availability.name,
+          if (offer.availabilityNote.isNotEmpty) 'availabilityNote': offer.availabilityNote,
+          if (offer.note.isNotEmpty) 'note': offer.note,
+          if (offer.transport != null) 'transport': offer.transport!.name,
+          if (offer.capacity != null) 'capacity': offer.capacity!.name,
+        },
+      },
     );
   }
 
@@ -764,17 +1107,40 @@ class MockMeshRepository implements MeshRepository {
       note: note.trim(),
     );
     _resources.value = [..._resources.value, resource];
-    await _record(EventType.resourceCreated, resource.id);
+    // The place the person put it on the map is the report itself.
+    await _record(
+      EventType.resourceCreated,
+      resource.id,
+      send: EnvelopeKind.resourceCreated,
+      fields: {
+        'ref': _ref(resource.id, mine: true),
+        'kind': kind.name,
+        if (resource.note.isNotEmpty) 'note': resource.note,
+      },
+      location: point,
+    );
     return resource;
   }
 
+  /// The id of a resource as the network knows it.
+  String _resourceRef(String id) => _ref(
+        id,
+        mine: _resources.value.any((r) => r.id == id && r.mine),
+      );
+
   @override
   Future<void> removeResource(String id) async {
+    final ref = _resourceRef(id);
     _resources.value = [
       for (final r in _resources.value)
         if (r.id != id) r,
     ];
-    await _record(EventType.resourceRemoved, id);
+    await _record(
+      EventType.resourceRemoved,
+      id,
+      send: EnvelopeKind.resourceRemoved,
+      fields: {'ref': ref},
+    );
   }
 
   @override
@@ -791,6 +1157,8 @@ class MockMeshRepository implements MeshRepository {
         null => EventType.voteWithdrawn,
       },
       resourceId,
+      send: EnvelopeKind.vote,
+      fields: {'ref': _resourceRef(resourceId), 'vote': vote?.name},
     );
   }
 
@@ -807,6 +1175,8 @@ class MockMeshRepository implements MeshRepository {
         null => EventType.voteWithdrawn,
       },
       before.id,
+      send: EnvelopeKind.vote,
+      fields: {'ref': _resourceRef(before.id), 'vote': before.myVote?.name},
     );
   }
 
@@ -906,7 +1276,7 @@ class MockMeshRepository implements MeshRepository {
         ),
       ];
     }
-    await _record(EventType.missionAccepted, id);
+    await _record(EventType.missionAccepted, id, send: EnvelopeKind.missionAccepted);
   }
 
   @override
@@ -930,7 +1300,7 @@ class MockMeshRepository implements MeshRepository {
       for (final c in _channels.value)
         if (c.id != 'mission-$id') c,
     ];
-    await _record(EventType.missionReleased, id);
+    await _record(EventType.missionReleased, id, send: EnvelopeKind.missionReleased);
   }
 
   @override
@@ -949,7 +1319,14 @@ class MockMeshRepository implements MeshRepository {
     };
     if (event == null) return;
     _setMission(id, (m) => m.copyWith(stage: next));
-    await _record(event, id);
+    await _record(
+      event,
+      id,
+      send: event == EventType.packagePickedUp
+          ? EnvelopeKind.packagePickedUp
+          : EnvelopeKind.deliveryCompleted,
+      fields: {'packageId': mission.packageId},
+    );
   }
 
   @override
@@ -966,7 +1343,12 @@ class MockMeshRepository implements MeshRepository {
           handedOff: true,
         ),
       );
-      await _record(EventType.packageTransferred, id);
+      await _record(
+        EventType.packageTransferred,
+        id,
+        send: EnvelopeKind.packageTransferred,
+        fields: {'packageId': _missions.value.firstWhere((m) => m.id == id).packageId},
+      );
       _notices.add(
         HandoffConfirmedNotice(_missions.value.firstWhere((m) => m.id == id)),
       );
@@ -1023,7 +1405,11 @@ class MockMeshRepository implements MeshRepository {
     _missions.value = const [];
     _resources.value = const [];
     _offer.value = null;
-    _network.value = _offlineStart();
+    // Unsent items are on this phone too: they go with everything else.
+    outbox.clear();
+    _requestEnvelope.clear();
+    _manual = null;
+    _applySimulated(_offlineStart());
     _readiness.value = _packageStart();
     await _load();
   }
@@ -1050,11 +1436,22 @@ class MockMeshRepository implements MeshRepository {
     for (final key in _timers.keys.toList()) {
       _stop(key);
     }
+    _gps?.cancel();
+    for (final s in _subscriptions) {
+      s.cancel();
+    }
+    router.changes.removeListener(_publishNetwork);
+    outbox.held.removeListener(_publishNetwork);
+    outbox.dispose();
+    router.dispose();
+    _missions.removeListener(_updateSharing);
+    _location.removeListener(_shareLivePosition);
     _notices.close();
     for (final n in <ChangeNotifier>[
       _loading,
       _network,
       _location,
+      _sharingLocation,
       _nodes,
       _users,
       _requests,

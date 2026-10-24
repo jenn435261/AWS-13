@@ -2935,6 +2935,156 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Your location is shared only while you carry this delivery.'**
   String get deliveryLocationOnlyWhileCarrying;
+
+  /// No description provided for @netStatusSending.
+  ///
+  /// In en, this message translates to:
+  /// **'Sending'**
+  String get netStatusSending;
+
+  /// No description provided for @netStatusSendingSub.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 item on its way} other{{count} items on their way}}'**
+  String netStatusSendingSub(int count);
+
+  /// No description provided for @netStatusWaiting.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Waiting for a connection: 1 item held} other{Waiting for a connection: {count} items held}}'**
+  String netStatusWaiting(int count);
+
+  /// No description provided for @netStatusWaitingSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved on this phone. It goes as soon as any link appears.'**
+  String get netStatusWaitingSub;
+
+  /// No description provided for @netStatusSent.
+  ///
+  /// In en, this message translates to:
+  /// **'Everything is sent'**
+  String get netStatusSent;
+
+  /// No description provided for @netStatusOffline.
+  ///
+  /// In en, this message translates to:
+  /// **'No connection right now'**
+  String get netStatusOffline;
+
+  /// No description provided for @netStatusOfflineSub.
+  ///
+  /// In en, this message translates to:
+  /// **'New messages and requests wait safely on this phone.'**
+  String get netStatusOfflineSub;
+
+  /// No description provided for @netConnections.
+  ///
+  /// In en, this message translates to:
+  /// **'Connections'**
+  String get netConnections;
+
+  /// No description provided for @netAws.
+  ///
+  /// In en, this message translates to:
+  /// **'AWS'**
+  String get netAws;
+
+  /// No description provided for @netAwsDirect.
+  ///
+  /// In en, this message translates to:
+  /// **'Reached over the internet'**
+  String get netAwsDirect;
+
+  /// No description provided for @netAwsMesh.
+  ///
+  /// In en, this message translates to:
+  /// **'Reached through the mesh'**
+  String get netAwsMesh;
+
+  /// No description provided for @netAwsNone.
+  ///
+  /// In en, this message translates to:
+  /// **'Out of reach for now'**
+  String get netAwsNone;
+
+  /// No description provided for @netAdvanced.
+  ///
+  /// In en, this message translates to:
+  /// **'Advanced'**
+  String get netAdvanced;
+
+  /// No description provided for @netAdvancedSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Each link, sync times, and the demo switch'**
+  String get netAdvancedSub;
+
+  /// No description provided for @netLinkCloud.
+  ///
+  /// In en, this message translates to:
+  /// **'AWS over the internet'**
+  String get netLinkCloud;
+
+  /// No description provided for @netLinkNode.
+  ///
+  /// In en, this message translates to:
+  /// **'Resilience node on Wi-Fi'**
+  String get netLinkNode;
+
+  /// No description provided for @netLinkLora.
+  ///
+  /// In en, this message translates to:
+  /// **'LoRa radio'**
+  String get netLinkLora;
+
+  /// No description provided for @netLinkWifi.
+  ///
+  /// In en, this message translates to:
+  /// **'Phones over Wi-Fi'**
+  String get netLinkWifi;
+
+  /// No description provided for @netLinkBluetooth.
+  ///
+  /// In en, this message translates to:
+  /// **'Phones over Bluetooth'**
+  String get netLinkBluetooth;
+
+  /// No description provided for @netLinkUp.
+  ///
+  /// In en, this message translates to:
+  /// **'Working'**
+  String get netLinkUp;
+
+  /// No description provided for @netLinkDown.
+  ///
+  /// In en, this message translates to:
+  /// **'Not in range'**
+  String get netLinkDown;
+
+  /// No description provided for @netLinkUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Not set up on this phone'**
+  String get netLinkUnavailable;
+
+  /// No description provided for @netLinkConfirmed.
+  ///
+  /// In en, this message translates to:
+  /// **'Last confirmed {time}'**
+  String netLinkConfirmed(String time);
+
+  /// No description provided for @privacyLocationTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your location'**
+  String get privacyLocationTitle;
+
+  /// No description provided for @privacyLocationBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Your location stays on this phone. It is shared only while you carry a delivery, so the people waiting can see it coming, and it stops when the delivery ends. A help request or SOS carries only the place you chose to send with it.'**
+  String get privacyLocationBody;
 }
 
 class _AppLocalizationsDelegate

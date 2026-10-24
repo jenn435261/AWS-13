@@ -877,5 +877,51 @@
   "lookStepNext": "Not yet",
   "lookChatNotFound": "This conversation is no longer available.",
   "deliverySharingLocation": "Sharing your location until you deliver",
-  "deliveryLocationOnlyWhileCarrying": "Your location is shared only while you carry this delivery."
+  "deliveryLocationOnlyWhileCarrying": "Your location is shared only while you carry this delivery.",
+  "netStatusSending": "Sending",
+  "netStatusSendingSub": "{count, plural, =1{1 item on its way} other{{count} items on their way}}",
+  "@netStatusSendingSub": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "netStatusWaiting": "{count, plural, =1{Waiting for a connection: 1 item held} other{Waiting for a connection: {count} items held}}",
+  "@netStatusWaiting": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "netStatusWaitingSub": "Saved on this phone. It goes as soon as any link appears.",
+  "netStatusSent": "Everything is sent",
+  "netStatusOffline": "No connection right now",
+  "netStatusOfflineSub": "New messages and requests wait safely on this phone.",
+  "netConnections": "Connections",
+  "netAws": "AWS",
+  "netAwsDirect": "Reached over the internet",
+  "netAwsMesh": "Reached through the mesh",
+  "netAwsNone": "Out of reach for now",
+  "netAdvanced": "Advanced",
+  "netAdvancedSub": "Each link, sync times, and the demo switch",
+  "netLinkCloud": "AWS over the internet",
+  "netLinkNode": "Resilience node on Wi-Fi",
+  "netLinkLora": "LoRa radio",
+  "netLinkWifi": "Phones over Wi-Fi",
+  "netLinkBluetooth": "Phones over Bluetooth",
+  "netLinkUp": "Working",
+  "netLinkDown": "Not in range",
+  "netLinkUnavailable": "Not set up on this phone",
+  "netLinkConfirmed": "Last confirmed {time}",
+  "@netLinkConfirmed": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "privacyLocationTitle": "Your location",
+  "privacyLocationBody": "Your location stays on this phone. It is shared only while you carry a delivery, so the people waiting can see it coming, and it stops when the delivery ends. A help request or SOS carries only the place you chose to send with it."
 }

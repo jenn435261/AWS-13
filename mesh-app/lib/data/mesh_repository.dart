@@ -173,7 +173,12 @@ abstract class MeshRepository {
   Future<void> downloadReadiness();
 
   /// Sets where this phone is when GPS can't: typed, or dropped on the map.
+  /// It stands until [clearManualLocation], or until GPS is accurate again
+  /// (see `chooseLocation` in services/location_service.dart).
   Future<void> setManualLocation(LatLng point, {String label = ''});
+
+  /// Goes back to GPS (null until it has a fix) after [setManualLocation].
+  Future<void> clearManualLocation();
 
   /// DEMO: lets the preview show both offline and online behavior.
   void setInternet(bool on);

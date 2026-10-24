@@ -1,3 +1,52 @@
+/// The ways this phone can pass data on.
+enum LinkKind {
+  /// AWS, straight over this phone's own internet.
+  cloud,
+
+  /// A Resilience Node on local Wi-Fi.
+  node,
+
+  /// A paired LoRa radio on the Meshtastic mesh.
+  lora,
+
+  /// Phones nearby over Wi-Fi.
+  wifi,
+
+  /// Phones nearby over Bluetooth.
+  bluetooth,
+}
+
+/// One link, as its transport reports it.
+class LinkStatus {
+  const LinkStatus({
+    required this.kind,
+    required this.up,
+    this.peers = 0,
+    this.reachesCloud = false,
+    this.available = true,
+    this.lastAck,
+  });
+
+  final LinkKind kind;
+
+  /// The link can carry data right now.
+  final bool up;
+
+  /// Phones in range, for nearby links.
+  final int peers;
+
+  /// What it reaches can pass data on to AWS: a node or radio gateway with
+  /// its own uplink.
+  final bool reachesCloud;
+
+  /// False when this phone can't use the link at all: no radio paired, a
+  /// permission turned off, or the native side not built yet.
+  final bool available;
+
+  /// When this link last confirmed it took something.
+  final DateTime? lastAck;
+}
+
 /// What this phone can reach right now (Spec section 65). Each extra link
 /// improves syncing; none of them decide whether the app works.
 class NetworkStatus {
@@ -10,6 +59,7 @@ class NetworkStatus {
     required this.lastSync,
     required this.lastGlobalSync,
     this.queued = 0,
+    this.links = const [],
   });
 
   /// This phone has its own internet connection.
@@ -36,6 +86,20 @@ class NetworkStatus {
   /// Items waiting on this phone for a route.
   final int queued;
 
+  /// Each link on its own, when the status comes from the transports.
+  final List<LinkStatus> links;
+
+  /// The link of [kind], if the transports report one.
+  LinkStatus? link(LinkKind kind) {
+    for (final l in links) {
+      if (l.kind == kind) return l;
+    }
+    return null;
+  }
+
+  /// AWS can be reached: directly, or through a node or radio gateway.
+  bool get cloudReachable => internet || gatewayOnline;
+
   /// Something can carry data off this phone: internet, a node, LoRa or a
   /// nearby phone. With none, messages and requests wait on the phone.
   bool get hasRoute => internet || node || lora || peers > 0;
@@ -50,6 +114,7 @@ class NetworkStatus {
         lastSync: lastSync ?? this.lastSync,
         lastGlobalSync: (internet ?? false) ? DateTime.now() : lastGlobalSync,
         queued: queued ?? this.queued,
+        links: links,
       );
 }
 
