@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import '../../app/providers.dart';
 import '../../l10n/strings.dart';
 import '../../nodes/node_store.dart';
+import '../../sync/sync_providers.dart';
 import '../theme/app_theme.dart';
 import 'nodes_screen.dart';
 
@@ -89,6 +90,7 @@ class NetworkStatusScreen extends ConsumerWidget {
             onPressed: () {
               ref.read(cloudProbeRevisionProvider.notifier).state++;
               ref.read(nodesRevisionProvider.notifier).state++;
+              ref.read(syncCoordinatorProvider).syncNow();
             },
           ),
         ],
@@ -115,6 +117,7 @@ class NetworkStatusScreen extends ConsumerWidget {
             _row(context, Icons.cell_tower_rounded, l.t('lora'),
                 _Row(l.t('status_not_supported'), _Tone.neutral)),
             const Divider(),
+            _syncTile(context, ref, l),
             ListTile(
               leading: const Icon(Icons.sync_rounded),
               title: Text(l.t('last_checked'),
@@ -133,6 +136,65 @@ class NetworkStatusScreen extends ConsumerWidget {
 
   static String _clock(DateTime t) =>
       '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}:${t.second.toString().padLeft(2, '0')}';
+
+  /// The real sync row: "Last synced (relative) · N pending" with the last
+  /// error shown truthfully when the most recent round failed. Driven entirely
+  /// by live [SyncStatus].
+  Widget _syncTile(BuildContext context, WidgetRef ref, L10n l) {
+    final status = ref.watch(syncStatusProvider);
+    final scheme = Theme.of(context).colorScheme;
+
+    final parts = <String>[];
+    if (status.lastSyncedMs == null) {
+      parts.add(l.t('sync_never'));
+    } else {
+      parts.add('${l.t('last_synced')} ${_relative(status.lastSyncedMs!, l)}');
+    }
+    parts.add(l.t('sync_pending').replaceFirst('{n}', '${status.pendingCount}'));
+    final summary = parts.join(' · ');
+
+    final hasError = status.lastError != null;
+    final color = hasError
+        ? scheme.error
+        : (status.pendingCount > 0 ? scheme.outline : AppTheme.verified);
+
+    return ListTile(
+      leading: status.syncing
+          ? const SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(strokeWidth: 2.5),
+            )
+          : const Icon(Icons.cloud_sync_rounded),
+      title: Text(l.t('sync_status'),
+          style: const TextStyle(fontFamily: 'Roboto', fontSize: 16)),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(summary,
+              style: TextStyle(
+                  fontFamily: 'Roboto', fontSize: 16, color: color)),
+          if (hasError)
+            Text('${l.t('sync_error')}: ${status.lastError}',
+                style: TextStyle(
+                    fontFamily: 'Roboto', fontSize: 16, color: scheme.error)),
+        ],
+      ),
+    );
+  }
+
+  /// A short, locale-neutral relative time ("just now", "5m ago", "2h ago").
+  static String _relative(int ms, L10n l) {
+    final diff = DateTime.now().millisecondsSinceEpoch - ms;
+    if (diff < 60 * 1000) return l.t('time_just_now');
+    if (diff < 60 * 60 * 1000) {
+      return l.t('time_minutes_ago').replaceFirst('{n}', '${diff ~/ 60000}');
+    }
+    if (diff < 24 * 60 * 60 * 1000) {
+      return l.t('time_hours_ago').replaceFirst('{n}', '${diff ~/ 3600000}');
+    }
+    return l.t('time_days_ago').replaceFirst('{n}', '${diff ~/ 86400000}');
+  }
 
   Widget _row(BuildContext context, IconData icon, String label, _Row r) {
     final scheme = Theme.of(context).colorScheme;

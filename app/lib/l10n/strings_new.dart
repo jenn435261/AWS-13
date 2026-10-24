@@ -138,6 +138,16 @@ const Map<String, Map<String, String>> kStringsNew = {
     'you_are_provider': 'Verified provider',
     'zoom_in': 'Zoom in',
     'zoom_out': 'Zoom out',
+    // Sync status (Network Status screen)
+    'sync_status': 'Sync',
+    'sync_never': 'Not synced yet',
+    'sync_pending': '{n} pending',
+    'last_synced': 'Last synced',
+    'sync_error': 'Sync error',
+    'time_just_now': 'just now',
+    'time_minutes_ago': '{n}m ago',
+    'time_hours_ago': '{n}h ago',
+    'time_days_ago': '{n}d ago',
   },
   'es': {
     'no_trusted_hint': 'Elige en qué organizaciones confiar. Sus suministros llevan insignia en el mapa. La confianza es una decisión local y nunca se deduce de publicaciones ajenas.',
@@ -275,5 +285,15 @@ const Map<String, Map<String, String>> kStringsNew = {
     'you_are_provider': 'Proveedor verificado',
     'zoom_in': 'Acercar',
     'zoom_out': 'Alejar',
+    // Sync status (Network Status screen)
+    'sync_status': 'Sincronización',
+    'sync_never': 'Aún sin sincronizar',
+    'sync_pending': '{n} pendientes',
+    'last_synced': 'Última sincronización',
+    'sync_error': 'Error de sincronización',
+    'time_just_now': 'ahora mismo',
+    'time_minutes_ago': 'hace {n} min',
+    'time_hours_ago': 'hace {n} h',
+    'time_days_ago': 'hace {n} d',
   },
 };

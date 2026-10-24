@@ -57,3 +57,33 @@ export PATH=/projects/sandbox/.toolchain/gobin:/projects/sandbox/.toolchain/pub-
 - **`flutter build web --wasm` is expected to FAIL** (plugins). Use the default JS build: `flutter build web --release`.
 - **`infra/` and `cdk` are OFF LIMITS.** Never touch `infra/` or run `cdk`.
 - Long-running servers for click-through must be started and used within a SINGLE shell call (background processes do not persist between tool calls); `/projects/sandbox` persists, `/tmp` does not.
+
+### 2026-10-24 — FEAT-002 (Item A): app-side cloud + node sync client
+
+Built the app's sync client and wired it end to end.
+
+**What shipped:**
+
+- `app/lib/sync/cloud_sync.dart` — `CloudSync`, a one-shot pull+push client parameterized by `SyncEndpointKind` (cloud `/v1/events` + `/v1/events/pull`; node `/node/v1/push` + `/node/v1/pull`). It builds a `PullEventsRequest` from `EventStore.highWaterByAuthor()`, applies the returned `EventBatch` through `EventStore.applyAll` (the single verify-then-store path), then pushes our own events above a stored push high-water as a `PushEventsRequest`. JSON on the wire; sends `X-Api-Key` from `cloudApiKeyProvider` when non-empty. A `SyncHttp` seam (default `HttpSyncHttp` with a 10s timeout) lets tests inject a fake transport. Returns an honest `SyncOutcome` (pushed/applied/rejected/pending/error); never throws.
+- `app/lib/sync/sync_providers.dart` — hand-written Riverpod layer: `syncStatusProvider` (`SyncStatus`: lastSyncedMs / pendingCount / lastError / syncing), `cloudSyncProvider`, `nodeSyncProvider` (null ⇒ no-op when no active node), `syncCursorsProvider` (KeyValue `sync:` namespace), `syncHttpProvider` (overridable), and `SyncCoordinator` + `SyncLifecycleObserver`. The coordinator runs cloud+node rounds, bumps `worldRevisionProvider` when new events applied, and triggers on start, on `AppLifecycleState.resumed`, after every local write, and on a 30s visible-only periodic timer, with 1s→2m exponential backoff on failure.
+- `app/lib/main.dart` — wraps `AppShell` in `SyncLifecycleObserver`.
+- `app/lib/ui/screens/network_status_screen.dart` — a real "Sync" row driven by live `SyncStatus`: "Last synced <relative> · N pending" with a truthful error line when the last round failed; the Refresh button now also kicks a sync. Text ≥16px.
+- l10n — added `sync_status`, `sync_never`, `sync_pending`, `last_synced`, `sync_error`, `time_just_now`, `time_minutes_ago`, `time_hours_ago`, `time_days_ago` to EN+ES (`strings_new.dart`), FR (`strings_fr.dart`) and ZH (`strings_zh.dart`).
+- `cloud/DEPLOY_HEROKU.md` — documented (did NOT run) the durable-storage provisioning: `heroku addons:create heroku-postgresql:essential-0 -a resilience-api-chris` then `heroku config:set RESILIENCE_PG_DSN=$(heroku config:get DATABASE_URL -a resilience-api-chris) -a resilience-api-chris`.
+
+**Tests added:**
+
+- `app/test/cloud_sync_test.dart` (8 tests) — fake-transport (a second `EventStore`-backed server, mirroring `sync_engine_test.dart`): proves push, pull-with-apply, the forged/tampered-event abuse case (rejected and never stored), the `X-Api-Key` header, pending-count tracking, idempotence, and honest error handling for a down endpoint and a non-200 response.
+- `cloud/internal/api/server_test.go` — `TestTwoProfileSyncThroughCloud` (the two-profile substitute, see below).
+
+**Verification (all green):**
+
+- `cd app && flutter analyze` → `No issues found!` (with `ulimit -n 8192`).
+- `cd app && flutter test $(ls test/*.dart | grep -v screenshots_test.dart)` → **127 passed** (119 baseline + 8 new).
+- `cd cloud && go vet ./... && go test ./...` → all `ok` (incl. the new two-profile test).
+- `cd node && go vet ./... && go test ./...` → all `ok`.
+
+**Two-profile scenario — what ran vs. what was substituted (honest record):**
+
+- NOT run: the full browser two-profile click-through (build web + puppeteer-core + two Chrome contexts against a locally-run cloud+node+served web build). The combined one-shell-call orchestration (release web build, three background servers, puppeteer npm install, two profiles, screenshots, teardown) was deemed too fragile/slow for the single-shell-invocation constraint this round.
+- Ran instead: a Go-level two-client integration test, `TestTwoProfileSyncThroughCloud`, against a **real local cloud API** (`httptest.NewServer`). Two distinct Ed25519 identities model profiles A and B: A publishes a help request + supply + emergency alert + identity certificate and pushes them via `POST /v1/events`; B pulls via `POST /v1/events/pull` from an empty watermark and receives all four **byte-identical** (so verified/community provenance in the body survives), then a re-pull from the new watermark returns zero (idempotence). This exercises the exact cloud endpoints and request/response types `CloudSync` uses.

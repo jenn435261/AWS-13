@@ -30,6 +30,25 @@ heroku config:set -a resilience-api-<you> \
 ```
 (Omit `AWS_SESSION_TOKEN` if you use a long-lived IAM user instead of STS.)
 
+## Durable storage (Postgres) — recommended for a real deployment
+By default the API uses an in-memory store, so the event log is lost on every
+dyno restart. For durable cloud storage, provision Heroku Postgres and wire its
+connection string to `RESILIENCE_PG_DSN` — `cloud/cmd/api/main.go` already
+switches to the `PostgresStore` automatically whenever `RESILIENCE_PG_DSN` is
+set. Run these **once** (NOT run here — the sandbox's Heroku CLI is not
+authenticated, so this was documented, not executed):
+
+```bash
+# Human-only — the sandbox Heroku CLI is NOT authenticated, so these were NOT run.
+heroku addons:create heroku-postgresql:essential-0 -a resilience-api-chris
+heroku config:set RESILIENCE_PG_DSN=$(heroku config:get DATABASE_URL -a resilience-api-chris) -a resilience-api-chris
+```
+
+The first command provisions the smallest paid Postgres plan (`essential-0`) and
+sets `DATABASE_URL`; the second copies that value into `RESILIENCE_PG_DSN` so the
+API picks it up on the next release. After this the pushed/pulled events survive
+dyno restarts and scale across dynos.
+
 ## Web app
 The Dockerfile also serves the Flutter web bundle from `cloud/web` (`WEB_DIR=/web`).
 `../scripts/deploy-heroku.ps1` builds it (`flutter build web --release`), stages it

@@ -311,4 +311,14 @@ const Map<String, String> kStringsFr = {
   'you_are_provider': 'Prestataire vérifié',
   'zoom_in': 'Zoom avant',
   'zoom_out': 'Zoom arrière',
+  // Sync status (Network Status screen)
+  'sync_status': 'Synchronisation',
+  'sync_never': 'Pas encore synchronisé',
+  'sync_pending': '{n} en attente',
+  'last_synced': 'Dernière synchro',
+  'sync_error': 'Erreur de synchronisation',
+  'time_just_now': "à l'instant",
+  'time_minutes_ago': 'il y a {n} min',
+  'time_hours_ago': 'il y a {n} h',
+  'time_days_ago': 'il y a {n} j',
 };

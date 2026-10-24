@@ -150,6 +150,124 @@ func TestServerPushVerifiesAndPulls(t *testing.T) {
 	}
 }
 
+// newTypedEvent builds a signed event of a specific type/body for a given
+// author keypair, so a test can model one "profile" authoring several kinds of
+// events (help request / supply / alert / certificate).
+func newTypedEvent(t *testing.T, priv ed25519.PrivateKey, typ resiliencev1.EventType, lamport uint64, body string) *resiliencev1.SignedEvent {
+	t.Helper()
+	h := &resiliencev1.EventHeader{
+		Type:          typ,
+		Lamport:       lamport,
+		CreatedAtMs:   1_700_000_000_000,
+		SchemaVersion: 1,
+	}
+	ev, err := events.BuildSignedEvent(h, []byte(body), priv)
+	if err != nil {
+		t.Fatalf("build %v: %v", typ, err)
+	}
+	return ev
+}
+
+// TestTwoProfileSyncThroughCloud is the Go-level substitute for the browser
+// two-profile click-through: it runs a real local cloud API (httptest) and two
+// independent "profiles" (distinct Ed25519 identities, as two browser contexts
+// would be). Profile A publishes a help request, a supply, an emergency alert
+// and an identity certificate; Profile B, starting from an empty watermark,
+// pulls and must see all four of A's events — each byte-identical, so the
+// verified-vs-community provenance carried in the body survives the round trip.
+// This exercises the same POST /v1/events and GET/POST /v1/events/pull paths the
+// app's CloudSync client uses.
+func TestTwoProfileSyncThroughCloud(t *testing.T) {
+	st := store.NewMemStore()
+	srv := httptest.NewServer(NewServer(st).Handler())
+	defer srv.Close()
+
+	// Profile A authors four events of distinct types.
+	pubA, privA, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		t.Fatalf("keygen A: %v", err)
+	}
+	help := newTypedEvent(t, privA, resiliencev1.EventType_EVENT_TYPE_HELP_REQUESTED, 1, "need water")
+	supply := newTypedEvent(t, privA, resiliencev1.EventType_EVENT_TYPE_RESOURCE_CREATED, 2, "community:water")
+	alert := newTypedEvent(t, privA, resiliencev1.EventType_EVENT_TYPE_EMERGENCY_ALERT, 3, "verified:flood warning")
+	cert := newTypedEvent(t, privA, resiliencev1.EventType_EVENT_TYPE_IDENTITY_CERTIFICATE, 4, "cert for contact")
+	authored := []*resiliencev1.SignedEvent{help, supply, alert, cert}
+
+	// Profile A pushes them to the cloud (its "sync" round).
+	resp := postJSON(t, srv.URL+"/v1/events", &resiliencev1.PushEventsRequest{Events: authored})
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("A push status = %d, want 200", resp.StatusCode)
+	}
+	ackBytes, _ := io.ReadAll(resp.Body)
+	pushResp := &resiliencev1.PushEventsResponse{}
+	if err := protojson.Unmarshal(ackBytes, pushResp); err != nil {
+		t.Fatalf("unmarshal A ack: %v", err)
+	}
+	if n := len(pushResp.GetAck().GetApplied()); n != 4 {
+		t.Fatalf("A applied = %d, want 4 (rejected=%d)", n, len(pushResp.GetAck().GetRejected()))
+	}
+
+	// Profile B (a different identity) pulls from an empty watermark: it asks
+	// for everything above lamport 0 for author A.
+	pullReq := &resiliencev1.PullEventsRequest{
+		From: []*resiliencev1.PullEventsRequest_AuthorFrom{
+			{AuthorPubkey: pubA, FromLamport: 0},
+		},
+	}
+	presp := postJSON(t, srv.URL+"/v1/events/pull", pullReq)
+	defer presp.Body.Close()
+	if presp.StatusCode != http.StatusOK {
+		t.Fatalf("B pull status = %d, want 200", presp.StatusCode)
+	}
+	pbody, _ := io.ReadAll(presp.Body)
+	pullResp := &resiliencev1.PullEventsResponse{}
+	if err := protojson.Unmarshal(pbody, pullResp); err != nil {
+		t.Fatalf("unmarshal B pull: %v", err)
+	}
+
+	got := pullResp.GetBatch().GetEvents()
+	if len(got) != 4 {
+		t.Fatalf("B pulled %d events, want 4 (A's help/supply/alert/cert)", len(got))
+	}
+
+	// Index what B received by event id and assert each of A's events arrived
+	// byte-identical (so the body — including provenance — is unchanged).
+	byID := map[string]*resiliencev1.SignedEvent{}
+	for _, e := range got {
+		byID[string(e.GetHeader().GetEventId())] = e
+	}
+	for _, want := range authored {
+		gotEv, ok := byID[string(want.GetHeader().GetEventId())]
+		if !ok {
+			t.Fatalf("B did not receive A's %v event", want.GetHeader().GetType())
+		}
+		if gotEv.GetHeader().GetType() != want.GetHeader().GetType() {
+			t.Fatalf("type mismatch: got %v want %v", gotEv.GetHeader().GetType(), want.GetHeader().GetType())
+		}
+		if !bytes.Equal(gotEv.GetBody(), want.GetBody()) {
+			t.Fatalf("body changed in transit for %v (provenance would be lost)", want.GetHeader().GetType())
+		}
+	}
+
+	// Idempotence: B pulling again from the new watermark gets nothing new.
+	pullReq2 := &resiliencev1.PullEventsRequest{
+		From: []*resiliencev1.PullEventsRequest_AuthorFrom{
+			{AuthorPubkey: pubA, FromLamport: 4},
+		},
+	}
+	presp2 := postJSON(t, srv.URL+"/v1/events/pull", pullReq2)
+	defer presp2.Body.Close()
+	pbody2, _ := io.ReadAll(presp2.Body)
+	pullResp2 := &resiliencev1.PullEventsResponse{}
+	if err := protojson.Unmarshal(pbody2, pullResp2); err != nil {
+		t.Fatalf("unmarshal B pull 2: %v", err)
+	}
+	if n := len(pullResp2.GetBatch().GetEvents()); n != 0 {
+		t.Fatalf("incremental re-pull returned %d events, want 0", n)
+	}
+}
+
 func TestClientGate(t *testing.T) {
 	srv := NewServer(store.NewMemStore(), WithClientTokens([]string{"k1"}))
 	h := srv.Handler()

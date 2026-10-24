@@ -309,4 +309,14 @@ const Map<String, String> kStringsZh = {
   'you_are_provider': '已验证的服务提供方',
   'zoom_in': '放大',
   'zoom_out': '缩小',
+  // Sync status (Network Status screen)
+  'sync_status': '同步',
+  'sync_never': '尚未同步',
+  'sync_pending': '{n} 项待同步',
+  'last_synced': '上次同步',
+  'sync_error': '同步错误',
+  'time_just_now': '刚刚',
+  'time_minutes_ago': '{n} 分钟前',
+  'time_hours_ago': '{n} 小时前',
+  'time_days_ago': '{n} 天前',
 };

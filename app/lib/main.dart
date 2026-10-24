@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 
 import 'app/providers.dart';
 import 'l10n/strings.dart';
+import 'sync/sync_providers.dart';
 import 'ui/app_shell.dart';
 import 'ui/theme/app_theme.dart';
 
@@ -68,7 +69,7 @@ class ResilienceApp extends ConsumerWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      home: const AppShell(),
+      home: const SyncLifecycleObserver(child: AppShell()),
     );
   }
 }
