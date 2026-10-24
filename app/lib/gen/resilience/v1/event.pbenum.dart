@@ -302,6 +302,38 @@ class Priority extends $pb.ProtobufEnum {
   const Priority._(super.value, super.name);
 }
 
+/// How a GeoPoint's coordinates were obtained. Lets the UI/fold reason about
+/// trust and staleness of an attached position (e.g. a manual pin vs a live GPS
+/// fix vs a cached last-known fix). UNSPECIFIED is treated as gps/unknown for
+/// back-compat with events written before this field existed.
+class LocationSource extends $pb.ProtobufEnum {
+  static const LocationSource LOCATION_SOURCE_UNSPECIFIED =
+      LocationSource._(0, _omitEnumNames ? '' : 'LOCATION_SOURCE_UNSPECIFIED');
+  static const LocationSource LOCATION_SOURCE_GPS =
+      LocationSource._(1, _omitEnumNames ? '' : 'LOCATION_SOURCE_GPS');
+  static const LocationSource LOCATION_SOURCE_LAST_KNOWN =
+      LocationSource._(2, _omitEnumNames ? '' : 'LOCATION_SOURCE_LAST_KNOWN');
+  static const LocationSource LOCATION_SOURCE_MANUAL =
+      LocationSource._(3, _omitEnumNames ? '' : 'LOCATION_SOURCE_MANUAL');
+  static const LocationSource LOCATION_SOURCE_ESTIMATED =
+      LocationSource._(4, _omitEnumNames ? '' : 'LOCATION_SOURCE_ESTIMATED');
+
+  static const $core.List<LocationSource> values = <LocationSource>[
+    LOCATION_SOURCE_UNSPECIFIED,
+    LOCATION_SOURCE_GPS,
+    LOCATION_SOURCE_LAST_KNOWN,
+    LOCATION_SOURCE_MANUAL,
+    LOCATION_SOURCE_ESTIMATED,
+  ];
+
+  static final $core.List<LocationSource?> _byValue =
+      $pb.ProtobufEnum.$_initByValueList(values, 4);
+  static LocationSource? valueOf($core.int value) =>
+      value < 0 || value >= _byValue.length ? null : _byValue[value];
+
+  const LocationSource._(super.value, super.name);
+}
+
 class TransportMode extends $pb.ProtobufEnum {
   static const TransportMode TRANSPORT_MODE_UNSPECIFIED =
       TransportMode._(0, _omitEnumNames ? '' : 'TRANSPORT_MODE_UNSPECIFIED');
