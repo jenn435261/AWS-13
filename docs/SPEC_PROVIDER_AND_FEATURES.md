@@ -23,18 +23,20 @@ Rules that make this safe (all enforced in `derived_state.dart`, tested in `supp
 4. **Only the owner changes a supply.** Edit (re-publish), restock, mark out, take down and relist from any other key are ignored.
 5. Revoking a key (`KEY_REVOKED`) removes the badge from it and from anyone certified only through it.
 
-Open policy question: today any verified member's certificate extends the chain (transitive). The UI only offers *certify* to roots. Decide whether to enforce root-only issuance or a depth limit in the fold (recommended: depth limit 2).
+Policy (resolved, FEAT-005): transitive issuance is allowed but bounded — a key is verified only if it is within a **certificate chain depth of 2** from a trusted root (root = depth 0, a directly certified key = depth 1, one more hop = depth 2 badge; depth 3+ confers no badge). Enforced in `OrgCertGraph.provenanceOf`; see `docs/DECISIONS.md`.
 
 ### 1.1 How a provider sends and receives
 
 Everything is a signed event; transports only move bytes.
 
-| Direction | What | Path today | Path once sync client exists |
-|---|---|---|---|
-| Send | Verified supply, alert, mission, certificate | Written to the local log; visible on this device | Pushed over: nearby peers; a Resilience Node (`/node/v1/push`); the cloud (`POST /v1/events`) |
-| Receive | Requests, supplies, alerts from others | Only events already on this device | Pulled the same ways; every event is signature-checked before it is stored, so a relay cannot forge anything |
-| Receive (aggregate) | Community needs by category | `GET /v1/org/needs` with an org token (Provider tools → Community needs). Shows only what has reached the cloud | Same, populated once devices push |
-| Receive (mission) | Mission offers | Mission events in the log | Carriers see them in Deliveries after sync |
+The app-side sync client now exists (FEAT-002), so the "once sync client exists" column is the path today:
+
+| Direction | What | Path (Built) |
+|---|---|---|
+| Send | Verified supply, alert, mission, certificate | Written to the local log, visible immediately; **pushed** to a Resilience Node (`/node/v1/push`) and the cloud (`POST /v1/events`) by the sync client (nearby peers where available) |
+| Receive | Requests, supplies, alerts from others | **Pulled** from the node (`/node/v1/pull`) and cloud (`/v1/events/pull`); every event is signature-checked before it is stored, so a relay cannot forge anything |
+| Receive (aggregate) | Community needs by category | `GET /v1/org/needs` with an org token (Provider tools → Community needs). Shows only what has reached the cloud |
+| Receive (mission) | Mission offers | Mission events in the log; carriers see them in Deliveries after sync |
 
 Provider screen layout (Built): status card (verified or not, why) → if not verified, three steps to become one → if verified, actions (publish supply, post alert, create mission, certify contact if root) → what I published → community needs → "what providers cannot do".
 
@@ -47,7 +49,7 @@ Provider screen layout (Built): status card (verified or not, why) → if not ve
 - "You" dot appears only after the user taps My location (browser/phone permission prompt). We never poll or track.
 - Privacy: published coordinates are rounded to 3 decimals (~110 m). `has_exact` stays false unless a flow deliberately sets it (none do yet).
 - Location is set per post with: use my location, pick on map, or none. Requests default to the last position the user read.
-- Offline: tiles need internet. When tile requests fail, a banner says so and markers still draw. **Spec only:** serve `<region>.pmtiles` from a node (`/node/v1/map/…`, Range supported) and render with a vector PMTiles layer; keep OSM raster as the online fallback. Respect the OSM tile usage policy: fine for a demo, not for sustained load; switch to the node PMTiles or a paid tile host before real use.
+- Offline: online tiles need internet. **Built (FEAT-006):** when the active node serves `<region>.pmtiles` (`/node/v1/map/…`, Range supported), `app/lib/ui/map/pmtiles_tile_provider.dart` opens the archive over HTTP and renders its **raster** tiles; when no node map is available (or a tile is vector/unreachable) it falls back to the online OSM raster layer and shows an honest offline banner. (A full **vector** PMTiles renderer is still out of scope — `maplibre_gl` breaks the web build.) Respect the OSM tile usage policy: fine for a demo, not for sustained load; switch to the node PMTiles or a paid tile host before real use.
 - Emergency alerts from verified authors show as a banner above the map until `expires_ms`. An author may **recall** an alert by re-issuing the same `alert_id` with `expires_ms` in the past (FEAT-005); the fold drops it immediately.
 - Supplies past `available_until_ms` and closed requests are **auto-hidden** from the map (FEAT-005).
 
@@ -89,17 +91,20 @@ My **requests** can be **closed/cancelled** (FEAT-005): My Requests shows a Clos
 - **Catalog:** `GET /node/v1/packages` lists what the node really holds (kind, name, path, size, modified). The app never guesses file names.
 - **CORS:** the node answers cross-origin reads so the https web app can reach `http://localhost:8090`. A browser still blocks an https page from reaching a plain-http LAN address (mixed content), and Chrome additionally asks permission before an https page may reach `localhost` or the LAN (Local Network Access; the node sends `Access-Control-Allow-Private-Network` so the prompt can succeed). Headless/denied means the node shows "Not reachable" (verified on the live site); on a real LAN use the native app, or give the node HTTPS (`--public-url https://…` behind a proxy).
 - **Cloud API** is already running on Heroku (see `cloud/DEPLOY_HEROKU.md`); a node pointed at it with `--cloud-base-url` bridges events up when it has internet.
-- Spec only: node discovery on the LAN (mDNS), node-side auth for pushes, a signed catalog so a rogue node cannot offer a malicious APK (verify a detached signature against a trusted root before installing).
+- **Signed manifest (Built, FEAT-007):** `GET /node/v1/manifest` returns the catalog with a per-file SHA-256 and a detached Ed25519 signature verifiable against a trusted root, so a rogue node cannot offer a malicious file undetected — the app verifies the signature against its configured trusted root, then checks a download's SHA-256 against the signed entry before trusting it (`node/internal/packages/manifest.go`, `app/lib/nodes/package_manifest.dart`). Enable node-side with `--packages-signing-key` / `PACKAGES_SIGNING_KEY`; without a key the endpoint returns 503 (the node refuses to serve an unsigned manifest). Files are served with HTTP Range so a large download can resume.
+- Spec only: node discovery on the LAN (mDNS), node-side auth for pushes.
 
 ## 5. Offline downloads (Built)
 
 My library = your own list of package versions: kind (app / map / readiness / other), name, version, link, notes. Add by hand or "Save to my library" from a node's catalog (version defaults to the file's modified date). Several versions of one name sit together, newest first. Per entry: download (opens the link), check link (HEAD), copy link, edit, delete with undo. Nothing is claimed to be downloaded on-device: the app stores *where* each version is; the browser/OS handles the file.
 
-Spec only: true on-device download with progress, resume (Range), checksum verification against a signed manifest, and "keep the last N versions" pruning.
+**Built (FEAT-007): checksum verification against a signed manifest.** When the node serves a signed manifest that verifies against the configured trusted root (`--dart-define=PACKAGES_TRUSTED_ROOT=<hex>`), Offline Downloads shows an honest manifest-trust banner and offers **Verify checksum**: it downloads the file and compares its SHA-256 to the signed entry, rejecting a mismatch loudly. The node serves files with HTTP **Range** so a large download can **resume** from a byte offset (proven in `node/internal/packages/manifest_test.go` `TestRangeResumeDownload`). Still spec only: true on-device background download with a progress bar + persistent partial-file resume (limited on web, which has no filesystem — the UI stays honest about this), and "keep the last N versions" pruning.
 
-## 6. Messages with photos and audio (Spec only; messaging itself is not connected)
+## 6. Messages with photos and audio (Built, FEAT-003)
 
-Blocked on the same prerequisites as text chat (durable Signal store, prekey publication, sync client; see `KIRO_HANDOFF.md` task 2). Design so media is not a rewrite:
+Shipped end to end over the FEAT-002 sync client: a durable Drift-backed Signal store, prekey bundles published as
+signed events, text + photo + voice-note messages, and content-addressed encrypted blobs. The design below is what was
+built (relays/cloud see only ciphertext):
 
 - **Message kinds:** text, image, audio, location (later). One `MessagePayload { kind, text, attachments[] }` inside the Signal ciphertext.
 - **Attachments are encrypted blobs, not in the event.** Sender picks a random 256-bit key, encrypts the file (AES-GCM), uploads the ciphertext to a blob store, and sends `{sha256, size, mime, key, thumbnail}` inside the end-to-end encrypted message. Relays and the store see only ciphertext.

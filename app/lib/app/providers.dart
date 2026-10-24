@@ -49,6 +49,19 @@ final cloudBaseUrlProvider = Provider<String>((ref) => kDefaultCloudBaseUrl);
 /// The X-Api-Key sent to the cloud. Empty => no header.
 final cloudApiKeyProvider = Provider<String>((ref) => kDefaultCloudApiKey);
 
+/// Trusted root (lowercase hex Ed25519 public key) a node's signed package
+/// manifest must be signed by before the app trusts its checksums. Set per
+/// build with `--dart-define=PACKAGES_TRUSTED_ROOT=...`. Empty => the app
+/// cannot verify a signed manifest, so it shows an honest "unverified" state
+/// and never claims a download is checksum-verified.
+const kDefaultPackagesTrustedRoot =
+    String.fromEnvironment('PACKAGES_TRUSTED_ROOT');
+
+/// The trusted root key for signed package manifests (see
+/// [kDefaultPackagesTrustedRoot]).
+final packagesTrustedRootProvider =
+    Provider<String>((ref) => kDefaultPackagesTrustedRoot);
+
 /// The local Drift database. Overridden in tests with AppDatabase.memory().
 final databaseProvider = Provider<AppDatabase>((ref) {
   final db = AppDatabase.open();

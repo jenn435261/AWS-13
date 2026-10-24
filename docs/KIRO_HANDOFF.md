@@ -16,39 +16,52 @@ show an honest state.
 
 ## Already built (do not redo)
 
-Real map; supply create / edit / restock / out of stock / take down / relist with quantity, unit, date and location;
-provider tools (verified supplies, alerts, missions, certify a contact); trusted organizations (persisted);
-saved nodes with QR pairing, rename, active, delete; offline package library with versions; node catalog,
-pairing QR and CORS; French and Mandarin; owner-only edits and verified-only alerts enforced in the fold.
-Tests: `supply_and_provider_test.dart`, Go `internal/pairing`, `internal/packages` catalog.
+Real map (online OSM raster + **offline PMTiles raster from a node** with an honest offline banner); supply
+create / edit / restock / out of stock / take down / relist with quantity, unit, date and location, and
+auto-hide of supplies past `available_until_ms`; provider tools (verified supplies, alerts + **recall**, missions +
+**carrier assign/accept**, certify a contact, **certificate chain depth limit = 2**); **request close/cancel**
+(owner-only) in My Requests; trusted organizations (persisted); saved nodes with QR pairing, rename, active, delete;
+offline package library with versions; node catalog, pairing QR and CORS; French and Mandarin; owner-only edits and
+verified-only alerts enforced in the fold.
 
-## Still not connected (your work, in this order)
+**Items A–G from the overnight run are done:**
 
-### 1. App-side cloud sync client (do first; 2 and 3 depend on it)
-The API has `POST /v1/events` and `GET /v1/events/pull`, and `sync_engine.dart` exists for peer sync, but the app
-never pushes or pulls. Build `app/lib/sync/cloud_sync.dart`:
-- Push unsent local events (high-water mark in the KeyValue table); pull since a cursor; ingest through
-  `EventStore.apply` so signatures and clock checks reject forgeries.
-- Also sync with the **active saved node** (`/node/v1/push`, `/node/v1/pull`, `/node/v1/have`).
-- Use `cloudBaseUrlProvider` and `cloudApiKeyProvider` (`app/lib/app/providers.dart`), header `X-Api-Key`.
-- Show "Last synced / N pending" in Network Status.
-- Acceptance: two browser profiles on the live site; a request or alert created in A appears in B within 30 s.
-  Provider alerts, missions, supplies and certificates only reach other people once this exists.
-- The cloud store is in-memory on Heroku. Provision Postgres (`heroku addons:create heroku-postgresql:essential-0`) and set
-  `RESILIENCE_PG_DSN` so events survive restarts.
+- **A — App-side cloud + node sync client** (`app/lib/sync/cloud_sync.dart`, `sync_providers.dart`): pushes unsent
+  local events and pulls new ones from the cloud (`/v1/events`, `/v1/events/pull`) and from a node
+  (`/node/v1/push`, `/node/v1/pull`); every pulled event ingested through `EventStore.apply` (verify-before-store);
+  visible status in Network Status, exponential backoff, honest offline handling. Tests: `cloud_sync_test.dart`,
+  `sync_engine_test.dart`.
+- **B — Secure messaging (text + photo + audio)** (`app/lib/messaging/*`, `messages_screen.dart`): durable
+  Drift-backed Signal store, prekey bundles published as signed events, AES-256-GCM attachments as content-addressed
+  opaque blobs, delivery states. Tests: `messaging_e2e_test.dart`, `signal_messaging_test.dart`, `message_flow_test.dart`,
+  `photo_prep_test.dart`.
+- **C — Location sharing** (`location_share_screen.dart`, `location/*`): opt-in, rounded ~110 m (or exact), E2E to
+  chosen contacts, time-boxed + revocable, folds into map/list and auto-expires; author-only stop. Tests:
+  `location_share_test.dart`, `location_view_test.dart`, fold/abuse cases in `derived_state_test.dart`.
+- **D — Provider completeness** (proto `EVENT_TYPE_HELP_REQUEST_CLOSED = 24`, depth-limit = 2): see FEAT-005 below.
+- **E — Offline PMTiles map** (`app/lib/ui/map/pmtiles_tile_provider.dart`): see FEAT-006 below.
+- **F — AI endpoints in the UI** (Home summary bar, translate panel, pre-submit dedup): see FEAT-006 below.
+- **G — Smaller gaps**: **cloud CORS** (preflight + `X-Api-Key`, mirrors the node), **node-served signed package
+  manifest** with SHA-256 checksums + HTTP Range-resume, app-side **checksum verification against the signed
+  manifest** before trusting a download. See FEAT-007 below.
 
-### 2. Secure messaging, with photos and audio
-Today `messages_screen.dart` shows a "not connected" state. Engines exist in `app/lib/messaging/`.
-Missing: durable Signal store (Drift-backed), prekey bundle publication and fetch, delivery via the sync client, chat UI.
-Media design is in the spec §6 (encrypted blobs, size limits, blob endpoints on cloud and node). Build text first,
-then images, then audio. Acceptance: A and B add each other, A sends text, a photo and a voice note, B sees all three after a reload.
+Tests: `supply_and_provider_test.dart`, `package_manifest_test.dart`, Go `internal/pairing`, `internal/packages`
+(catalog + manifest + Range-resume), `internal/api` (CORS preflight).
 
-### 3. Location sharing
-`location_share_screen.dart`: durations exist, the Share button is disabled. `position_service.dart` already reads a
-one-shot position. Build: encrypt to chosen contacts (task 2), send a short-lived `LOCATION_SHARE` event with an expiry
-(null = until stopped), publish `LOCATION_STOP` on stop, show "people sharing with you". Then enable the button.
+## Still open / partial
 
-### 4. Provider gaps (spec §1.1) — DONE (FEAT-005)
+- **Nearby peers (BLE/Wi-Fi Direct)**: `nearby_service` transport exists but is unavailable in browsers and not
+  exercised on-device in this run.
+- **LoRa**: not set up.
+- **Node discovery (mDNS)**: not implemented (nodes are added by QR or typed address).
+- **Mixed content on web**: an HTTPS page cannot reach a plain-HTTP LAN node; give the node HTTPS for web use
+  (native is fine). The signed-manifest checksum flow therefore verifies best from a native build or an HTTPS node.
+- **Cloud event store** is in-memory on Heroku unless `RESILIENCE_PG_DSN` is set
+  (`heroku addons:create heroku-postgresql:essential-0`).
+- **Add by username / phone** stays removed (no directory); only restore with a real lookup endpoint.
+- `screenshots_test.dart` has a hard-coded sandbox font path; it is excluded from the normal test run.
+
+### Reference: Provider gaps (spec §1.1) — DONE (FEAT-005)
 Shipped: a Missions board for providers + carriers in the Deliveries tab (`deliveries_screen.dart`, buckets from
 `logistics/mission.dart`); **verified-provider-only** mission create/assign via `MISSION_MATCHED` (a non-provider
 create/assign is ignored in the fold — abuse rule) and carrier accept via `MISSION_ACCEPTED`; **alert recall** = a new
@@ -59,19 +72,33 @@ map (`WorldState.mapResources()`), shown as Expired in My Supplies; **certificat
 `OrgCertGraph.provenanceOf` (depth 3+ grants no badge). All with fold + abuse tests; proto regenerated for Dart + Go and
 copied into `node/gen`. See `docs/DECISIONS.md` (FEAT-005) and `docs/OVERNIGHT_LOG.md`.
 
-### 5. Offline map
-Serve PMTiles from a node and render them (spec §2). OSM raster tiles are a demo-grade stopgap.
+### Reference: Offline map (spec §2) — DONE (FEAT-006)
+`app/lib/ui/map/pmtiles_tile_provider.dart` is a pure-Dart, web-safe `flutter_map` tile provider that opens a node's
+PMTiles archive over HTTP (Range) and decodes **raster** tiles; `MapView` uses it when the active node advertises a
+map in its catalog, and falls back to the online OSM raster layer with an honest offline banner otherwise. The node
+already serves `GET /node/v1/map/{region}.pmtiles` with Range (206).
 
-### 6. Use the other AI endpoints
-Translate (`text`, `from`, `to`) on request/offer details and messages; summarize on Home; dedup warning on submit.
-See `app/lib/ai/bedrock_ai_client.dart`; keep the rules fallback.
+### Reference: AI endpoints in the UI — DONE (FEAT-006)
+Translate panel on resource notes / help-request details / incoming messages, Home summary bar, and a non-blocking
+dedup check before submitting a request. The original text is always kept; a degraded chip reflects the real
+`degraded` flag; API-down falls back to local rules. See `app/lib/ai/*` and `app/lib/ui/components/translate_panel.dart`.
 
-### 7. Smaller items
-- Add by username / phone was removed (no directory). Only add back with a real lookup endpoint.
-- API sends no CORS headers; only matters if the web app is hosted on another origin.
-- A https page cannot reach a plain-http LAN node (mixed content). Native app is fine; for web give the node HTTPS.
-- Node discovery (mDNS), signed package manifests, on-device download with resume and checksums.
-- `screenshots_test.dart` has a hard-coded sandbox font path; it is excluded from the normal test run.
+### Reference: Smaller gaps — DONE (FEAT-007)
+- **CORS**: the cloud API (`cloud/internal/api/server.go`, `withCORS`) sends `Access-Control-Allow-{Origin,Methods,Headers}`
+  (headers include `X-Api-Key`) and answers OPTIONS preflight with 204, mirroring the node's policy. Test:
+  `cloud/internal/api/cors_test.go`.
+- **Signed package manifest**: the node serves `GET /node/v1/manifest`
+  (`node/internal/packages/manifest.go`) — a detached Ed25519 signature over the canonical manifest, SHA-256 per entry,
+  verifiable against a trusted root; files are served with HTTP Range so a large PMTiles download can resume. Enable
+  with `--packages-signing-key <hex-key-file>` (or `PACKAGES_SIGNING_KEY`); without it the endpoint returns 503 (the
+  node refuses to serve an unsigned manifest). Tests: `node/internal/packages/manifest_test.go` (sign/verify +
+  Range-resume).
+- **App-side checksum verification**: `app/lib/nodes/package_manifest.dart` verifies the signed manifest against
+  `packagesTrustedRootProvider` (`--dart-define=PACKAGES_TRUSTED_ROOT=<hex>`), then Offline Downloads can verify a
+  downloaded file's SHA-256 against the signed manifest before trusting it; honest manifest state is shown otherwise.
+  Test: `app/test/package_manifest_test.dart`. On web, on-device file download/resume is limited (no filesystem), so
+  the checksum check fetches the bytes over HTTP where the platform allows; the UI never claims a verification it did
+  not perform.
 
 ## Gotchas learned the hard way
 

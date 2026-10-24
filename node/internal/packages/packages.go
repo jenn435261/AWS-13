@@ -15,6 +15,8 @@
 package packages
 
 import (
+	"crypto/ed25519"
+	"io"
 	"net/http"
 	"os"
 	"path"
@@ -38,6 +40,10 @@ type Config struct {
 // Server serves packages from configured directories.
 type Server struct {
 	cfg Config
+	// signingKey, when set, signs the manifest served at /node/v1/manifest.
+	// When nil the manifest endpoint returns 503 (the node refuses to serve an
+	// unsigned manifest).
+	signingKey ed25519.PrivateKey
 }
 
 // New returns a package Server for the given config.
@@ -49,6 +55,7 @@ func (s *Server) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/node/v1/map/", s.handleMap)
 	mux.HandleFunc("/node/v1/readiness/", s.handleReadiness)
 	mux.HandleFunc("/node/v1/packages", s.handleCatalog)
+	mux.HandleFunc("/node/v1/manifest", s.handleManifest)
 }
 
 func (s *Server) handleAPK(w http.ResponseWriter, r *http.Request) {
@@ -184,3 +191,22 @@ func withinDir(dir, full string) bool {
 	}
 	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) && !filepath.IsAbs(rel)
 }
+
+// joinSafe joins a single safe name onto dir and returns the path only if it
+// stays within dir; otherwise "". Callers must have already checked safeName.
+func joinSafe(dir, name string) string {
+	full := filepath.Join(dir, filepath.Clean("/"+name))
+	if !withinDir(dir, full) {
+		return ""
+	}
+	return full
+}
+
+// copyInto streams src into dst and returns the number of bytes copied. It is a
+// thin wrapper so manifest.go does not need its own io import.
+func copyInto(dst io.Writer, src io.Reader) (int64, error) {
+	return io.Copy(dst, src)
+}
+
+// nowMs returns the current wall-clock time in milliseconds.
+func nowMs() int64 { return time.Now().UnixMilli() }

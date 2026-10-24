@@ -189,7 +189,30 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/healthz", s.handleHealthz)
 	mux.HandleFunc("/readyz", s.handleReadyz)
 	s.mountWeb(mux)
-	return mux
+	return withCORS(mux)
+}
+
+// withCORS wraps h so the Flutter web app can call the API from a different
+// origin. The cloud API carries no cookies (auth is an explicit X-Api-Key
+// header, not ambient credentials), so a wildcard origin does not widen what an
+// attacker can reach: a cross-origin page still needs a valid key, and the
+// key is never a cookie the browser would attach automatically. This mirrors
+// the node's CORS policy (see node/cmd/resilience-node/main.go). OPTIONS
+// preflight requests are answered here with 204 and never reach the routes.
+func withCORS(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		h := w.Header()
+		h.Set("Access-Control-Allow-Origin", "*")
+		h.Set("Access-Control-Allow-Methods", "GET, HEAD, POST, OPTIONS")
+		h.Set("Access-Control-Allow-Headers", "Content-Type, Range, X-Api-Key, X-Org-Token, Authorization")
+		h.Set("Access-Control-Expose-Headers", "Content-Length, Content-Range, Accept-Ranges")
+		h.Set("Access-Control-Max-Age", "86400")
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func (s *Server) handleHealthz(w http.ResponseWriter, r *http.Request) {

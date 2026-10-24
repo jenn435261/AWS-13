@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../app/providers.dart';
 import '../../l10n/strings.dart';
 import '../../nodes/node_store.dart';
+import '../../nodes/package_manifest.dart';
 import '../../nodes/package_store.dart';
 import '../components/common.dart';
 import '../components/toast.dart';
@@ -70,10 +71,28 @@ class OfflineDownloadsScreen extends ConsumerStatefulWidget {
 
 enum _Load { idle, loading, ok, unreachable }
 
+/// Trust state of the node's signed package manifest.
+enum _Manifest {
+  /// Not fetched yet (node not checked).
+  none,
+
+  /// The node does not serve a signed manifest.
+  unavailable,
+
+  /// A manifest was served but could not be trusted (no trusted root
+  /// configured, wrong signer, or bad signature).
+  untrusted,
+
+  /// The manifest verified against the configured trusted root.
+  verified,
+}
+
 class _State extends ConsumerState<OfflineDownloadsScreen> {
   String? _nodeId;
   _Load _load = _Load.idle;
   List<_CatalogItem> _catalog = const [];
+  _Manifest _manifestState = _Manifest.none;
+  PackageManifest? _manifest;
 
   SavedNode? _selected(List<SavedNode> nodes, String? active) {
     if (nodes.isEmpty) return null;
@@ -85,6 +104,8 @@ class _State extends ConsumerState<OfflineDownloadsScreen> {
     setState(() {
       _load = _Load.loading;
       _catalog = const [];
+      _manifestState = _Manifest.none;
+      _manifest = null;
     });
     try {
       final r = await http
@@ -106,8 +127,48 @@ class _State extends ConsumerState<OfflineDownloadsScreen> {
         _catalog = items;
         _load = _Load.ok;
       });
+      await _fetchManifest(node);
     } catch (_) {
       if (mounted) setState(() => _load = _Load.unreachable);
+    }
+  }
+
+  /// Fetches and verifies the node's signed package manifest. The manifest's
+  /// trust state is advisory for the UI; a download is only ever trusted when
+  /// its SHA-256 matches a VERIFIED manifest entry (see [_check]).
+  Future<void> _fetchManifest(SavedNode node) async {
+    final root = ref.read(packagesTrustedRootProvider).trim();
+    try {
+      final r = await http
+          .get(Uri.parse('${node.url}/node/v1/manifest'))
+          .timeout(const Duration(seconds: 6));
+      if (r.statusCode != 200) {
+        if (mounted) setState(() => _manifestState = _Manifest.unavailable);
+        return;
+      }
+      final body = jsonDecode(r.body);
+      if (body is! Map<String, dynamic>) {
+        if (mounted) setState(() => _manifestState = _Manifest.untrusted);
+        return;
+      }
+      if (root.isEmpty) {
+        // No trusted root configured for this build: we received a manifest but
+        // cannot trust it, so we must not claim verification.
+        if (mounted) setState(() => _manifestState = _Manifest.untrusted);
+        return;
+      }
+      final res = await verifySignedManifest(body, root);
+      if (!mounted) return;
+      setState(() {
+        if (res.ok) {
+          _manifest = res.manifest;
+          _manifestState = _Manifest.verified;
+        } else {
+          _manifestState = _Manifest.untrusted;
+        }
+      });
+    } catch (_) {
+      if (mounted) setState(() => _manifestState = _Manifest.unavailable);
     }
   }
 
@@ -193,6 +254,13 @@ class _State extends ConsumerState<OfflineDownloadsScreen> {
 
   Future<void> _check(SavedPackage pkg) async {
     final l = L10n.of(context);
+    // When a verified manifest covers this URL, verify the actual bytes against
+    // its checksum rather than just checking that the file exists.
+    final entry = _manifestEntryForUrl(pkg.url);
+    if (entry != null) {
+      await _verifyChecksum(pkg.url, entry, '${pkg.name} ${pkg.version}');
+      return;
+    }
     String msg;
     try {
       final r = await http
@@ -205,6 +273,43 @@ class _State extends ConsumerState<OfflineDownloadsScreen> {
       msg = l.t('pkg_unreachable');
     }
     if (mounted) Toast.show(context, '${pkg.name} ${pkg.version}: $msg');
+  }
+
+  /// Returns the verified manifest entry whose path matches [url] (a full
+  /// `${node.url}${path}` URL), or null when no verified manifest covers it.
+  ManifestEntry? _manifestEntryForUrl(String url) {
+    final m = _manifest;
+    if (m == null || _manifestState != _Manifest.verified) return null;
+    final path = Uri.tryParse(url)?.path;
+    if (path == null) return null;
+    return m.entryForPath(path);
+  }
+
+  /// Downloads [url] and verifies its SHA-256 against the verified manifest
+  /// [entry]. This is the one place a download is actually trusted: bytes that
+  /// do not match the signed checksum are rejected with a loud, honest error.
+  Future<void> _verifyChecksum(
+      String url, ManifestEntry entry, String label) async {
+    final l = L10n.of(context);
+    Toast.show(context, l.t('verifying_checksum'));
+    try {
+      final r = await http
+          .get(Uri.parse(url))
+          .timeout(const Duration(seconds: 30));
+      if (r.statusCode < 200 || r.statusCode >= 300) {
+        if (mounted) Toast.show(context, '$label: ${l.t('pkg_missing')}', urgent: true);
+        return;
+      }
+      final got = await sha256Hex(r.bodyBytes);
+      if (!mounted) return;
+      if (got == entry.sha256) {
+        Toast.show(context, '$label: ${l.t('checksum_ok')}');
+      } else {
+        Toast.show(context, '$label: ${l.t('checksum_mismatch')}', urgent: true);
+      }
+    } catch (_) {
+      if (mounted) Toast.show(context, '$label: ${l.t('pkg_unreachable')}', urgent: true);
+    }
   }
 
   @override
@@ -296,40 +401,54 @@ class _State extends ConsumerState<OfflineDownloadsScreen> {
                     style: TextStyle(
                         fontFamily: 'Roboto', fontSize: 16, color: outline)),
                 _ => Column(children: [
+                    _ManifestBanner(state: _manifestState),
                     for (final it in _catalog)
-                      Card(
-                        child: ListTile(
-                          leading: Icon(_iconOf(_kindOf(it.kind))),
-                          title: Text(it.name),
-                          subtitle: Text(
-                              [_size(it.sizeBytes), _date(it.modifiedMs)]
-                                  .where((s) => s.isNotEmpty)
-                                  .join(' · ')),
-                          trailing: PopupMenuButton<String>(
-                            tooltip: l.t('actions'),
-                            onSelected: (v) {
-                              final url = '${node.url}${it.path}';
-                              switch (v) {
-                                case 'open':
-                                  _open(url);
-                                case 'copy':
-                                  _copy(url);
-                                case 'save':
-                                  _saveToLibrary(node, it);
-                              }
-                            },
-                            itemBuilder: (_) => [
-                              PopupMenuItem(
-                                  value: 'open', child: Text(l.t('download'))),
-                              PopupMenuItem(
-                                  value: 'save',
-                                  child: Text(l.t('save_to_library'))),
-                              PopupMenuItem(
-                                  value: 'copy', child: Text(l.t('copy_link'))),
-                            ],
+                      Builder(builder: (_) {
+                        final url = '${node.url}${it.path}';
+                        final verified = _manifestEntryForUrl(url) != null;
+                        return Card(
+                          child: ListTile(
+                            leading: Icon(_iconOf(_kindOf(it.kind))),
+                            title: Text(it.name),
+                            subtitle: Text([
+                              _size(it.sizeBytes),
+                              _date(it.modifiedMs),
+                              if (verified) l.t('checksum_available'),
+                            ].where((s) => s.isNotEmpty).join(' · ')),
+                            trailing: PopupMenuButton<String>(
+                              tooltip: l.t('actions'),
+                              onSelected: (v) {
+                                switch (v) {
+                                  case 'open':
+                                    _open(url);
+                                  case 'copy':
+                                    _copy(url);
+                                  case 'save':
+                                    _saveToLibrary(node, it);
+                                  case 'verify':
+                                    final e = _manifestEntryForUrl(url);
+                                    if (e != null) {
+                                      _verifyChecksum(url, e, it.name);
+                                    }
+                                }
+                              },
+                              itemBuilder: (_) => [
+                                PopupMenuItem(
+                                    value: 'open', child: Text(l.t('download'))),
+                                PopupMenuItem(
+                                    value: 'save',
+                                    child: Text(l.t('save_to_library'))),
+                                if (verified)
+                                  PopupMenuItem(
+                                      value: 'verify',
+                                      child: Text(l.t('verify_checksum'))),
+                                PopupMenuItem(
+                                    value: 'copy', child: Text(l.t('copy_link'))),
+                              ],
+                            ),
                           ),
-                        ),
-                      ),
+                        );
+                      }),
                   ]),
               },
             ],
@@ -393,6 +512,50 @@ class _State extends ConsumerState<OfflineDownloadsScreen> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// An honest one-line status of the node's signed package manifest. It never
+/// implies verification the app did not actually perform.
+class _ManifestBanner extends StatelessWidget {
+  final _Manifest state;
+  const _ManifestBanner({required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    if (state == _Manifest.none) return const SizedBox.shrink();
+    final l = L10n.of(context);
+    final scheme = Theme.of(context).colorScheme;
+    final (IconData icon, Color color, String key) = switch (state) {
+      _Manifest.verified => (
+          Icons.verified_rounded,
+          scheme.primary,
+          'manifest_verified'
+        ),
+      _Manifest.untrusted => (
+          Icons.gpp_maybe_outlined,
+          scheme.error,
+          'manifest_untrusted'
+        ),
+      _Manifest.unavailable => (
+          Icons.info_outline_rounded,
+          scheme.outline,
+          'manifest_unavailable'
+        ),
+      _Manifest.none => (Icons.info_outline_rounded, scheme.outline, ''),
+    };
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(children: [
+        Icon(icon, size: 20, color: color),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(l.t(key),
+              style: TextStyle(
+                  fontFamily: 'Roboto', fontSize: 16, color: color)),
+        ),
+      ]),
     );
   }
 }

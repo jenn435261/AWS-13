@@ -380,4 +380,12 @@ const Map<String, String> kStringsZh = {
   'no_contacts_for_assign': '请先添加联系人，才能为其指派任务。',
   'recall_alert': '撤回',
   'alert_recalled': '警报已撤回',
+  'verify_checksum': '校验校验和',
+  'verifying_checksum': '正在校验校验和…',
+  'checksum_ok': '校验和已验证',
+  'checksum_mismatch': '校验和不匹配——请勿信任此文件',
+  'checksum_available': '可校验校验和',
+  'manifest_verified': '已验证签名清单——下载可进行校验和验证',
+  'manifest_untrusted': '清单未由受信任根签名——校验和显示为未验证',
+  'manifest_unavailable': '该节点不提供签名清单',
 };

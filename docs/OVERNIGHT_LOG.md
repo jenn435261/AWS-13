@@ -4,7 +4,89 @@ Branch: `kiro/overnight` (off `feature/provider-map-supplies`). Commit small and
 
 ## Final report
 
-_Placeholder — filled in at the end of the run once items A–G are complete. Will summarize what shipped, what was skipped (and why), the final verification state, and anything left for the human to do (e.g. Heroku deploy, live-site click-through)._
+### 1. Done vs. not (one paragraph)
+
+All seven planned features (FEAT-001 baseline/docs, and items A–G) shipped on `kiro/overnight` and the codebase is green: `flutter analyze` is clean, **164** Flutter tests pass (158 prior + 6 new; `screenshots_test.dart` excluded as always), and all cloud+node Go `vet`/`test` pass, with `flutter build web --release` building. The app now actually syncs (push/pull to cloud and node, verify-before-store), has working end-to-end secure messaging with photos/audio, opt-in time-boxed location sharing, full provider tooling (verified supplies, alerts + recall, missions + carrier assign/accept, certify, request close/cancel, auto-hide of expired supplies, certificate depth-limit = 2), an offline PMTiles **raster** map from a node with an honest online fallback, AI translate/summarize/dedup surfaced honestly in the UI, cloud **CORS** (so a cross-origin web host can call the API), and a node-served **signed package manifest** (detached Ed25519, SHA-256 per file, HTTP Range-resume) that the app verifies before trusting a download. What was NOT done is deployment and the live-site click-through (**Heroku CLI is not installed/authenticated in this sandbox**) and anything requiring on-device-only capabilities or `infra/` (off limits); interaction-level browser driving of the Flutter UI is not possible headlessly (the semantics tree publishes no aria-labels in this sandbox), so UI behavior is proven by Dart fold/abuse tests + Go endpoint tests + zero-console-error same-origin boots, which is called out per item below.
+
+### 2. Feature state table
+
+| Feature | State | How verified | Evidence (test / screenshot) |
+|---|---|---|---|
+| A — App-side cloud + node sync client | works | Dart unit/integration tests; Go server push/pull; zero-error boots | `app/test/cloud_sync_test.dart`, `app/test/sync_engine_test.dart`, `cloud/internal/api/server_test.go` `TestTwoProfileSyncThroughCloud`, `.agents/tmp/shots7/profileA_booted.png` |
+| B — Secure messaging (text + photo + audio) | works | Dart E2E round-trip incl. tamper abuse cases; Go ciphertext-only assertions; durable store survives restart | `app/test/messaging_e2e_test.dart`, `signal_messaging_test.dart`, `message_flow_test.dart`, `photo_prep_test.dart`, `drift_signal_store_test.dart` |
+| C — Location sharing | works | Fold + abuse tests (author-only stop, non-audience cannot decrypt); two-profile geo boot | `app/test/location_share_test.dart`, `location_view_test.dart`, cases in `derived_state_test.dart` |
+| D — Provider completeness (+ `HELP_REQUEST_CLOSED` proto, depth-limit=2) | works | Fold + abuse tests (owner-only close, non-owner ignored, verified-only mission create/assign, author-only recall, cert depth 2 vs 3) | `app/test/derived_state_test.dart`, `app/test/mission_chain_test.dart`, `app/test/supply_and_provider_test.dart` |
+| E — Offline PMTiles raster map | works (raster only) | Provider returns null on vector/unreachable (no silent blank); web build intact; node Range 206 | `app/test/map_pmtiles_test.dart`; `.agents/tmp/shots7/profileA_map.png` baseline boots |
+| F — AI endpoints in the UI (translate/summarize/dedup) | works | Dart tests incl. degraded + offline-fallback paths | `app/test/ai_assist_test.dart` |
+| G — Cloud CORS | works | Go preflight test; **real cross-origin browser call** from a different origin succeeded (GET read + preflighted POST with X-Api-Key) | `cloud/internal/api/cors_test.go` `TestCORSPreflight`/`TestCORSHeadersOnActualRequest`; `.agents/tmp/shots7/cross_origin_cors.png` |
+| G — Node signed package manifest (checksum + Range-resume) | works | Go sign/verify + Range-resume tests; **browser** verified the detached Ed25519 signature and a resumed two-part Range download whose SHA-256 matched the signed manifest | `node/internal/packages/manifest_test.go` (`TestManifestSignAndVerify`, `TestRangeResumeDownload`, `TestManifestEndpoint503WithoutKey`); `app/test/package_manifest_test.dart` |
+| G — App-side checksum verification before trusting a download | works (honest web limits) | Dart verifier tests (ok/untrustedKey/badSignature/malformed, known SHA-256 vector); on-device background download/resume honestly limited on web | `app/test/package_manifest_test.dart` |
+| FEAT-005 cancel UI + auto-hide (verify only) | works | Confirmed present, not re-implemented (`_closeRequest`→`HelpRequestClosedBody`; `WorldState.mapResources()`/`ResourceView.isExpired`) | `app/lib/ui/screens/my_posts_screen.dart`, `app/lib/state/derived_state.dart`, `app/test/derived_state_test.dart` |
+| Docs honesty (README / KIRO_HANDOFF / SPEC / DECISIONS) | works | Screen-by-screen sweep; "What works today" and status labels updated to match A–G | `README.md`, `docs/KIRO_HANDOFF.md`, `docs/SPEC_PROVIDER_AND_FEATURES.md`, `docs/DECISIONS.md` |
+
+### 3. Not done, and exactly why
+
+- **Heroku deploy + live-site click-through (`resilience.chrisccluk.live`): SKIPPED.** The Heroku CLI is **not installed or authenticated** in this sandbox, so neither the deploy nor the live two-profile click-through could run. Commands for the human (do NOT run in the sandbox):
+
+  ```sh
+  heroku login
+  heroku git:remote -a resilience-api-chris
+  heroku config:set CLIENT_API_KEYS=<key> \
+    AWS_REGION=us-east-1 AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=... AWS_SESSION_TOKEN=... \
+    BEDROCK_MODEL_ID=us.anthropic.claude-sonnet-4-5-20250929-v1:0
+  # Optional durable store:
+  heroku addons:create heroku-postgresql:essential-0   # sets RESILIENCE_PG_DSN
+  ./scripts/deploy-heroku.ps1    # builds web, copies into cloud/web, subtree-pushes cloud/
+  heroku logs --tail -a resilience-api-chris
+  ```
+  Full procedure + config vars + custom-domain steps: `cloud/DEPLOY_HEROKU.md`.
+- **Interaction-level browser click-through of the Flutter UI: SUBSTITUTED (applies across items A–F).** The headless Flutter semantics tree publishes **no aria-label nodes** in this sandbox, so tapping buttons/fields by accessible name is not possible. UI behavior is therefore proven by the Dart fold/abuse tests + Go endpoint tests + **zero-console-error same-origin boots** (two profiles). For item G the cross-origin point *is* observable at the network layer, so that was driven for real in the browser (see §4 and the table).
+- **`flutter build web --wasm`: expected to fail** (plugins) — the JS build `flutter build web --release` is used and passes.
+- **`infra/` / CDK: OFF LIMITS** — untouched; not deployable in the event account anyway (`iam:CreateRole` denied).
+- **Vector PMTiles rendering: out of scope** — only raster PMTiles are decoded; `maplibre_gl` is not added because it breaks the web build. Vector archives fall back to online OSM (honest, no blank map).
+- **Nearby (BLE/Wi-Fi Direct) and LoRa: not exercised** — unavailable in browsers / not set up in this run.
+- **On-device background download with a persisted resumable partial file: not on web** — a browser has no filesystem; the node already supports Range-resume and the checksum check runs where the platform can fetch bytes. The UI states this honestly.
+
+### 4. Exact morning test steps for the human
+
+**Local (no deploy needed):**
+
+1. Prepend the env block (top of the running log) and `ulimit -n 8192` to each shell.
+2. Re-run the suite: `cd app && flutter analyze` (expect `No issues found!`); `cd app && flutter test $(ls test/*.dart | grep -v screenshots_test.dart)` (expect **164 passing**); `cd cloud && go vet ./... && go test ./...`; `cd node && go vet ./... && go test ./...` (all `ok`).
+3. Build + serve the app same-origin through the cloud and run a node with a signed manifest, in ONE shell (pick fresh ports; free them first):
+   ```sh
+   cd app && flutter build web --release
+   # build binaries into /projects/sandbox (not /tmp):
+   (cd cloud && go build -o /projects/sandbox/f7/cloudapi ./cmd/api)
+   (cd node  && go build -o /projects/sandbox/f7/node ./cmd/resilience-node)
+   python3 -c "import os;open('/projects/sandbox/f7/key.hex','w').write(os.urandom(32).hex())"
+   mkdir -p /projects/sandbox/f7/maps && head -c 300 /dev/urandom > /projects/sandbox/f7/maps/region.pmtiles
+   cp -r app/build/web /projects/sandbox/f7/web
+   WEB_DIR=/projects/sandbox/f7/web PORT=8187 CLIENT_API_KEYS=devkey /projects/sandbox/f7/cloudapi &
+   /projects/sandbox/f7/node --http-addr :8197 --map-dir /projects/sandbox/f7/maps --packages-signing-key /projects/sandbox/f7/key.hex &
+   # also serve the SAME bundle from a DIFFERENT origin to see the CORS win:
+   (cd /projects/sandbox/f7/web && python3 -m http.server 8077 &)
+   ```
+4. **Which two profiles / what to click:** open `http://localhost:8187/` in two separate browser profiles (A and B — the app reads `devkey` from `/app-config.json`). In A, create an "I Need Help" request and (as a provider) an alert; in B, after ~30 s (or tap Refresh in Network Status), the request/alert should appear. **Expected:** B sees A's events; Network Status shows "Last synced … · N pending".
+5. **CORS win:** open `http://localhost:8077/` (the different origin) and in the browser console run `await (await fetch('http://localhost:8187/healthz')).text()` → expect `{"status":"ok"}` with no CORS error, and a POST to `http://localhost:8187/v1/events/pull` with header `X-Api-Key: devkey` → expect `200` (the preflight is answered). This is the behavior that was previously blocked.
+6. **Signed manifest + checksum:** `curl http://localhost:8197/node/v1/manifest` shows `algorithm:"ed25519"`, a `public_key`, a `signature`, and per-file `sha256`. In the app, More → Offline Downloads → pick the node → Check node: the manifest banner reads **verified** only if you built the app with `--dart-define=PACKAGES_TRUSTED_ROOT=<that public_key>`; the map item then offers **Verify checksum**, which downloads and compares SHA-256 (expect "Checksum verified"). A Range-resume + checksum match is already proven by `node/internal/packages/manifest_test.go` `TestRangeResumeDownload`.
+7. (Optional, reproduces the agent's run) `cd /projects/sandbox/.toolchain/ptest && CLOUD_URL=http://localhost:8187 NODE_URL=http://localhost:8197 WEB_ORIGIN=http://localhost:8077 API_KEY=devkey node feat007.mjs` → prints the cross-origin result, manifest-verifies true, resumed-download checksum match true, and "two profiles booted … ZERO console/page errors".
+
+**Live site (once deployed):** after the Heroku deploy in §3, repeat steps 4–6 against `https://resilience.chrisccluk.live` in two browser profiles (it serves the app same-origin with the API and hands the key via `/app-config.json`). Note: an HTTPS page cannot reach a plain-HTTP LAN node (mixed content), so test the node/manifest flow from the native app or give the node HTTPS.
+
+### 5. Known risks + next three things to do
+
+**Risks:**
+- Cloud event store is **in-memory** on Heroku unless `RESILIENCE_PG_DSN` is set — events reset on dyno restart.
+- UI behavior is covered by unit/fold tests + boots, not by true headless UI driving (sandbox limitation); a real human click-through on the live site is still the highest-value check.
+- `PACKAGES_TRUSTED_ROOT` must be provisioned per build for the app to show a manifest as *verified*; without it the UI honestly shows "untrusted/unverified" (it never fakes verification). Node key distribution (how a phone learns the trusted root out of band) is a product decision.
+- Cross-origin wildcard CORS is safe only because auth is a header (`X-Api-Key`), never a cookie — do not add cookie/credentialed auth without tightening the origin policy.
+
+**Next three things:**
+1. Deploy to Heroku (above), provision Postgres (`RESILIENCE_PG_DSN`), and do the real two-profile live-site click-through.
+2. Wire the node's signed-manifest trusted root into the app's provisioning (ship `PACKAGES_TRUSTED_ROOT` for real builds; consider pinning a root via pairing QR) and add a true on-device resumable download with a progress bar on native platforms.
+3. Add node discovery (mDNS) and node-side auth for pushes; then exercise nearby (BLE/Wi-Fi Direct) and LoRa transports on real devices.
+
 
 ## Running log
 
@@ -217,3 +299,29 @@ Completed Item D: the protobuf schema change (`EVENT_TYPE_HELP_REQUEST_CLOSED`),
 - **NOT driven through the Flutter UI:** tapping Translate on a detail/bubble, opening the Home summary sheet, and triggering the dedup dialog. Reason: the confirmed platform limit from FEAT-003/004/005 — the headless Flutter semantics tree publishes no `aria-label` nodes, so UI tap interactions are not achievable headlessly. The authoritative proof for translate/summarize/dedup (incl. the degraded flag and the offline fallback) is the passing `ai_assist_test.dart` suite, and for the PMTiles render path the web build + the node Range 206 verification + the zero-error boot. No browser UI result is claimed that was not actually produced.
 
 **Env note:** do NOT `pkill -f chrome` — `/usr/local/bin/chrome` is the sandbox's own chromium and a broad pkill trips the sandbox (SIGKILL/143). Track only your own server PIDs and use fresh high ports instead of killing by name.
+
+### 2026-10-24 — FEAT-007 (Item G): CORS, signed package manifest, docs honesty sweep + final report
+
+Shipped the last item and finalized the docs.
+
+**What shipped:**
+
+- **Cloud CORS** (`cloud/internal/api/server.go`): a `withCORS` wrapper around the whole mux sends `Access-Control-Allow-Origin: *`, `-Methods: GET, HEAD, POST, OPTIONS`, `-Headers: Content-Type, Range, X-Api-Key, X-Org-Token, Authorization`, `-Expose-Headers`, and `-Max-Age: 86400`, answering `OPTIONS` preflight with `204`. Safe wildcard because auth is a header (`X-Api-Key`), never a cookie. Mirrors the node's existing CORS middleware. Test: `cloud/internal/api/cors_test.go`.
+- **Node signed package manifest** (`node/internal/packages/manifest.go`): `GET /node/v1/manifest` returns `{manifest, public_key, signature, algorithm:"ed25519"}` — a detached Ed25519 signature over the canonical manifest (compact JSON, entries sorted by `(kind,name)`), SHA-256 per file. Verifiable against a trusted root; files are served with HTTP Range so a large download resumes. Enabled by `--packages-signing-key` / `PACKAGES_SIGNING_KEY` (64-byte key or 32-byte seed, hex); no key ⇒ `503` (refuses to serve an unsigned manifest). Tests: `manifest_test.go` (`TestManifestSignAndVerify`, `TestManifestEndpointServesSigned`, `TestManifestEndpoint503WithoutKey`, `TestRangeResumeDownload`).
+- **App-side checksum verification** (`app/lib/nodes/package_manifest.dart`, `offline_downloads_screen.dart`, `app/lib/app/providers.dart`): `verifySignedManifest` verifies the manifest against `packagesTrustedRootProvider` (`--dart-define=PACKAGES_TRUSTED_ROOT=<hex>`) fail-closed; Offline Downloads shows an honest manifest-trust banner and a **Verify checksum** action that downloads a file and compares its SHA-256 to the signed entry. On-device background download/resume is honestly limited on web. l10n keys added EN/ES/FR/ZH. Test: `app/test/package_manifest_test.dart` (6 cases).
+- **FEAT-005 deliverables verified (not re-implemented):** HELP_REQUEST close/cancel UI (`_closeRequest`→`HelpRequestClosedBody`, owner-only) in My Requests, and auto-hide of supplies past `available_until_ms` (`WorldState.mapResources()`/`ResourceView.isExpired`) — both present and left unchanged.
+- **Docs honesty sweep:** README "What works today" (sync, messaging, location, map PMTiles, offline downloads + checksums, CORS, AI in UI), `docs/KIRO_HANDOFF.md` (A–G moved to "Already built"; remaining/partial listed), `docs/SPEC_PROVIDER_AND_FEATURES.md` status labels (map §2, node §4 signed manifest, downloads §5 checksum/resume, messaging §6 Built, provider §1.1 paths), and `docs/DECISIONS.md` (new FEAT-007 section: CORS policy, manifest signing scheme, fail-closed/503, checksum = trust boundary, web limits, blob storage location). Final report written at the TOP of this log.
+
+**Verification (all green):**
+
+- `cd app && flutter analyze` → `No issues found!`
+- `cd app && flutter test $(ls test/*.dart | grep -v screenshots_test.dart)` → **164 passed** (158 + 6 new in `package_manifest_test.dart`).
+- `cd cloud && go vet ./... && go test ./...` → all `ok` (incl. `cors_test.go`); `cd node && go vet ./... && go test ./...` → all `ok` (incl. `manifest_test.go`).
+- `cd app && flutter build web --release` → `✓ Built build/web`.
+
+**Browser click-through — what ran vs. what was substituted (honest record):**
+
+- **Ran (single shell call, `/projects/sandbox/.toolchain/ptest/feat007.mjs`):** built the cloud+node binaries into `/projects/sandbox/.toolchain/f7bin`, generated a 32-byte signing seed + a 300-byte `region.pmtiles`, served the release web bundle THROUGH the cloud same-origin (`WEB_DIR`, `CLIENT_API_KEYS=devkey`) on fresh port 8187, the node with `--map-dir` + `--packages-signing-key` on 8197, and the SAME bundle from a DIFFERENT origin via `python3 -m http.server` on 8077. (1) **CORS win:** a page on `:8077` did a cross-origin `fetch` to the cloud on `:8187` — the GET `/healthz` read `{"status":"ok"}` and a preflighted `POST /v1/events/pull` with `X-Api-Key` returned `200` (a `curl -X OPTIONS` also showed `204` + all CORS headers incl. `X-Api-Key`). This is the one case where cross-origin is the point, and it now works. (2) **Signed manifest + checksum:** fetched `/node/v1/manifest`, verified the detached Ed25519 signature against the embedded key using a JS reconstruction of the SAME canonical bytes (so Go↔Dart↔JS canonical parity is demonstrated), then did a two-part **Range** download (`bytes=0-49` 206, `bytes=50-` 206), reassembled, and confirmed SHA-256 matched the signed entry; a flipped byte failed the check (negative control). (3) **Baseline:** booted the app in **two profiles** same-origin with **ZERO console/page errors**. Screenshots in `/projects/sandbox/AWS-13/.agents/tmp/shots7/`.
+- **NOT driven through the Flutter UI:** tapping Offline Downloads → Check node → Verify checksum inside the app. Reason: the confirmed FEAT-003/004/005 limit (headless Flutter semantics publishes no `aria-label` nodes). The checksum/resume behavior is proven instead by `manifest_test.go` `TestRangeResumeDownload`, the Dart `package_manifest_test.dart`, and the real cross-origin/manifest browser steps above. No UI result is claimed that was not produced.
+
+**Env notes (unchanged):** prepend the env block + `ulimit -n 8192`; build server binaries into `/projects/sandbox` (not `/tmp`); free/choose fresh ports; do servers+puppeteer+teardown in ONE call; never `pkill -f chrome`. Scratch dirs cleaned up after the run.

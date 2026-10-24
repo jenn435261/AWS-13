@@ -385,4 +385,12 @@ const Map<String, String> kStringsFr = {
       "Ajoutez d'abord un contact pour lui attribuer une mission.",
   'recall_alert': 'Retirer',
   'alert_recalled': 'Alerte retirée',
+  'verify_checksum': 'Vérifier la somme de contrôle',
+  'verifying_checksum': 'Vérification de la somme de contrôle…',
+  'checksum_ok': 'Somme de contrôle vérifiée',
+  'checksum_mismatch': 'La somme de contrôle NE correspond PAS — ne faites pas confiance à ce fichier',
+  'checksum_available': 'Somme de contrôle vérifiable',
+  'manifest_verified': 'Manifeste signé vérifié — les téléchargements peuvent être vérifiés par somme de contrôle',
+  'manifest_untrusted': "Le manifeste n'est pas signé par une racine de confiance — sommes de contrôle non vérifiées",
+  'manifest_unavailable': 'Ce nœud ne fournit pas de manifeste signé',
 };
