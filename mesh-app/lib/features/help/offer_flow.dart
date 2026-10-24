@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../l10n/labels.dart';
 import '../../models/help.dart';
+import '../../router.dart';
 import '../../state/app_scope.dart';
 import '../../state/drafts.dart';
 import '../../ui/feedback.dart';
@@ -22,8 +23,12 @@ void openOfferFlow(BuildContext context) {
   router.push('/offer');
 }
 
-void _close(BuildContext context) =>
-    GoRouter.of(context).go(AppScope.of(context).offerDraft.returnTo);
+/// Back to the screen the flow was opened from.
+void _close(BuildContext context) => leaveFlow(
+      GoRouter.of(context),
+      '/offer',
+      fallback: AppScope.of(context).offerDraft.returnTo,
+    );
 
 class OfferKindsStep extends StatelessWidget {
   const OfferKindsStep({super.key});
@@ -86,10 +91,10 @@ class _OfferDetailsStepState extends State<OfferDetailsStep> {
   void _start() {
     final scope = AppScope.of(context);
     final l = AppLocalizations.of(context);
+    final router = GoRouter.of(context);
     final previous = scope.repository.offer.value;
     final offer = _draft.build();
 
-    GoRouter.of(context).go(_draft.offersTransport ? '/more/deliveries' : '/map');
     scope.undoable(
       context,
       message: l.offeringStarted,
@@ -98,6 +103,10 @@ class _OfferDetailsStepState extends State<OfferDetailsStep> {
       run: () => scope.repository.setOffer(offer),
       revert: () => scope.repository.setOffer(previous),
     );
+    // Back where the flow was opened. Someone offering transport also sees
+    // the deliveries they could carry, and Back from there returns too.
+    leaveFlow(router, '/offer', fallback: _draft.returnTo);
+    if (offer.offersTransport) router.push(deliveriesPath);
   }
 
   /// A row of large pick-one buttons. Uses the platform's segmented button.

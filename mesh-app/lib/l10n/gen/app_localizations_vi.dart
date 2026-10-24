@@ -1842,4 +1842,153 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get mapCancel => 'Hủy';
+
+  @override
+  String get navNewMessage => 'Tin nhắn mới';
+
+  @override
+  String get navChannels => 'Kênh';
+
+  @override
+  String get navNoDirectChats =>
+      'Chưa có ai để nhắn riêng. Quét mã QR của ai đó để thêm họ.';
+
+  @override
+  String get navAddDetails => 'Thêm chi tiết';
+
+  @override
+  String get navAddDetailsSub => 'Ghi chú và số người';
+
+  @override
+  String get navAdvanced => 'Nâng cao';
+
+  @override
+  String get navRequestTakenBack => 'Đã rút lại yêu cầu';
+
+  @override
+  String get navChangeOffer => 'Đổi những gì tôi giúp';
+
+  @override
+  String get navHoldForMore => 'Nhấn giữ để xem thêm thao tác';
+
+  @override
+  String navLocationTyped(String place) {
+    return 'Vị trí của bạn: $place';
+  }
+
+  @override
+  String get sosContactsTitle => 'Liên hệ khẩn cấp';
+
+  @override
+  String sosContactsCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count người',
+      zero: 'Chưa có ai',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get sosContactsIntro =>
+      'Nếu SOS không kết nối được mạng nào, Mesh giúp bạn nhắn tin cho những người này bằng ứng dụng tin nhắn của điện thoại.';
+
+  @override
+  String get sosContactsEmpty => 'Chưa có liên hệ khẩn cấp nào.';
+
+  @override
+  String get sosAddContact => 'Thêm liên hệ khẩn cấp';
+
+  @override
+  String get sosEditContact => 'Sửa liên hệ khẩn cấp';
+
+  @override
+  String get sosContactName => 'Tên';
+
+  @override
+  String get sosContactPhone => 'Số điện thoại';
+
+  @override
+  String get sosContactPhoneHint => 'Ví dụ: +1 408 555 0100';
+
+  @override
+  String get sosContactPhoneInvalid =>
+      'Kiểm tra lại số: dùng chữ số, và dấu + trước mã quốc gia';
+
+  @override
+  String get sosSaveContact => 'Lưu';
+
+  @override
+  String sosContactSaved(String name) {
+    return 'Đã lưu $name';
+  }
+
+  @override
+  String sosContactRemoved(String name) {
+    return 'Đã xóa $name';
+  }
+
+  @override
+  String sosRemoveContact(String name) {
+    return 'Xóa $name';
+  }
+
+  @override
+  String sosContactsFull(int count) {
+    return 'Bạn có thể lưu tối đa $count liên hệ khẩn cấp.';
+  }
+
+  @override
+  String get sosNoNetworkTitle => 'Không kết nối được mạng nào';
+
+  @override
+  String get sosNoNetworkBody =>
+      'SOS của bạn đã được lưu trên điện thoại này và sẽ được gửi ngay khi Mesh tìm thấy mạng. Hãy nhắn tin cho liên hệ khẩn cấp hoặc gọi 911 ngay.';
+
+  @override
+  String get sosNoNetworkBodyNoContacts =>
+      'SOS của bạn đã được lưu trên điện thoại này và sẽ được gửi ngay khi Mesh tìm thấy mạng. Hãy gọi 911 ngay nếu có thể.';
+
+  @override
+  String sosTextContacts(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Nhắn tin cho $count liên hệ khẩn cấp',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get sosCall911 => 'Gọi 911';
+
+  @override
+  String get sosNotNow => 'Để sau';
+
+  @override
+  String get sosDone => 'Xong';
+
+  @override
+  String get sosAddContacts => 'Thêm liên hệ khẩn cấp';
+
+  @override
+  String get sosMessageLabel => 'Tin nhắn của bạn';
+
+  @override
+  String get sosLaunchFailed =>
+      'Điện thoại không mở được. Hãy thử lại hoặc dùng ứng dụng có sẵn của điện thoại.';
+
+  @override
+  String sosTextBody(String name, String location, String time) {
+    return 'SOS từ $name. Tôi cần giúp đỡ. Vị trí: $location. Thời gian: $time.';
+  }
+
+  @override
+  String sosTextBodyGuest(String location, String time) {
+    return 'SOS. Tôi cần giúp đỡ. Vị trí: $location. Thời gian: $time.';
+  }
+
+  @override
+  String get sosLocationUnknown => 'không rõ';
 }

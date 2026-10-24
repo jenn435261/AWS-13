@@ -3295,6 +3295,234 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Cancel'**
   String get mapCancel;
+
+  /// No description provided for @navNewMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'New message'**
+  String get navNewMessage;
+
+  /// No description provided for @navChannels.
+  ///
+  /// In en, this message translates to:
+  /// **'Channels'**
+  String get navChannels;
+
+  /// No description provided for @navNoDirectChats.
+  ///
+  /// In en, this message translates to:
+  /// **'Nobody to message directly yet. Scan someone\'s QR code to add them.'**
+  String get navNoDirectChats;
+
+  /// No description provided for @navAddDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Add details'**
+  String get navAddDetails;
+
+  /// No description provided for @navAddDetailsSub.
+  ///
+  /// In en, this message translates to:
+  /// **'A note, and how many people'**
+  String get navAddDetailsSub;
+
+  /// No description provided for @navAdvanced.
+  ///
+  /// In en, this message translates to:
+  /// **'Advanced'**
+  String get navAdvanced;
+
+  /// No description provided for @navRequestTakenBack.
+  ///
+  /// In en, this message translates to:
+  /// **'Request taken back'**
+  String get navRequestTakenBack;
+
+  /// No description provided for @navChangeOffer.
+  ///
+  /// In en, this message translates to:
+  /// **'Change what I offer'**
+  String get navChangeOffer;
+
+  /// No description provided for @navHoldForMore.
+  ///
+  /// In en, this message translates to:
+  /// **'Hold for more actions'**
+  String get navHoldForMore;
+
+  /// No description provided for @navLocationTyped.
+  ///
+  /// In en, this message translates to:
+  /// **'Your location: {place}'**
+  String navLocationTyped(String place);
+
+  /// No description provided for @sosContactsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Emergency contacts'**
+  String get sosContactsTitle;
+
+  /// No description provided for @sosContactsCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{None yet} =1{1 person} other{{count} people}}'**
+  String sosContactsCount(int count);
+
+  /// No description provided for @sosContactsIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'If an SOS can\'t reach a network, Mesh helps you text these people from your phone\'s Messages app.'**
+  String get sosContactsIntro;
+
+  /// No description provided for @sosContactsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No emergency contacts yet.'**
+  String get sosContactsEmpty;
+
+  /// No description provided for @sosAddContact.
+  ///
+  /// In en, this message translates to:
+  /// **'Add emergency contact'**
+  String get sosAddContact;
+
+  /// No description provided for @sosEditContact.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit emergency contact'**
+  String get sosEditContact;
+
+  /// No description provided for @sosContactName.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get sosContactName;
+
+  /// No description provided for @sosContactPhone.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone number'**
+  String get sosContactPhone;
+
+  /// No description provided for @sosContactPhoneHint.
+  ///
+  /// In en, this message translates to:
+  /// **'For example: +1 408 555 0100'**
+  String get sosContactPhoneHint;
+
+  /// No description provided for @sosContactPhoneInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Check the number: use digits, and + before a country code'**
+  String get sosContactPhoneInvalid;
+
+  /// No description provided for @sosSaveContact.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get sosSaveContact;
+
+  /// No description provided for @sosContactSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} saved'**
+  String sosContactSaved(String name);
+
+  /// No description provided for @sosContactRemoved.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} removed'**
+  String sosContactRemoved(String name);
+
+  /// No description provided for @sosRemoveContact.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove {name}'**
+  String sosRemoveContact(String name);
+
+  /// No description provided for @sosContactsFull.
+  ///
+  /// In en, this message translates to:
+  /// **'You can save up to {count} emergency contacts.'**
+  String sosContactsFull(int count);
+
+  /// No description provided for @sosNoNetworkTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No network reached'**
+  String get sosNoNetworkTitle;
+
+  /// No description provided for @sosNoNetworkBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Your SOS is saved on this phone and goes out as soon as Mesh finds a network. Text your emergency contacts or call 911 now.'**
+  String get sosNoNetworkBody;
+
+  /// No description provided for @sosNoNetworkBodyNoContacts.
+  ///
+  /// In en, this message translates to:
+  /// **'Your SOS is saved on this phone and goes out as soon as Mesh finds a network. Call 911 now if you can.'**
+  String get sosNoNetworkBodyNoContacts;
+
+  /// No description provided for @sosTextContacts.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Text 1 emergency contact} other{Text {count} emergency contacts}}'**
+  String sosTextContacts(int count);
+
+  /// No description provided for @sosCall911.
+  ///
+  /// In en, this message translates to:
+  /// **'Call 911'**
+  String get sosCall911;
+
+  /// No description provided for @sosNotNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Not now'**
+  String get sosNotNow;
+
+  /// No description provided for @sosDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get sosDone;
+
+  /// No description provided for @sosAddContacts.
+  ///
+  /// In en, this message translates to:
+  /// **'Add emergency contacts'**
+  String get sosAddContacts;
+
+  /// No description provided for @sosMessageLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Your text message'**
+  String get sosMessageLabel;
+
+  /// No description provided for @sosLaunchFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'This phone couldn\'t open that. Try again, or use your phone\'s own app.'**
+  String get sosLaunchFailed;
+
+  /// No description provided for @sosTextBody.
+  ///
+  /// In en, this message translates to:
+  /// **'SOS from {name}. I need help. Location: {location}. Time: {time}.'**
+  String sosTextBody(String name, String location, String time);
+
+  /// No description provided for @sosTextBodyGuest.
+  ///
+  /// In en, this message translates to:
+  /// **'SOS. I need help. Location: {location}. Time: {time}.'**
+  String sosTextBodyGuest(String location, String time);
+
+  /// No description provided for @sosLocationUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'unknown'**
+  String get sosLocationUnknown;
 }
 
 class _AppLocalizationsDelegate

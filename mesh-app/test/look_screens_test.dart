@@ -23,14 +23,18 @@ Future<void> _go(WidgetTester tester, String path) async {
 }
 
 /// Scrolls [screen]'s list until [label] shows, then taps it.
+/// The undo toast stays on screen (it has an action), so the row is brought
+/// to the top, clear of that toast.
 Future<void> _open(WidgetTester tester, Type screen, String label) async {
+  final target = find.descendant(of: find.byType(screen), matching: find.text(label));
   await tester.scrollUntilVisible(
-    find.text(label),
+    target,
     200,
     scrollable: find.descendant(of: find.byType(screen), matching: find.byType(Scrollable)).first,
   );
-  await TestApp.settle(tester);
-  await tester.tap(find.text(label));
+  await Scrollable.ensureVisible(target.evaluate().first, alignment: 0.05);
+  await tester.pump();
+  await tester.tap(target);
   await TestApp.settle(tester);
 }
 

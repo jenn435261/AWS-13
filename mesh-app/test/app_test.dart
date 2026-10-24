@@ -33,8 +33,9 @@ void main() {
     final app = await TestApp.create(tester);
     await app.pump(tester);
 
+    // Labels may be drawn or, when they don't fit, only spoken.
     for (final tab in ['Map', 'Messages', 'Contacts', 'More']) {
-      expect(find.text(tab), findsWidgets);
+      expect(find.bySemanticsLabel(tab), findsWidgets);
     }
     expect(find.byType(HelpButton), findsOneWidget);
     expect(find.text('Offline  ·  Ready'), findsOneWidget);
@@ -94,9 +95,17 @@ void main() {
     await tester.tap(find.text('Other'));
     await TestApp.settle(tester);
 
+    // The note waits behind "Add details".
+    expect(find.byType(TextField), findsNothing);
+    await tester.ensureVisible(find.text('Add details'));
+    await tester.pump();
+    await tester.tap(find.text('Add details'));
+    await TestApp.settle(tester);
     await tester.enterText(find.byType(TextField).first, 'my grandmother needs insulin kept cold');
     await TestApp.settle(tester);
     expect(find.text('Sounds like: Medicine'), findsOneWidget);
+    await tester.ensureVisible(find.text('Use this'));
+    await tester.pump();
     await tester.tap(find.text('Use this'));
     await TestApp.settle(tester);
     expect(app.repository.requests.value.where((r) => r.mine), isEmpty);
@@ -132,9 +141,14 @@ void main() {
     await app.pump(tester);
     await _go(tester, '/more/requests');
 
-    await tester.tap(
-      find.descendant(of: find.byType(RequestTile), matching: find.text('I can help')).first,
+    // "I can help" is a hold on the card, not a button on every card.
+    expect(
+      find.descendant(of: find.byType(RequestTile), matching: find.text('I can help')),
+      findsNothing,
     );
+    await tester.longPress(find.byType(RequestTile).first);
+    await TestApp.settle(tester);
+    await tester.tap(find.descendant(of: find.byType(BottomSheet), matching: find.text('I can help')));
     await TestApp.settle(tester);
     expect(app.repository.requests.value.where((r) => r.helpingIsMe), hasLength(1));
 
@@ -265,6 +279,9 @@ void main() {
   for (final language in supportedLanguages.keys) {
     testWidgets('no text under 16px in $language', (tester) async {
       final app = await TestApp.create(tester, language: language);
+      app.settings.emergencyContacts = const [
+        EmergencyContact(name: 'Ana', phone: '+1 408 555 0100'),
+      ];
       await app.pump(tester, size: const Size(360, 740));
 
       for (final path in [
@@ -283,6 +300,11 @@ void main() {
         '/more/deliveries/2193',
         '/more/privacy',
         '/more/display',
+        '/more/emergency-contacts',
+        '/emergency-contact',
+        '/emergency-contact?index=0',
+        '/messages/new',
+        '/sos/none',
         '/offer',
         '/help',
       ]) {
@@ -293,6 +315,23 @@ void main() {
       await tester.tap(find.byType(Card).at(1));
       await TestApp.settle(tester);
       expectNoSmallText(tester, '/help/details ($language)');
+
+      // The details folded under "Add details".
+      await tester.scrollUntilVisible(
+        find.byIcon(Icons.add_comment_outlined),
+        200,
+        scrollable: find
+            .descendant(of: find.byType(StepScaffold), matching: find.byType(Scrollable))
+            .first,
+      );
+      await tester.tap(find.byIcon(Icons.add_comment_outlined));
+      await TestApp.settle(tester);
+      expectNoSmallText(tester, '/help/details, details open ($language)');
+
+      // The step after an SOS with no emergency contacts saved.
+      app.settings.emergencyContacts = const [];
+      await _go(tester, '/sos/none');
+      expectNoSmallText(tester, '/sos/none, no contacts ($language)');
       await TestApp.close(tester);
     });
   }

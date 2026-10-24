@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../l10n/labels.dart';
 import '../../models/role.dart';
+import '../../router.dart';
 import '../../state/app_scope.dart';
 import '../../state/settings_controller.dart';
 import '../../ui/surfaces.dart';
@@ -67,7 +68,7 @@ class MoreScreen extends StatelessWidget {
                     hue: Hues.transport,
                     title: l.deliveries,
                     subtitle: l.deliveriesSub,
-                    onTap: () => context.go('/more/deliveries'),
+                    onTap: () => context.go(deliveriesPath),
                   ),
               ]),
               GroupHeader(l.sectionNetwork),
@@ -78,7 +79,7 @@ class MoreScreen extends StatelessWidget {
                   title: l.networkTitle,
                   subtitle: '${network.internet ? l.statusOnline : l.statusOffline}  ·  '
                       '${l.lastSyncAgo(l.timeAgo(network.lastSync))}',
-                  onTap: () => context.go('/more/network'),
+                  onTap: () => context.go(networkPath),
                 ),
                 GroupTile(
                   icon: Icons.download_for_offline_outlined,
@@ -87,7 +88,7 @@ class MoreScreen extends StatelessWidget {
                   subtitle: package.updateAvailable
                       ? l.packageUpdate(package.version)
                       : l.packageUpToDate(l.timeAgo(package.downloadedAt!)),
-                  onTap: () => context.go('/more/downloads'),
+                  onTap: () => context.go(downloadsPath),
                 ),
                 GroupTile(
                   icon: Icons.verified_outlined,
@@ -99,6 +100,13 @@ class MoreScreen extends StatelessWidget {
               ]),
               GroupHeader(l.sectionSettings),
               GroupCard(children: [
+                GroupTile(
+                  icon: Icons.contact_phone_outlined,
+                  hue: sosRed,
+                  title: l.sosContactsTitle,
+                  subtitle: l.sosContactsCount(settings.emergencyContacts.length),
+                  onTap: () => context.go(emergencyContactsPath),
+                ),
                 GroupTile(
                   icon: Icons.person_outline,
                   hue: Hues.shelter,

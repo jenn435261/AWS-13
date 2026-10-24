@@ -6,6 +6,7 @@ import '../../models/help.dart';
 import '../../router.dart';
 import '../../state/app_scope.dart';
 import '../../ui/action_bar.dart';
+import '../../ui/theme.dart';
 import '../../ui/advanced_section.dart';
 import '../../ui/empty_state.dart';
 import '../../ui/history.dart';
@@ -39,7 +40,9 @@ class RequestScreen extends StatelessWidget {
         return Scaffold(
           appBar: AppBar(title: Text(l.requestTitle(r))),
           body: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+            // The shell bar and the undo toast both float over this screen.
+            // Extra room lets Advanced scroll above them.
+            padding: EdgeInsets.fromLTRB(16, 8, 16, bottomClearance(context) + 200),
             children: [
               _Header(request: r),
               const SizedBox(height: 24),

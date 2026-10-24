@@ -1872,4 +1872,155 @@ class AppLocalizationsTl extends AppLocalizations {
 
   @override
   String get mapCancel => 'Kanselahin';
+
+  @override
+  String get navNewMessage => 'Bagong mensahe';
+
+  @override
+  String get navChannels => 'Mga channel';
+
+  @override
+  String get navNoDirectChats =>
+      'Wala ka pang direktang mamemensahe. I-scan ang QR code ng isang tao para idagdag siya.';
+
+  @override
+  String get navAddDetails => 'Magdagdag ng detalye';
+
+  @override
+  String get navAddDetailsSub => 'Isang tala, at ilang tao';
+
+  @override
+  String get navAdvanced => 'Karagdagang detalye';
+
+  @override
+  String get navRequestTakenBack => 'Binawi ang hiling';
+
+  @override
+  String get navChangeOffer => 'Baguhin ang inaalok ko';
+
+  @override
+  String get navHoldForMore => 'Pindutin nang matagal para sa iba pang aksyon';
+
+  @override
+  String navLocationTyped(String place) {
+    return 'Lokasyon mo: $place';
+  }
+
+  @override
+  String get sosContactsTitle => 'Mga contact sa emergency';
+
+  @override
+  String sosContactsCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count tao',
+      one: '1 tao',
+      zero: 'Wala pa',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get sosContactsIntro =>
+      'Kapag walang naabot na network ang SOS, tutulungan ka ng Mesh na i-text ang mga taong ito gamit ang messaging app ng telepono mo.';
+
+  @override
+  String get sosContactsEmpty => 'Wala ka pang contact sa emergency.';
+
+  @override
+  String get sosAddContact => 'Magdagdag ng contact sa emergency';
+
+  @override
+  String get sosEditContact => 'Baguhin ang contact sa emergency';
+
+  @override
+  String get sosContactName => 'Pangalan';
+
+  @override
+  String get sosContactPhone => 'Numero ng telepono';
+
+  @override
+  String get sosContactPhoneHint => 'Halimbawa: +1 408 555 0100';
+
+  @override
+  String get sosContactPhoneInvalid =>
+      'Suriin ang numero: gumamit ng mga digit, at + bago ang country code';
+
+  @override
+  String get sosSaveContact => 'I-save';
+
+  @override
+  String sosContactSaved(String name) {
+    return 'Na-save si $name';
+  }
+
+  @override
+  String sosContactRemoved(String name) {
+    return 'Inalis si $name';
+  }
+
+  @override
+  String sosRemoveContact(String name) {
+    return 'Alisin si $name';
+  }
+
+  @override
+  String sosContactsFull(int count) {
+    return 'Hanggang $count contact sa emergency ang puwedeng i-save.';
+  }
+
+  @override
+  String get sosNoNetworkTitle => 'Walang naabot na network';
+
+  @override
+  String get sosNoNetworkBody =>
+      'Naka-save sa teleponong ito ang SOS mo at ipapadala agad kapag may nahanap na network ang Mesh. I-text ang mga contact mo sa emergency o tumawag sa 911 ngayon.';
+
+  @override
+  String get sosNoNetworkBodyNoContacts =>
+      'Naka-save sa teleponong ito ang SOS mo at ipapadala agad kapag may nahanap na network ang Mesh. Tumawag sa 911 ngayon kung kaya mo.';
+
+  @override
+  String sosTextContacts(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'I-text ang $count contact sa emergency',
+      one: 'I-text ang 1 contact sa emergency',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get sosCall911 => 'Tumawag sa 911';
+
+  @override
+  String get sosNotNow => 'Hindi muna';
+
+  @override
+  String get sosDone => 'Tapos na';
+
+  @override
+  String get sosAddContacts => 'Magdagdag ng mga contact sa emergency';
+
+  @override
+  String get sosMessageLabel => 'Ang text mo';
+
+  @override
+  String get sosLaunchFailed =>
+      'Hindi ito mabuksan ng telepono. Subukan ulit, o gamitin ang sariling app ng telepono mo.';
+
+  @override
+  String sosTextBody(String name, String location, String time) {
+    return 'SOS mula kay $name. Kailangan ko ng tulong. Lokasyon: $location. Oras: $time.';
+  }
+
+  @override
+  String sosTextBodyGuest(String location, String time) {
+    return 'SOS. Kailangan ko ng tulong. Lokasyon: $location. Oras: $time.';
+  }
+
+  @override
+  String get sosLocationUnknown => 'hindi alam';
 }

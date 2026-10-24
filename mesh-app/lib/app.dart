@@ -81,7 +81,8 @@ class _MeshAppState extends State<MeshApp> {
       message,
       dismissLabel: l.dismiss,
       actionLabel: l.view,
-      onAction: () => _router.go(path),
+      // Pushed, so Back returns to the screen the person was on.
+      onAction: () => _router.push(path),
     );
   }
 
@@ -105,7 +106,7 @@ class _MeshAppState extends State<MeshApp> {
       actionLabel: l.download,
       onAction: () {
         repo.downloadReadiness();
-        _router.go('/more/downloads');
+        _router.push(downloadsPath);
       },
     );
   }
@@ -189,18 +190,14 @@ class _MeshAppState extends State<MeshApp> {
   }
 }
 
-/// Hosts the lock screen above the router, with its own overlay for the
-/// toasts and sheets it may show.
-class _LockLayer extends StatefulWidget {
+/// Hosts the lock screen above the router, on its own navigator: the step
+/// after an SOS that reached no network opens on it, and so do the sheets
+/// and toasts the lock screen may show.
+class _LockLayer extends StatelessWidget {
   const _LockLayer();
 
   @override
-  State<_LockLayer> createState() => _LockLayerState();
-}
-
-class _LockLayerState extends State<_LockLayer> {
-  final _entry = OverlayEntry(builder: (_) => const LockScreen());
-
-  @override
-  Widget build(BuildContext context) => Overlay(initialEntries: [_entry]);
+  Widget build(BuildContext context) => Navigator(
+        onGenerateRoute: (_) => MaterialPageRoute<void>(builder: (_) => const LockScreen()),
+      );
 }

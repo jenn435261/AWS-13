@@ -1132,8 +1132,9 @@ class _NearbyCard extends StatelessWidget {
           i == 0 && spec.accent != null ? textWidth - _dot : textWidth;
       text += measure(line, _lineStyle(theme, i), lineWidth - 8);
     }
-    // Room for rounding, so the text never overflows its card.
-    return _outer.vertical + 2 * (_border + _padding) + max(_leading, text) + 8;
+    // Room for rounding and the accent dot's line box, so the text never
+    // overflows its card after the shared look styles are merged in.
+    return _outer.vertical + 2 * (_border + _padding) + max(_leading, text) + 16;
   }
 
   @override

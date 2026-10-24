@@ -7,10 +7,12 @@ import '../../models/mesh_message.dart';
 import '../../models/network.dart';
 import '../../models/role.dart';
 import '../../models/social.dart';
+import '../../router.dart';
 import '../../state/app_scope.dart';
 import '../../ui/surfaces.dart';
 import '../../ui/theme.dart';
 import '../../ui/visuals.dart';
+import '../shell/bottom_actions.dart';
 
 /// The route a message would take right now, in plain words.
 String routeLabel(AppLocalizations l, NetworkStatus n) => n.internet
@@ -20,6 +22,25 @@ String routeLabel(AppLocalizations l, NetworkStatus n) => n.internet
         : n.lora
             ? l.routeMesh
             : l.routeQueued;
+
+/// The direct chat with [contact], if there is one.
+Channel? directChannelFor(Contact contact, List<Channel> channels) => channels
+    .where((c) =>
+        c.type == ChannelType.direct &&
+        (c.id == 'dm-${contact.name.toLowerCase()}' ||
+            c.name.toLowerCase() == contact.name.toLowerCase()))
+    .firstOrNull;
+
+/// The channels this phone's user may read. Restricted channels need staff
+/// authorization: this hides them, and the network must also refuse to
+/// deliver them.
+List<Channel> readableChannels(AppScope scope) {
+  final staff = scope.auth.role.atLeast(Role.manager);
+  return [
+    for (final c in scope.repository.channels.value)
+      if (c.type != ChannelType.restricted || staff) c,
+  ];
+}
 
 /// Conversations as three swipeable tabs: Direct, Community, Mission.
 class MessagesScreen extends StatelessWidget {
@@ -40,13 +61,7 @@ class MessagesScreen extends StatelessWidget {
         scope.auth,
       ]),
       builder: (context, _) {
-        // Restricted channels need staff authorization. This hides them;
-        // the network must also refuse to deliver them.
-        final staff = scope.auth.role.atLeast(Role.manager);
-        final channels = [
-          for (final c in repo.channels.value)
-            if (c.type != ChannelType.restricted || staff) c,
-        ];
+        final channels = readableChannels(scope);
         List<Channel> of(Set<ChannelType> types) => [
               for (final c in channels)
                 if (types.contains(c.type)) c,
@@ -95,6 +110,13 @@ class MessagesScreen extends StatelessWidget {
                 ),
               ],
             ),
+            bottomNavigationBar: BottomActions(
+              main: MainButton(
+                label: l.navNewMessage,
+                icon: Icons.edit_outlined,
+                onPressed: () => context.push(newMessagePath),
+              ),
+            ),
           ),
         );
       },
@@ -114,7 +136,7 @@ class _RouteLine extends StatelessWidget {
     final queued = !(network.internet || network.node || network.lora);
 
     return InkWell(
-      onTap: () => context.go('/more/network'),
+      onTap: () => context.push(networkPath),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
         child: Row(
@@ -158,11 +180,12 @@ class _ChannelList extends StatelessWidget {
         child: ListView(
           padding: padding,
           children: [
+            // Stand-in rows, drawn as grey bars while loading.
             for (var i = 0; i < 4; i++)
-              const ListTile(
-                leading: CircleAvatar(child: Icon(Icons.groups_outlined)),
-                title: Text('neighborhood'),
-                subtitle: Text('Checking on the seniors on our block.'),
+              ListTile(
+                leading: const CircleAvatar(child: Icon(Icons.groups_outlined)),
+                title: Text(l.channelCommunity),
+                subtitle: Text(l.noChannels),
               ),
           ],
         ),
@@ -218,7 +241,76 @@ class _ChannelTile extends StatelessWidget {
             Text(l.timeAgo(last!.timestamp), style: TextStyle(color: c.outline)),
         ],
       ),
-      onTap: () => context.go('/messages/${channel.id}'),
+      onTap: () => context.push(chatPath(channel.id)),
+    );
+  }
+}
+
+/// Starts a conversation: pick a person or a channel, and its chat opens in
+/// place of this screen, so Back returns to the list.
+class NewMessageScreen extends StatelessWidget {
+  const NewMessageScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final scope = AppScope.of(context);
+    final repo = scope.repository;
+    final l = AppLocalizations.of(context);
+
+    return Scaffold(
+      appBar: AppBar(title: Text(l.navNewMessage)),
+      body: ListenableBuilder(
+        listenable: Listenable.merge([repo.channels, repo.contacts, scope.auth]),
+        builder: (context, _) {
+          final channels = readableChannels(scope);
+          // People are the contacts there is a direct chat with.
+          final people = [
+            for (final contact in repo.contacts.value)
+              if (contact.kind == ContactKind.person)
+                if (directChannelFor(contact, channels) case final channel?)
+                  (contact, channel),
+          ]..sort((a, b) => a.$1.name.compareTo(b.$1.name));
+          final groups = [
+            for (final c in channels)
+              if (c.type != ChannelType.direct && !c.readOnly) c,
+          ];
+          void open(Channel channel) => context.pushReplacement(chatPath(channel.id));
+
+          return ListView(
+            padding: const EdgeInsets.only(bottom: 24),
+            children: [
+              GroupHeader(l.tabPeople),
+              if (people.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 28),
+                  child: Text(l.navNoDirectChats),
+                )
+              else
+                GroupCard(children: [
+                  for (final (contact, channel) in people)
+                    ListTile(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                      leading: Avatar(name: contact.name, size: 44),
+                      title: Text(contact.name),
+                      subtitle: Text(l.contactSource(contact)),
+                      onTap: () => open(channel),
+                    ),
+                ]),
+              GroupHeader(l.navChannels),
+              GroupCard(children: [
+                for (final channel in groups)
+                  GroupTile(
+                    icon: channelIcon(channel.type),
+                    hue: channelHue(channel.type),
+                    title: channel.type == ChannelType.mission ? channel.name : '# ${channel.name}',
+                    subtitle: l.channelType(channel.type),
+                    onTap: () => open(channel),
+                  ),
+              ]),
+            ],
+          );
+        },
+      ),
     );
   }
 }

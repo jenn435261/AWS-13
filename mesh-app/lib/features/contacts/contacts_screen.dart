@@ -5,11 +5,14 @@ import 'package:skeletonizer/skeletonizer.dart';
 import '../../data/mesh_repository.dart';
 import '../../l10n/labels.dart';
 import '../../models/social.dart';
+import '../../router.dart';
 import '../../state/app_scope.dart';
 import '../../ui/feedback.dart';
 import '../../ui/surfaces.dart';
 import '../../ui/theme.dart';
 import '../../ui/visuals.dart';
+import '../messages/messages_screen.dart';
+import '../shell/bottom_actions.dart';
 
 /// People and organizations, identified by keys, never phone numbers.
 class ContactsScreen extends StatelessWidget {
@@ -35,26 +38,28 @@ class ContactsScreen extends StatelessWidget {
           child: Scaffold(
             appBar: AppBar(
               title: Text(l.navContacts),
+              actions: [
+                IconButton(
+                  tooltip: l.moreWaysToAdd,
+                  icon: const Icon(Icons.person_add_alt),
+                  onPressed: () => _AddActions.showMoreWays(context),
+                ),
+                const SizedBox(width: 4),
+              ],
               bottom: TabBar(
                 tabs: [Tab(text: l.tabPeople), Tab(text: l.tabOrganizations)],
               ),
             ),
-            body: Column(
+            body: TabBarView(
               children: [
-                const _AddActions(),
-                Expanded(
-                  child: TabBarView(
-                    children: [
-                      _ContactList(contacts: of(ContactKind.person), loading: loading),
-                      _ContactList(
-                        contacts: of(ContactKind.organization),
-                        loading: loading,
-                      ),
-                    ],
-                  ),
+                _ContactList(contacts: of(ContactKind.person), loading: loading),
+                _ContactList(
+                  contacts: of(ContactKind.organization),
+                  loading: loading,
                 ),
               ],
             ),
+            bottomNavigationBar: const _AddActions(),
           ),
         );
       },
@@ -62,8 +67,8 @@ class ContactsScreen extends StatelessWidget {
   }
 }
 
-/// The two main ways to add someone in person, plus the online ones tucked
-/// behind one button.
+/// The two ways to add someone in person, at the bottom: scanning their
+/// code is the main one. The online ways sit behind a button in the top bar.
 class _AddActions extends StatelessWidget {
   const _AddActions();
 
@@ -71,41 +76,24 @@ class _AddActions extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: () => context.push('/contacts/scan'),
-                  icon: const Icon(Icons.qr_code_scanner),
-                  label: Text(l.scanQr),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () => context.push('/contacts/qr'),
-                  icon: const Icon(Icons.qr_code_2),
-                  label: Text(l.myQr),
-                ),
-              ),
-            ],
-          ),
-          TextButton.icon(
-            onPressed: () => _showMoreWays(context),
-            icon: const Icon(Icons.expand_more),
-            label: Text(l.moreWaysToAdd),
-          ),
-        ],
+    return BottomActions(
+      main: MainButton(
+        label: l.scanQr,
+        icon: Icons.qr_code_scanner,
+        onPressed: () => context.push('/contacts/scan'),
       ),
+      secondary: [
+        OutlinedButton.icon(
+          style: BottomActions.secondaryStyle,
+          onPressed: () => context.push('/contacts/qr'),
+          icon: const Icon(Icons.qr_code_2),
+          label: Text(l.myQr),
+        ),
+      ],
     );
   }
 
-  static void _showMoreWays(BuildContext context) {
+  static void showMoreWays(BuildContext context) {
     final l = AppLocalizations.of(context);
     final online = AppScope.of(context).repository.network.value.internet;
     Haptics.tick();
@@ -249,7 +237,7 @@ class _ContactTile extends StatelessWidget {
           ? const IconTile(icon: Icons.apartment, color: Hues.police, size: 48)
           : Avatar(name: ct.name, size: 48),
       title: Text(ct.name),
-      subtitle: Text('${l.contactSource(ct)}  ·  ${_short(ct.id)}'),
+      subtitle: Text(l.contactSource(ct)),
       trailing: Icon(
         trusted ? Icons.verified : Icons.help_outline,
         color: trusted ? c.primary : c.outline,
@@ -259,51 +247,71 @@ class _ContactTile extends StatelessWidget {
     );
   }
 
-  static String _short(String id) => '${id.substring(0, 4)} ${id.substring(4, 8)}';
-
   static void _showContact(BuildContext context, Contact contact) {
     final l = AppLocalizations.of(context);
     final scope = AppScope.of(context);
+    final chat = directChannelFor(contact, readableChannels(scope));
     Haptics.tick();
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
+      isScrollControlled: true,
       builder: (sheet) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              title: Text(contact.name, style: Theme.of(sheet).textTheme.titleLarge),
-              subtitle: Text('${l.resilienceId}: ${_grouped(contact.id)}\n${l.contactSource(contact)}'),
-            ),
-            if (contact.kind == ContactKind.person)
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
               ListTile(
-                leading: const Icon(Icons.chat_bubble_outline),
-                title: Text(l.messageAction),
+                title: Text(contact.name, style: Theme.of(sheet).textTheme.titleLarge),
+                subtitle: Text(l.contactSource(contact)),
+              ),
+              if (chat != null)
+                ListTile(
+                  leading: const Icon(Icons.chat_bubble_outline),
+                  title: Text(l.messageAction),
+                  onTap: () {
+                    Navigator.pop(sheet);
+                    context.push(chatPath(chat.id));
+                  },
+                ),
+              ListTile(
+                leading: const Icon(Icons.person_remove_outlined),
+                title: Text(l.removeContact),
                 onTap: () {
                   Navigator.pop(sheet);
-                  final channel = 'dm-${contact.name.toLowerCase()}';
-                  final exists = scope.repository.channels.value.any((c) => c.id == channel);
-                  context.go(exists ? '/messages/$channel' : '/messages');
+                  scope.undoable(
+                    context,
+                    message: l.contactRemoved(contact.name),
+                    undone: l.contactAdded(contact.name),
+                    icon: Icons.person_remove_outlined,
+                    run: () => scope.repository.removeContact(contact.id),
+                    revert: () => scope.repository.restoreContact(contact),
+                  );
                 },
               ),
-            ListTile(
-              leading: const Icon(Icons.person_remove_outlined),
-              title: Text(l.removeContact),
-              onTap: () {
-                Navigator.pop(sheet);
-                scope.undoable(
-                  context,
-                  message: l.contactRemoved(contact.name),
-                  undone: l.contactAdded(contact.name),
-                  icon: Icons.person_remove_outlined,
-                  run: () => scope.repository.removeContact(contact.id),
-                  revert: () => scope.repository.restoreContact(contact),
-                );
-              },
-            ),
-            const SizedBox(height: 8),
-          ],
+              // The key fingerprint is for checking someone in person, not
+              // for every day, so it waits here.
+              ExpansionTile(
+                leading: const Icon(Icons.key_outlined),
+                title: Text(l.navAdvanced),
+                shape: const Border(),
+                collapsedShape: const Border(),
+                children: [
+                  ListTile(
+                    title: Text(l.resilienceId),
+                    subtitle: SelectableText(
+                      _grouped(contact.id),
+                      style: const TextStyle(
+                        fontFeatures: [FontFeature.tabularFigures()],
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
         ),
       ),
     );
