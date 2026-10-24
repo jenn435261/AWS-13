@@ -43,10 +43,25 @@ connection only improves synchronization.
 | Path | What |
 |------|------|
 | `proto/` | Protobuf event + sync schema (source of truth; codegen for Dart + Go) |
+| `mesh-app/` | Flutter "Mesh" app (go_router, offline map, help/SOS flows, five languages). Talks to the Resilience Node over `/node/v1/*` using the same signed events (see `mesh-app/docs/app-backend-contract.md`). Handoff notes: `HANDOFF.md`. |
+| `tools/` | Helper scripts for the Mesh app's web preview and translations. |
 | `app/`   | Flutter app (Riverpod, Drift/SQLite, MapLibre/PMTiles, Signal, nearby_service). Map-first UI, i18n EN/ES, accessibility, biometric lock. |
 | `cloud/` | Go authoritative cloud: verify-before-store event store, sync API, Bedrock AI endpoints, aggregate org API. ECS/Lambda/Heroku deployable. |
 | `node/`  | Go Resilience Node daemon: local event cache + sync server + offline web app + APK/map/package server + cloud/mesh gateway. |
 | `infra/` | AWS CDK (us-east-1): S3 + Bedrock-enabled API Lambda (+ optional RDS/PostGIS/SQS). |
+
+## Two front ends
+
+This branch combines the whole team's work. It holds two Flutter apps that
+both use the backend in `cloud/` and `node/`:
+
+- `app/`: the Resilience app, wired to the cloud and Node sync, Signal
+  messaging and Bedrock AI.
+- `mesh-app/`: the Mesh app, built against the Node API in
+  `mesh-app/docs/app-backend-contract.md`. Point it at a running Node with
+  `--dart-define=NODE_URL=http://<node address>:8090`.
+
+The team still needs to choose which one ships.
 
 ## Build & test
 
@@ -55,6 +70,9 @@ Toolchain: Flutter (Dart 3.11+), Go 1.26, protoc/buf.
 ```bash
 # App
 cd app && flutter pub get && flutter test            # 164 tests (excluding screenshots_test, which needs the original author's sandbox font path)
+
+# Mesh app
+cd mesh-app && flutter pub get && flutter test
 
 # Cloud (Go)
 cd cloud && go test ./...                            # events/store/api/ai/org

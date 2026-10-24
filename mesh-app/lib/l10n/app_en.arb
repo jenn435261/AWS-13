@@ -1,0 +1,1106 @@
+{
+  "@@locale": "en",
+  "appTitle": "Mesh",
+  "navMap": "Map",
+  "navMessages": "Messages",
+  "navMore": "More",
+  "helpButton": "Help",
+  "helpButtonSemantics": "Request help",
+  "helpButtonHint": "Tap for options. Hold for 2 seconds to send an SOS.",
+  "helpMenuTitle": "What do you want to do?",
+  "needHelp": "I need help",
+  "needHelpSub": "Tell helpers nearby what you need",
+  "canHelp": "I can help",
+  "canHelpSub": "Let people nearby know what you can offer",
+  "sosTip": "In danger? Hold the red Help button to send an SOS right away.",
+  "holdForSos": "Hold for SOS",
+  "holdForSosSub": "Sends your location right away",
+  "keepHolding": "Keep holding to send the SOS",
+  "sosSent": "SOS sent with your location",
+  "undo": "Undo",
+  "redo": "Redo",
+  "dismiss": "Dismiss",
+  "next": "Next",
+  "close": "Close",
+  "edit": "Edit",
+  "view": "View",
+  "send": "Send",
+  "radiosNearby": "{count, plural, =0{No radios nearby} =1{1 radio nearby} other{{count} radios nearby}}",
+  "@radiosNearby": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "online": "Online",
+  "offline": "Offline",
+  "layers": "Layers",
+  "layerRequests": "Requests for help",
+  "layerRadios": "Radios and coverage",
+  "myLocation": "Show my location",
+  "language": "Language",
+  "nothingNearby": "Nothing nearby yet",
+  "distanceMeters": "{meters} m away",
+  "@distanceMeters": {
+    "placeholders": {
+      "meters": {
+        "type": "int"
+      }
+    }
+  },
+  "distanceKm": "{km} km away",
+  "@distanceKm": {
+    "placeholders": {
+      "km": {
+        "type": "String"
+      }
+    }
+  },
+  "howItTravels": "How your requests travel",
+  "travelPhone": "This phone",
+  "travelPhoneSub": "Saves everything first, even with no signal",
+  "travelMesh": "Radio mesh",
+  "travelMeshSub": "Passes it from radio to radio",
+  "travelCloud": "AWS",
+  "travelCloudOnline": "Checks it and keeps a copy",
+  "travelCloudOffline": "Out of reach. Your request waits on the mesh.",
+  "travelHelpers": "Helpers",
+  "travelHelpersSub": "See your request and reply",
+  "showOnMap": "Show on map",
+  "openDetails": "Open details",
+  "kindMedical": "Medical help",
+  "kindMedicalSub": "Injured, sick or trapped",
+  "kindWater": "Water",
+  "kindWaterSub": "Drinking water",
+  "kindShelter": "Shelter",
+  "kindShelterSub": "A safe place to stay",
+  "kindPower": "Power",
+  "kindPowerSub": "Charge a phone or medical device",
+  "kindOther": "Other",
+  "kindOtherSub": "Describe it in the next step",
+  "kindSos": "SOS",
+  "urgencyNow": "Right now",
+  "urgencyNowSub": "Life or safety at risk",
+  "urgencySoon": "Within hours",
+  "urgencySoonSub": "Getting worse",
+  "urgencyLater": "Can wait",
+  "urgencyLaterSub": "Stable for now",
+  "stageSaved": "Saved on this phone",
+  "stageSavedSub": "Sends as soon as a radio is in range",
+  "stageMesh": "Sent over the mesh",
+  "stageMeshSub": "{hops, plural, =0{Reached a radio directly} =1{Passed through 1 radio} other{Passed through {hops} radios}}",
+  "@stageMeshSub": {
+    "placeholders": {
+      "hops": {
+        "type": "int"
+      }
+    }
+  },
+  "stageVerified": "Checked by the server",
+  "stageVerifiedSub": "AWS checked the request and saved a copy",
+  "stageAssigned": "Helper found",
+  "stageAssignedSub": "{name} accepted the request",
+  "@stageAssignedSub": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "stageOnTheWay": "Help is on the way",
+  "stageOnTheWaySub": "{name} is heading there",
+  "@stageOnTheWaySub": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "stageResolved": "Resolved",
+  "stageResolvedSub": "Marked as done",
+  "stageWaiting": "Waiting",
+  "stepOf": "Step {step} of {total}",
+  "@stepOf": {
+    "placeholders": {
+      "step": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "helpStep1Title": "What do you need?",
+  "helpStep2Title": "Anything else?",
+  "urgencyQuestion": "How urgent is it?",
+  "peopleQuestion": "How many people need help?",
+  "peopleCount": "{count, plural, =1{1 person} other{{count} people}}",
+  "@peopleCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "fewerPeople": "Fewer people",
+  "morePeople": "More people",
+  "locationTitle": "Location",
+  "locationAuto": "Shared automatically, accurate to {meters} m",
+  "@locationAuto": {
+    "placeholders": {
+      "meters": {
+        "type": "int"
+      }
+    }
+  },
+  "locationMissing": "Your location isn't available. Describe where you are.",
+  "locationNoteLabel": "Describe where you are",
+  "locationNoteHint": "For example: 2nd floor, near the stairs",
+  "noteLabel": "Anything else? (optional)",
+  "sendRequest": "Send request",
+  "requestSent": "Request sent",
+  "requestDiscarded": "Request discarded",
+  "requestCancelled": "Request cancelled",
+  "requestRestored": "Request restored",
+  "cancelRequest": "Cancel request",
+  "problemMissingKind": "Choose what you need.",
+  "problemPeople": "Enter between 1 and {max} people.",
+  "@problemPeople": {
+    "placeholders": {
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "problemNoteTooLong": "Keep notes under {max} characters.",
+  "@problemNoteTooLong": {
+    "placeholders": {
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "problemLocation": "Describe where you are, since your location isn't available.",
+  "offerStep1Title": "Supplies I can offer",
+  "offerStep2Title": "A few details",
+  "offerNoteLabel": "Note for people nearby (optional)",
+  "offerNoteHint": "For example: I have a car with room for 4",
+  "startOffering": "Start offering",
+  "offeringStarted": "You're offering help",
+  "offeringList": "You're offering: {list}",
+  "@offeringList": {
+    "placeholders": {
+      "list": {
+        "type": "String"
+      }
+    }
+  },
+  "stopOffering": "Stop",
+  "offerStopped": "You stopped offering help",
+  "offerPrompt": "Can you help? Let people nearby know.",
+  "tabNearMe": "Near me",
+  "tabMine": "Mine",
+  "iCanHelp": "I can help",
+  "youAreHelping": "You're helping",
+  "stopHelping": "Stop helping",
+  "acceptedToast": "You're helping. They can see you're coming.",
+  "releasedToast": "You stopped helping",
+  "noNearby": "No open requests nearby",
+  "noMine": "You haven't asked for help",
+  "fromName": "From {name}",
+  "@fromName": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "justNow": "just now",
+  "minutesAgo": "{n} min ago",
+  "@minutesAgo": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "hoursAgo": "{n} h ago",
+  "@hoursAgo": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "daysAgo": "{n} d ago",
+  "@daysAgo": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "progressTitle": "Progress",
+  "detailsTitle": "Details",
+  "showToResponder": "Show to responder",
+  "requestNotFound": "This request is no longer available.",
+  "cardNeedHelp": "I need help",
+  "cardSwipeHint": "Swipe left or right to change the language",
+  "cardTheirWords": "Their own words, not translated:",
+  "urgencyTitle": "Urgency",
+  "peopleTitle": "People",
+  "noMessages": "No messages yet",
+  "messageHint": "Message",
+  "languageSystem": "Use phone setting",
+  "display": "Display and accessibility",
+  "displaySub": "Text size {percent}%",
+  "@displaySub": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "theme": "Theme",
+  "themeAuto": "Auto",
+  "themeLight": "Light",
+  "themeDark": "Dark",
+  "textSize": "Text size",
+  "highContrast": "High contrast",
+  "highContrastSub": "Stronger colors and borders",
+  "textPreview": "This is how text will look.",
+  "privacy": "Privacy and security",
+  "phoneLockOn": "Phone lock is on",
+  "phoneLockOff": "Phone lock is off",
+  "phoneLock": "Lock with Face ID or fingerprint",
+  "phoneLockSub": "Uses your phone passcode if that fails",
+  "phoneLockWeb": "Available in the iOS and Android app",
+  "phoneLockUnavailable": "Set up a passcode or Face ID on this phone first",
+  "lockNow": "Lock now",
+  "lockNowSub": "SOS still works while locked",
+  "clearTemp": "Clear temporary data",
+  "clearTempSub": "Old messages and finished requests. AWS keeps its copies.",
+  "cleared": "{count, plural, =0{Nothing to clear} =1{Cleared 1 item} other{Cleared {count} items}}",
+  "@cleared": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "eraseAll": "Erase everything on this phone",
+  "eraseAllSub": "Hold for 3 seconds. This can't be undone.",
+  "erased": "Everything on this phone was erased",
+  "network": "Radio network",
+  "manage": "Manage network",
+  "manageSub": "Turn radios on or off for everyone",
+  "admin": "Users and roles",
+  "adminSub": "Change who can manage the network",
+  "account": "Account",
+  "signedInAs": "Signed in as {name}",
+  "@signedInAs": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "guestMode": "Using Mesh as a guest",
+  "signIn": "Sign in",
+  "signInSub": "Optional. Helpers and managers sign in.",
+  "signOut": "Sign out",
+  "nameLabel": "Name",
+  "roleLabel": "Role",
+  "roleClient": "Member",
+  "roleManager": "Manager",
+  "roleAdmin": "Admin",
+  "demoSignIn": "Demo sign-in. In the real app, your role comes from the server.",
+  "nodeOnline": "Online",
+  "nodeOffline": "Offline",
+  "hopsDirect": "Direct",
+  "hopsCount": "{count, plural, =1{1 hop} other{{count} hops}}",
+  "@hopsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "externalPower": "External power",
+  "noNodes": "No radios heard yet",
+  "nodeId": "ID",
+  "lastHeard": "Last heard",
+  "battery": "Battery",
+  "signalStrength": "Signal strength",
+  "signalNoise": "Signal to noise",
+  "hopsTitle": "Hops",
+  "manageHint": "Radios you turn off are hidden from members.",
+  "loadFailed": "Could not load this page.",
+  "lockedTitle": "Mesh is locked",
+  "lockedSub": "Unlock to see your requests and messages.",
+  "unlock": "Unlock",
+  "unlockReason": "Unlock Mesh",
+  "unlockWebNote": "The web preview has no Face ID, so Unlock opens the app directly.",
+  "unlockFailed": "Could not unlock. Try again or use your passcode.",
+  "alertNearby": "New request nearby: {kind}",
+  "@alertNearby": {
+    "placeholders": {
+      "kind": {
+        "type": "String"
+      }
+    }
+  },
+  "alertHelper": "{name} accepted your request",
+  "@alertHelper": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "navContacts": "Contacts",
+  "kindFood": "Food",
+  "kindFoodSub": "Meals or baby formula",
+  "kindMedicine": "Medicine",
+  "kindMedicineSub": "Prescriptions, insulin, inhalers",
+  "kindTransportation": "Transportation",
+  "kindTransportationSub": "A ride, or help moving someone",
+  "kindCommunication": "Communication",
+  "kindCommunicationSub": "Reach family or call for help",
+  "noteExampleHint": "For example: need somewhere cold to keep insulin for one person",
+  "structuredFirst": "Your choice is sent first, so it gets through even on a weak network. Your note follows when there is room.",
+  "suggestion": "Sounds like: {kind}",
+  "@suggestion": {
+    "placeholders": {
+      "kind": {
+        "type": "String"
+      }
+    }
+  },
+  "useSuggestion": "Use this",
+  "amountQuestion": "How much do you have?",
+  "amountPlenty": "Plenty",
+  "amountSome": "Some",
+  "amountLow": "Low",
+  "availabilityQuestion": "When is it available?",
+  "availabilityNow": "Now",
+  "availabilityToday": "Today",
+  "availabilityCustom": "Other time",
+  "availabilityNoteLabel": "When?",
+  "availabilityNoteHint": "For example: after 6 pm",
+  "transportQuestion": "How can you transport?",
+  "transportWalking": "Walking",
+  "transportBicycle": "Bicycle",
+  "transportCar": "Car",
+  "transportTruck": "Truck",
+  "transportVan": "Van",
+  "capacityQuestion": "How much can you carry?",
+  "capacitySmall": "Small",
+  "capacityMedium": "Medium",
+  "capacityLarge": "Large",
+  "supplyWater": "Water",
+  "supplyFood": "Food",
+  "supplyBlankets": "Blankets",
+  "supplyBatteries": "Batteries",
+  "supplyCharging": "Charging",
+  "supplyMedicine": "Medicine",
+  "supplyTransportation": "Transportation",
+  "supplyShelter": "Shelter",
+  "supplyTools": "Tools",
+  "supplyOther": "Other",
+  "problemSupplies": "Choose at least one supply.",
+  "problemTransport": "Choose how you can transport.",
+  "resHospital": "Hospital",
+  "resPharmacy": "Pharmacy",
+  "resPolice": "Police",
+  "resFire": "Fire station",
+  "resWater": "Water",
+  "resFood": "Food",
+  "resShelter": "Shelter",
+  "resCharging": "Charging",
+  "resTransportation": "Transportation",
+  "resRoadProblem": "Road problem",
+  "verifiedOrg": "Verified organization",
+  "communityResource": "Community resource",
+  "unconfirmed": "Unconfirmed",
+  "confidenceHigh": "High confidence",
+  "confidenceMedium": "Medium confidence",
+  "confidenceLow": "Low confidence",
+  "trustSource": "Source",
+  "trustCorroboration": "Confirmations",
+  "trustFreshness": "Freshness",
+  "confirmationsCount": "{count, plural, =0{No confirmations yet} =1{1 confirmation} other{{count} confirmations}}",
+  "@confirmationsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "disputesCount": "{count, plural, =0{no disputes} =1{1 dispute} other{{count} disputes}}",
+  "@disputesCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "oneReport": "Only 1 report so far",
+  "officialUpdate": "Official update {time}",
+  "@officialUpdate": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "lastObservation": "Most recent observation {time}",
+  "@lastObservation": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "staleWarning": "Last observed {time}. May be out of date.",
+  "@staleWarning": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "voteUseful": "Useful",
+  "voteConfirm": "Confirm",
+  "voteConfirmSub": "I saw this myself",
+  "voteDispute": "Dispute",
+  "voteDisputeSub": "What I saw was different",
+  "voted": "Thanks. Your report is signed and shared.",
+  "voteWithdrawnToast": "Report withdrawn",
+  "approxLocation": "Approximate location",
+  "inventoryTitle": "Supply",
+  "officialStock": "Official count: {count} at {time}",
+  "@officialStock": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "reservedFor": "{count} reserved for Mission {id}",
+  "@reservedFor": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "remainingCount": "{count} remaining",
+  "@remainingCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "communityReports": "Community reports",
+  "observationAt": "{text} at {time}",
+  "@observationAt": {
+    "placeholders": {
+      "text": {
+        "type": "String"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "addHereTitle": "Add something here",
+  "addHereHint": "Tap and hold the map to add water, food, shelter or a problem you see.",
+  "addNoteHint": "Add a short note (optional)",
+  "addResource": "Add",
+  "resourceAdded": "Added. Others see an approximate location.",
+  "resourceRemoved": "Removed",
+  "addedByYou": "Added by you",
+  "statusOffline": "Offline",
+  "statusOnline": "Online",
+  "statusReady": "Ready",
+  "lastSyncAgo": "Last sync {time}",
+  "@lastSyncAgo": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "alertsCount": "{count, plural, =1{1 alert} other{{count} alerts}}",
+  "@alertsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "alertsTitle": "Alerts",
+  "layerFacilities": "Hospitals, pharmacies, police and fire",
+  "layerLive": "Water, food, shelter and reports",
+  "networkTitle": "Network status",
+  "netInternet": "Internet",
+  "netPeers": "Nearby phones",
+  "netNode": "Resilience node",
+  "netLora": "LoRa radio",
+  "netLastLocal": "Last sync nearby",
+  "netLastGlobal": "Last sync with the cloud",
+  "netConnected": "Connected",
+  "netNotConnected": "Not connected",
+  "peersCount": "{count, plural, =0{None} =1{1 phone} other{{count} phones}}",
+  "@peersCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "queuedCount": "{count, plural, =0{Nothing waiting to send} =1{1 item waiting to send} other{{count} items waiting to send}}",
+  "@queuedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "demoInternet": "Demo: pretend the internet is back",
+  "demoInternetSub": "Shows what changes when this phone gets online",
+  "viewRadios": "Radios on the mesh",
+  "downloadsTitle": "Offline downloads",
+  "packageTitle": "{region} readiness package",
+  "@packageTitle": {
+    "placeholders": {
+      "region": {
+        "type": "String"
+      }
+    }
+  },
+  "packageContents": "Offline map, emergency facilities, routing data, trusted organizations, revocations, emergency instructions and recent resource state.",
+  "packageSize": "{size} MB, version {version}",
+  "@packageSize": {
+    "placeholders": {
+      "size": {
+        "type": "int"
+      },
+      "version": {
+        "type": "int"
+      }
+    }
+  },
+  "packageUpToDate": "Up to date. Downloaded {time}",
+  "@packageUpToDate": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "packageUpdate": "Update available: version {version}",
+  "@packageUpdate": {
+    "placeholders": {
+      "version": {
+        "type": "int"
+      }
+    }
+  },
+  "downloadNow": "Download now",
+  "downloadingPercent": "Downloading {percent}%",
+  "@downloadingPercent": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "downloadNeedsNet": "Needs internet or a Resilience Node nearby.",
+  "preparednessNotice": "New offline package for {region}: {size} MB",
+  "@preparednessNotice": {
+    "placeholders": {
+      "region": {
+        "type": "String"
+      },
+      "size": {
+        "type": "int"
+      }
+    }
+  },
+  "download": "Download",
+  "orgsTitle": "Trusted organizations",
+  "certifiedBy": "Certified by {name}",
+  "@certifiedBy": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "rootOfTrust": "Root of trust",
+  "revocationsChecked": "Certificates and revocations checked {time}. Offline, this is the newest list this phone has.",
+  "@revocationsChecked": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "tabPeople": "People",
+  "tabOrganizations": "Organizations",
+  "scanQr": "Scan QR",
+  "myQr": "My QR",
+  "moreWaysToAdd": "More ways to add",
+  "addByUsername": "Add by username",
+  "addByPhone": "Add by phone number",
+  "needsInternetToFind": "Needs internet. Ask them to show their QR code instead.",
+  "metInPerson": "Met in person",
+  "addedByUsername": "Added by username",
+  "addedByPhone": "Added by phone number",
+  "myQrTitle": "My Resilience ID",
+  "myQrHint": "Show this to someone you meet. It shares your public key, never your phone number.",
+  "resilienceId": "Resilience ID",
+  "scanTitle": "Scan a QR code",
+  "scanHint": "Point the camera at the QR code.",
+  "scanUnavailable": "The camera isn't available here. Type it in instead.",
+  "typeIdLabel": "Their Resilience ID",
+  "typeIdHint": "16 letters and numbers",
+  "theirName": "Their name",
+  "addContact": "Add contact",
+  "contactAdded": "{name} added",
+  "@contactAdded": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "contactRemoved": "{name} removed",
+  "@contactRemoved": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "invalidId": "That doesn't look like a Resilience ID.",
+  "notFound": "Nobody found with that.",
+  "usernameLabel": "Username",
+  "phoneLabel": "Phone number",
+  "find": "Find",
+  "messageAction": "Message",
+  "removeContact": "Remove",
+  "noContacts": "No contacts yet. Scan someone's QR code to add them.",
+  "tabDirect": "Direct",
+  "tabCommunity": "Community",
+  "tabMission": "Mission",
+  "channelPublic": "Public. Anyone can read it.",
+  "channelCommunity": "Community members",
+  "channelRestricted": "Staff only, encrypted",
+  "channelMission": "Mission team only",
+  "channelDirect": "Private",
+  "readOnlyChannel": "Only verified organizations post here.",
+  "sendsOver": "Sends over: {route}",
+  "@sendsOver": {
+    "placeholders": {
+      "route": {
+        "type": "String"
+      }
+    }
+  },
+  "routeInternet": "Internet",
+  "routeLocal": "Resilience node",
+  "routeMesh": "LoRa mesh",
+  "routeQueued": "Waits on this phone until a route appears",
+  "deliveryQueued": "Queued",
+  "deliveryPropagating": "On its way",
+  "deliveryDelivered": "Delivered",
+  "deliveryRead": "Read",
+  "noChannels": "No conversations here yet",
+  "deliveries": "Deliveries",
+  "deliveriesSub": "Missions you can carry",
+  "tabAvailable": "Available",
+  "tabAssigned": "Assigned",
+  "tabInTransit": "In transit",
+  "tabHandoff": "Handoff",
+  "tabCompleted": "Completed",
+  "missionTitle": "Mission {id}",
+  "@missionTitle": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "priorityHigh": "High priority",
+  "priorityNormal": "Normal priority",
+  "priorityLow": "Low priority",
+  "pickupLabel": "Pickup",
+  "destinationLabel": "Destination",
+  "carrierLabel": "Carrier",
+  "packageLabel": "Package {id}",
+  "@packageLabel": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "exactHidden": "Exact address shown to the carrier only",
+  "acceptMission": "Accept mission",
+  "missionAccepted": "Mission accepted. You can now see the exact addresses.",
+  "missionReleased": "Mission given back",
+  "confirmPickup": "Confirm pickup",
+  "pickedUp": "Pickup confirmed and signed",
+  "confirmDelivery": "Confirm delivery",
+  "deliveredToast": "Delivery confirmed and signed",
+  "handOff": "Hand off",
+  "handoffWaiting": "Waiting for the next driver to scan the package code",
+  "handoffConfirmed": "Handoff confirmed: {name} has package {id}",
+  "@handoffConfirmed": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "packageCode": "Package code",
+  "packageQrHint": "The other person scans this. It holds the package number and a signature, nothing private.",
+  "scanPackage": "Scan the package code",
+  "enterPackageId": "Package number",
+  "wrongPackage": "That isn't package {id}.",
+  "@wrongPackage": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "mStageAvailable": "Available",
+  "mStageAssigned": "Assigned to you",
+  "mStageInTransit": "In transit",
+  "mStageHandoff": "Awaiting handoff",
+  "mStageDelivered": "Delivered",
+  "handedOffTo": "Handed off to {name}",
+  "@handedOffTo": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "noMissions": "Nothing here right now",
+  "deliveriesHint": "Offer transportation to see missions near you.",
+  "sectionActivity": "Your activity",
+  "sectionNetwork": "Network and data",
+  "sectionSettings": "Settings",
+  "sectionManage": "Management",
+  "myRequests": "My requests",
+  "openCount": "{count, plural, =0{None open} =1{1 open} other{{count} open}}",
+  "@openCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "mySupplies": "My supplies",
+  "notOffering": "Not offering anything",
+  "orgCount": "{count, plural, =1{1 organization} other{{count} organizations}}",
+  "@orgCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "historyTitle": "Signed history",
+  "historyHint": "Each step is signed on the phone that made it.",
+  "signedBy": "Signed by {id}",
+  "@signedBy": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "evHelpRequested": "Help requested",
+  "evHelpCancelled": "Request cancelled",
+  "evHelpAccepted": "Helper accepted",
+  "evHelpReleased": "Helper stepped back",
+  "evHelpOffered": "Offer published",
+  "evOfferWithdrawn": "Offer withdrawn",
+  "evResourceCreated": "Resource added",
+  "evResourceRemoved": "Resource removed",
+  "evResourceConfirmed": "Confirmed",
+  "evResourceDisputed": "Disputed",
+  "evResourceUseful": "Marked useful",
+  "evVoteWithdrawn": "Report withdrawn",
+  "evContactAdded": "Contact added",
+  "evContactRemoved": "Contact removed",
+  "evMessageSent": "Message sent",
+  "evMissionAccepted": "Mission accepted",
+  "evMissionReleased": "Mission given back",
+  "evPackagePickedUp": "Package picked up",
+  "evPackageTransferred": "Package handed off",
+  "evDeliveryCompleted": "Delivery completed",
+  "stageSavedTheirs": "Saved on their phone",
+  "stageSavedTheirsSub": "Kept there until a radio was in range",
+  "mapSource": "Street map from Amazon Location",
+  "mapSourceNote": "Needs internet. Pins, radios and requests still show when the street map can't load.",
+  "mapNotSetUp": "Street map not set up",
+  "mapOffline": "Street map needs internet",
+  "mapLoading": "Loading street map",
+  "missionNotFound": "This delivery is no longer available.",
+  "resourceNotFound": "This place is no longer on the map.",
+  "lookAdvanced": "Advanced",
+  "lookRequestAdvancedSub": "Radios, server check and signed history",
+  "lookStageSent": "Sent",
+  "lookStageSentSub": "On its way to people nearby who can help",
+  "lookStageReceived": "Received",
+  "lookStageReceivedSub": "People who can help can see it now",
+  "lookStepDone": "Done",
+  "lookStepNow": "Now",
+  "lookStepNext": "Not yet",
+  "lookChatNotFound": "This conversation is no longer available.",
+  "deliverySharingLocation": "Sharing your location until you deliver",
+  "deliveryLocationOnlyWhileCarrying": "Your location is shared only while you carry this delivery.",
+  "netStatusSending": "Sending",
+  "netStatusSendingSub": "{count, plural, =1{1 item on its way} other{{count} items on their way}}",
+  "@netStatusSendingSub": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "netStatusWaiting": "{count, plural, =1{Waiting for a connection: 1 item held} other{Waiting for a connection: {count} items held}}",
+  "@netStatusWaiting": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "netStatusWaitingSub": "Saved on this phone. It goes as soon as any link appears.",
+  "netStatusSent": "Everything is sent",
+  "netStatusOffline": "No connection right now",
+  "netStatusOfflineSub": "New messages and requests wait safely on this phone.",
+  "netConnections": "Connections",
+  "netAws": "AWS",
+  "netAwsDirect": "Reached over the internet",
+  "netAwsMesh": "Reached through the mesh",
+  "netAwsNone": "Out of reach for now",
+  "netAdvanced": "Advanced",
+  "netAdvancedSub": "Each link, sync times, and the demo switch",
+  "netLinkCloud": "AWS over the internet",
+  "netLinkNode": "Resilience node on Wi-Fi",
+  "netLinkLora": "LoRa radio",
+  "netLinkWifi": "Phones over Wi-Fi",
+  "netLinkBluetooth": "Phones over Bluetooth",
+  "netLinkUp": "Working",
+  "netLinkDown": "Not in range",
+  "netLinkUnavailable": "Not set up on this phone",
+  "netLinkConfirmed": "Last confirmed {time}",
+  "@netLinkConfirmed": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "privacyLocationTitle": "Your location",
+  "privacyLocationBody": "Your location stays on this phone. It is shared only while you carry a delivery, so the people waiting can see it coming, and it stops when the delivery ends. A help request or SOS carries only the place you chose to send with it.",
+  "mapAddHere": "Add here",
+  "mapAddHint": "Tap Add here, or hold the map, to add water, food, shelter or a problem you see.",
+  "mapAddEmpty": "Tap to add water, food, shelter or a problem you see.",
+  "mapSetLocation": "Set my location",
+  "mapSetLocationSub": "When GPS can't find you, move the map to where you are.",
+  "mapSetLocationTitle": "Where are you?",
+  "mapSetLocationHint": "Drag the map until the pin is where you are.",
+  "mapLocationNote": "What's here? (optional)",
+  "mapLocationNoteHint": "For example: Library, 2nd floor",
+  "mapUseLocation": "Use this location",
+  "mapLocationSaved": "Your location is set",
+  "mapSetByYou": "Set by you",
+  "mapSetByYouNamed": "Set by you: {label}",
+  "@mapSetByYouNamed": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "mapYouAreHere": "You are here",
+  "mapOpenDownloads": "Opens Offline downloads",
+  "mapOfflineTitle": "Offline street map",
+  "mapOsmCredit": "© OpenStreetMap contributors",
+  "mapOfflineAbout": "Streets for finding your way with no internet. Download it ahead of time from a Resilience Node on local Wi-Fi.",
+  "mapOfflineDownload": "Download street map",
+  "mapOfflineMegabytes": "{size} MB",
+  "@mapOfflineMegabytes": {
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "mapOfflineOnPhone": "{size} on this phone. Downloaded {time}",
+  "@mapOfflineOnPhone": {
+    "placeholders": {
+      "size": {
+        "type": "String"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "mapOfflineProgress": "{done} of {total}",
+  "@mapOfflineProgress": {
+    "placeholders": {
+      "done": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "mapOfflineCancel": "Stop download",
+  "mapOfflineUpdate": "Update",
+  "mapOfflineNewer": "A newer street map is ready on the Resilience Node.",
+  "mapOfflineDelete": "Delete",
+  "mapOfflineDeleteTitle": "Delete the offline street map?",
+  "mapOfflineDeleteBody": "Without it, streets show only with internet. You can download it again.",
+  "mapOfflineDeleted": "Offline street map deleted",
+  "mapOfflineDone": "Street map saved for offline use",
+  "mapOfflineUnreachable": "Can't reach the Resilience Node. Join its Wi-Fi, then try again.",
+  "mapOfflineNotFound": "The Resilience Node has no street map for this area yet.",
+  "mapOfflineNotAMap": "That download isn't a street map this app can read.",
+  "mapOfflineStorage": "This phone couldn't save the map. Free up some space, then try again.",
+  "mapCancel": "Cancel",
+  "navNewMessage": "New message",
+  "navChannels": "Channels",
+  "navNoDirectChats": "Nobody to message directly yet. Scan someone's QR code to add them.",
+  "navAddDetails": "Add details",
+  "navAddDetailsSub": "A note, and how many people",
+  "navAdvanced": "Advanced",
+  "navRequestTakenBack": "Request taken back",
+  "navChangeOffer": "Change what I offer",
+  "navHoldForMore": "Hold for more actions",
+  "navLocationTyped": "Your location: {place}",
+  "@navLocationTyped": {
+    "placeholders": {
+      "place": {
+        "type": "String"
+      }
+    }
+  },
+  "sosContactsTitle": "Emergency contacts",
+  "sosContactsCount": "{count, plural, =0{None yet} =1{1 person} other{{count} people}}",
+  "@sosContactsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sosContactsIntro": "If an SOS can't reach a network, Mesh helps you text these people from your phone's Messages app.",
+  "sosContactsEmpty": "No emergency contacts yet.",
+  "sosAddContact": "Add emergency contact",
+  "sosEditContact": "Edit emergency contact",
+  "sosContactName": "Name",
+  "sosContactPhone": "Phone number",
+  "sosContactPhoneHint": "For example: +1 408 555 0100",
+  "sosContactPhoneInvalid": "Check the number: use digits, and + before a country code",
+  "sosSaveContact": "Save",
+  "sosContactSaved": "{name} saved",
+  "@sosContactSaved": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "sosContactRemoved": "{name} removed",
+  "@sosContactRemoved": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "sosRemoveContact": "Remove {name}",
+  "@sosRemoveContact": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "sosContactsFull": "You can save up to {count} emergency contacts.",
+  "@sosContactsFull": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sosNoNetworkTitle": "No network reached",
+  "sosNoNetworkBody": "Your SOS is saved on this phone and goes out as soon as Mesh finds a network. Text your emergency contacts or call 911 now.",
+  "sosNoNetworkBodyNoContacts": "Your SOS is saved on this phone and goes out as soon as Mesh finds a network. Call 911 now if you can.",
+  "sosTextContacts": "{count, plural, =1{Text 1 emergency contact} other{Text {count} emergency contacts}}",
+  "@sosTextContacts": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sosCall911": "Call 911",
+  "sosNotNow": "Not now",
+  "sosDone": "Done",
+  "sosAddContacts": "Add emergency contacts",
+  "sosMessageLabel": "Your text message",
+  "sosLaunchFailed": "This phone couldn't open that. Try again, or use your phone's own app.",
+  "sosTextBody": "SOS from {name}. I need help. Location: {location}. Time: {time}.",
+  "@sosTextBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "location": {
+        "type": "String"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "sosTextBodyGuest": "SOS. I need help. Location: {location}. Time: {time}.",
+  "@sosTextBodyGuest": {
+    "placeholders": {
+      "location": {
+        "type": "String"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "sosLocationUnknown": "unknown"
+}
