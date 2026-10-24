@@ -1,11 +1,5 @@
-import 'dart:async';
-import 'dart:convert';
-
 import 'package:flutter_test/flutter_test.dart';
-import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:mesh_app/data/map_tiles.dart';
 import 'package:mesh_app/data/mesh_repository.dart';
 import 'package:mesh_app/data/mock_mesh_repository.dart';
 import 'package:mesh_app/models/event.dart';
@@ -131,45 +125,6 @@ void main() {
       expect(resource(confirmations: 3, disputes: 1).confidence, Confidence.low);
       expect(resource(confirmations: 10).confidence, Confidence.high);
       expect(resource().confidence, Confidence.unconfirmed);
-    });
-  });
-
-  group('street map', () {
-    test('after a failed tile, the map retries on its own', () async {
-      var calls = 0;
-      final tiles = MapTiles(
-        key: 'k1',
-        retryAfter: const Duration(milliseconds: 10),
-        client: MockClient((_) async {
-          calls++;
-          return http.Response(jsonEncode({'session': 's$calls'}), 200);
-        }),
-      );
-      addTearDown(tiles.dispose);
-      await tiles.open(dark: false, languageCode: 'en');
-      tiles.tileFailed();
-      await wait();
-      expect((tiles.status, calls), (MapTilesStatus.ready, 2));
-    });
-
-    test('a late answer for the old look is ignored', () async {
-      final first = Completer<http.Response>();
-      var calls = 0;
-      final tiles = MapTiles(
-        key: 'k1',
-        client: MockClient((_) {
-          calls++;
-          return calls == 1
-              ? first.future
-              : Future.value(http.Response(jsonEncode({'session': 'dark'}), 200));
-        }),
-      );
-      addTearDown(tiles.dispose);
-      final light = tiles.open(dark: false, languageCode: 'en');
-      await tiles.open(dark: true, languageCode: 'en');
-      first.complete(http.Response(jsonEncode({'session': 'light'}), 200));
-      await light;
-      expect(tiles.urlTemplate, contains('session=dark'));
     });
   });
 }

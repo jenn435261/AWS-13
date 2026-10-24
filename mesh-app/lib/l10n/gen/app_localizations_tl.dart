@@ -1591,7 +1591,7 @@ class AppLocalizationsTl extends AppLocalizations {
       'Itinago roon hanggang may radyo sa malapit';
 
   @override
-  String get mapSource => 'Mapa ng kalye mula sa Google Maps';
+  String get mapSource => 'Mapa ng kalye mula sa Amazon Location';
 
   @override
   String get mapSourceNote =>

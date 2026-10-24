@@ -22,6 +22,9 @@ dependencies:
   qr_flutter: ^4.1.0
   shared_preferences: ^2.5.6
   skeletonizer: ^3.0.0
+  # Pinned: the newest release that works with flutter_map 8 is a beta.
+  vector_map_tiles: 9.0.0-beta.13
+  vector_tile_renderer: ^6.1.0
 
 dev_dependencies:
   flutter_test:

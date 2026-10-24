@@ -859,7 +859,7 @@
   "evDeliveryCompleted": "Delivery completed",
   "stageSavedTheirs": "Saved on their phone",
   "stageSavedTheirsSub": "Kept there until a radio was in range",
-  "mapSource": "Street map from Google Maps",
+  "mapSource": "Street map from Amazon Location",
   "mapSourceNote": "Needs internet. Pins, radios and requests still show when the street map can't load.",
   "mapNotSetUp": "Street map not set up",
   "mapOffline": "Street map needs internet",

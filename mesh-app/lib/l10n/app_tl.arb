@@ -453,7 +453,7 @@
   "evDeliveryCompleted": "Natapos ang paghatid",
   "stageSavedTheirs": "Naka-save sa telepono nila",
   "stageSavedTheirsSub": "Itinago roon hanggang may radyo sa malapit",
-  "mapSource": "Mapa ng kalye mula sa Google Maps",
+  "mapSource": "Mapa ng kalye mula sa Amazon Location",
   "mapSourceNote": "Kailangan ng internet. Makikita pa rin ang mga pin, radyo at hiling kapag hindi ma-load ang mapa ng kalye.",
   "mapNotSetUp": "Hindi pa naka-set up ang mapa ng kalye",
   "mapOffline": "Kailangan ng internet ang mapa ng kalye",

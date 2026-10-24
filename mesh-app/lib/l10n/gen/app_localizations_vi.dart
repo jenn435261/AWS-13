@@ -1565,7 +1565,7 @@ class AppLocalizationsVi extends AppLocalizations {
   String get stageSavedTheirsSub => 'Được giữ ở đó cho đến khi có radio gần';
 
   @override
-  String get mapSource => 'Bản đồ đường phố từ Google Maps';
+  String get mapSource => 'Bản đồ đường phố từ Amazon Location';
 
   @override
   String get mapSourceNote =>

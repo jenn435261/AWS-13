@@ -90,7 +90,7 @@ page = '''<title>Mesh Console</title>
       <div id="loading" role="status" aria-label="Loading"><div class="spin"></div></div>
     </div>
   </div>
-  <p class="note">Phone preview with demo data. Streets appear in the installed app once a Google Maps key is added.</p>
+  <p class="note">Phone preview with demo data. Streets appear in the installed app once an Amazon Location map key is added.</p>
 </main>
 <script>
 ''' + loader + '''

@@ -453,7 +453,7 @@
   "evDeliveryCompleted": "Entrega completada",
   "stageSavedTheirs": "Guardado en su teléfono",
   "stageSavedTheirsSub": "Se guardó ahí hasta tener una radio cerca",
-  "mapSource": "Mapa de calles de Google Maps",
+  "mapSource": "Mapa de calles de Amazon Location",
   "mapSourceNote": "Necesita internet. Los marcadores, radios y solicitudes se siguen viendo cuando el mapa de calles no carga.",
   "mapNotSetUp": "Mapa de calles sin configurar",
   "mapOffline": "El mapa de calles necesita internet",

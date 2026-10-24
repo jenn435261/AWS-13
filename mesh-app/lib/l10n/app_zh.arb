@@ -453,7 +453,7 @@
   "evDeliveryCompleted": "完成了配送",
   "stageSavedTheirs": "已保存在对方手机上",
   "stageSavedTheirsSub": "保存在那里，直到附近有电台",
-  "mapSource": "街道地图来自 Google 地图",
+  "mapSource": "街道地图来自 Amazon Location",
   "mapSourceNote": "需要联网。街道地图无法加载时，标记、电台和求助仍会显示。",
   "mapNotSetUp": "街道地图尚未设置",
   "mapOffline": "街道地图需要联网",

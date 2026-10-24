@@ -2825,7 +2825,7 @@ abstract class AppLocalizations {
   /// No description provided for @mapSource.
   ///
   /// In en, this message translates to:
-  /// **'Street map from Google Maps'**
+  /// **'Street map from Amazon Location'**
   String get mapSource;
 
   /// No description provided for @mapSourceNote.

@@ -1,9 +1,43 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:mesh_app/data/map_tiles.dart';
+
+/// A small style in the shape Amazon Location sends, parsed as real JSON is.
+Map<String, dynamic> _style() => jsonDecode(jsonEncode({
+      'version': 8,
+      'sources': {
+        'aws': {
+          'type': 'vector',
+          'tiles': ['https://maps.geo.us-east-2.amazonaws.com/v2/tiles/vector.basemap/{z}/{x}/{y}?key=k1'],
+          'maxzoom': 17,
+          'attribution': "© <a href='https://aws.amazon.com'>AWS</a>, HERE",
+        },
+      },
+      'sprite': 'https://maps.geo.us-east-2.amazonaws.com/v2/styles/Standard/sprites/sprites',
+      'layers': [
+        {'id': 'background', 'type': 'background', 'paint': {'background-color': '#ffffff'}},
+        for (final id in ['poi_600_shopping', 'poi_100_food_drink', 'poi_800_facilities'])
+          {
+            'id': id,
+            'type': 'symbol',
+            'source': 'aws',
+            'source-layer': 'pois',
+            'layout': {
+              'text-field': [
+                'coalesce',
+                ['get', 'name:en'],
+                ['get', 'name'],
+              ],
+            },
+          },
+      ],
+    })) as Map<String, dynamic>;
+
+bool _isStyle(http.Request r) => r.url.path.endsWith('/descriptor');
 
 void main() {
   test('without a key the map says it is not set up and asks nothing', () async {
@@ -14,26 +48,26 @@ void main() {
     }));
     await tiles.open(dark: false, languageCode: 'en');
     expect(tiles.status, MapTilesStatus.notSetUp);
-    expect(tiles.urlTemplate, isNull);
+    expect(tiles.style, isNull);
     expect(calls, 0);
     tiles.dispose();
   });
 
-  test('a session gives tile addresses in the right look and language', () async {
-    late Map<String, dynamic> sent;
+  test('asks Amazon Location for the right look, then shows its data credit', () async {
+    late Uri asked;
     final tiles = MapTiles(key: 'k1', client: MockClient((request) async {
-      sent = jsonDecode(request.body) as Map<String, dynamic>;
-      expect(request.url.path, '/v1/createSession');
-      return http.Response(jsonEncode({'session': 's9'}), 200);
+      if (!_isStyle(request)) return http.Response('', 404);
+      asked = request.url;
+      return http.Response(jsonEncode(_style()), 200);
     }));
-    await tiles.open(dark: true, languageCode: 'zh');
+    await tiles.open(dark: true, languageCode: 'en');
 
+    expect(asked.host, 'maps.geo.us-east-2.amazonaws.com');
+    expect(asked.path, '/v2/styles/Standard/descriptor');
+    expect(asked.queryParameters, {'color-scheme': 'Dark', 'key': 'k1'});
     expect(tiles.status, MapTilesStatus.ready);
-    expect(tiles.urlTemplate, contains('session=s9'));
-    expect(tiles.urlTemplate, contains('key=k1'));
-    expect(sent['language'], 'zh-CN');
-    expect(sent['mapType'], 'roadmap');
-    expect(jsonEncode(sent['styles']), contains('#111a2c'));
+    expect(tiles.style, isNotNull);
+    expect(tiles.attribution, '© AWS, HERE');
     tiles.dispose();
   });
 
@@ -49,33 +83,99 @@ void main() {
     offline.dispose();
   });
 
-  test('a failing tile marks the map unavailable; reopening retries', () async {
-    var calls = 0;
-    final tiles = MapTiles(key: 'k1', client: MockClient((_) async {
-      calls++;
-      return http.Response(jsonEncode({'session': 's$calls'}), 200);
-    }));
+  test('after a failed tile, the map retries on its own', () async {
+    var styleCalls = 0;
+    final tiles = MapTiles(
+      key: 'k1',
+      retryAfter: const Duration(milliseconds: 10),
+      client: MockClient((request) async {
+        if (!_isStyle(request)) return http.Response('', 404);
+        styleCalls++;
+        return http.Response(jsonEncode(_style()), 200);
+      }),
+    );
+    addTearDown(tiles.dispose);
     await tiles.open(dark: false, languageCode: 'en');
     tiles.tileFailed();
     expect(tiles.status, MapTilesStatus.unavailable);
-    await tiles.open(dark: false, languageCode: 'en');
-    expect((tiles.status, calls), (MapTilesStatus.ready, 2));
-    tiles.dispose();
+    await Future<void>.delayed(const Duration(milliseconds: 40));
+    expect((tiles.status, styleCalls), (MapTilesStatus.ready, 2));
   });
 
-  test('if Google refuses the extra options, the standard map is used', () async {
-    final bodies = <Map<String, dynamic>>[];
-    final tiles = MapTiles(key: 'k1', client: MockClient((request) async {
-      final body = jsonDecode(request.body) as Map<String, dynamic>;
-      bodies.add(body);
-      return body.containsKey('styles')
-          ? http.Response('{"error": "bad field"}', 400)
-          : http.Response(jsonEncode({'session': 'plain'}), 200);
-    }));
-    await tiles.open(dark: false, languageCode: 'es');
-    expect(tiles.status, MapTilesStatus.ready);
-    expect(bodies, hasLength(2));
-    expect(bodies.last.keys, unorderedEquals(['mapType', 'language', 'region']));
-    tiles.dispose();
+  test('a late answer for the old look is ignored', () async {
+    final first = Completer<http.Response>();
+    final looks = <String>[];
+    final tiles = MapTiles(
+      key: 'k1',
+      client: MockClient((request) {
+        if (!_isStyle(request)) return Future.value(http.Response('', 404));
+        looks.add(request.url.queryParameters['color-scheme']!);
+        return looks.length == 1
+            ? first.future
+            : Future.value(http.Response(jsonEncode(_style()), 200));
+      }),
+    );
+    addTearDown(tiles.dispose);
+    final light = tiles.open(dark: false, languageCode: 'en');
+    await tiles.open(dark: true, languageCode: 'en');
+    final darkStyle = tiles.style;
+    first.complete(http.Response(jsonEncode(_style()), 200));
+    await light;
+    expect(looks, ['Light', 'Dark']);
+    expect(tiles.style, same(darkStyle));
+  });
+
+  group('the style is tailored', () {
+    List<String> ids(Map<String, dynamic> style) =>
+        [for (final l in style['layers'] as List) (l as Map)['id'] as String];
+    Object? nameField(Map<String, dynamic> style) =>
+        ((style['layers'] as List).last as Map)['layout']['text-field'];
+
+    test('shops and restaurants are hidden; hospitals and schools stay', () {
+      final style = _style();
+      tailorStyle(style, languageCode: 'en');
+      expect(ids(style), ['background', 'poi_800_facilities']);
+    });
+
+    test('rules the renderer cannot read are rewritten, so no layer shows everything', () {
+      final style = _style();
+      final transit = {
+        'id': 'poi_400_transit',
+        'type': 'symbol',
+        'source': 'aws',
+        'source-layer': 'pois',
+        'filter': [
+          'all',
+          ['in', ['get', 'pds_category'], ['literal', ['400-1', '400-2']]],
+          ['>=', ['zoom'], ['to-number', ['get', 'min_zoom']]],
+        ],
+      };
+      (style['layers'] as List).add(transit);
+      tailorStyle(style, languageCode: 'en');
+      expect(transit['filter'], [
+        'all',
+        ['match', ['get', 'pds_category'], ['400-1', '400-2'], true, false],
+        true,
+      ]);
+    });
+
+    test('names show in the app language, falling back to the local name', () {
+      final es = _style();
+      tailorStyle(es, languageCode: 'es');
+      expect(nameField(es), ['coalesce', ['get', 'name:es'], ['get', 'name']]);
+
+      final zh = _style();
+      tailorStyle(zh, languageCode: 'zh');
+      expect(nameField(zh), [
+        'coalesce',
+        ['get', 'name:zh-Hans'],
+        ['get', 'name:zh'],
+        ['get', 'name'],
+      ]);
+
+      final en = _style();
+      tailorStyle(en, languageCode: 'en');
+      expect(nameField(en), ['coalesce', ['get', 'name:en'], ['get', 'name']]);
+    });
   });
 }

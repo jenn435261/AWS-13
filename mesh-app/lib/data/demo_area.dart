@@ -3,7 +3,7 @@ import 'dart:math';
 import 'package:latlong2/latlong.dart';
 
 /// Where the demo data sits: San José State University. The street map
-/// itself comes from Google Maps (see map_tiles.dart).
+/// itself comes from Amazon Location Service (see map_tiles.dart).
 const demoCenter = LatLng(37.3352, -121.8811);
 
 const _metersPerDegree = 111320.0;

@@ -5,6 +5,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:skeletonizer/skeletonizer.dart';
+import 'package:vector_map_tiles/vector_map_tiles.dart';
 
 import '../../data/demo_area.dart';
 import '../../data/map_tiles.dart';
@@ -93,12 +94,6 @@ class _MapScreenState extends State<MapScreen> {
     _map.dispose();
     _tiles.dispose();
     super.dispose();
-  }
-
-  void _reportView() {
-    final camera = _map.camera;
-    final b = camera.visibleBounds;
-    _tiles.viewChanged(b.northWest, b.southEast, b.northEast, b.southWest, camera.zoom.round());
   }
 
   List<_Nearby> _nearby(AppScope scope, LatLng from) {
@@ -231,31 +226,25 @@ class _MapScreenState extends State<MapScreen> {
         interactionOptions: const InteractionOptions(
           flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
         ),
-        onMapReady: _reportView,
-        onMapEvent: (event) {
-          if (event is MapEventMoveEnd ||
-              event is MapEventFlingAnimationEnd ||
-              event is MapEventDoubleTapZoomEnd ||
-              event is MapEventScrollWheelZoom) {
-            _reportView();
-          }
-        },
         onTap: (_, _) => setState(() => _selectedId = null),
         onLongPress: (_, point) => showAddResourceSheet(context, point),
       ),
       children: [
         ListenableBuilder(
           listenable: _tiles,
-          builder: (context, _) => _tiles.status == MapTilesStatus.ready
-              ? TileLayer(
-                  urlTemplate: _tiles.urlTemplate,
-                  // 512-pixel tiles drawn at 256 points, sharp on phones.
-                  tileDimension: 256,
-                  maxNativeZoom: 21,
-                  userAgentPackageName: 'org.resilience.mesh_app',
-                  errorTileCallback: (_, _, _) => _tiles.tileFailed(),
-                )
-              : const SizedBox.shrink(),
+          builder: (context, _) {
+            final style = _tiles.style;
+            return style == null
+                ? const SizedBox.shrink()
+                : VectorTileLayer(
+                    // A new key per style, so a theme or language change
+                    // redraws the map instead of reusing old tiles.
+                    key: ObjectKey(style),
+                    theme: style.theme,
+                    sprites: style.sprites,
+                    tileProviders: style.providers,
+                  );
+          },
         ),
         if (_showRadios) ...[
           CircleLayer(circles: coverageCircles(radios, colors.mesh)),
@@ -548,8 +537,7 @@ class _MapScreenState extends State<MapScreen> {
   }
 }
 
-/// Bottom left of the map: "Google Maps" while the street map shows, as
-/// Google's terms ask, or why it doesn't show.
+/// Bottom left of the map: why the street map doesn't show, if it doesn't.
 class _MapCredit extends StatelessWidget {
   const _MapCredit({required this.tiles});
 
@@ -561,7 +549,7 @@ class _MapCredit extends StatelessWidget {
     return ListenableBuilder(
       listenable: tiles,
       builder: (context, _) => switch (tiles.status) {
-        MapTilesStatus.ready => const _MapChip(text: 'Google Maps', strong: true),
+        MapTilesStatus.ready => const SizedBox.shrink(),
         MapTilesStatus.loading => _MapChip(icon: Icons.map_outlined, text: l.mapLoading),
         MapTilesStatus.notSetUp => _MapChip(icon: Icons.map_outlined, text: l.mapNotSetUp),
         MapTilesStatus.unavailable => _MapChip(icon: Icons.cloud_off, text: l.mapOffline),
@@ -570,7 +558,7 @@ class _MapCredit extends StatelessWidget {
   }
 }
 
-/// Bottom right of the map: Google's data credit for the area on screen.
+/// Bottom right of the map: the map data credit, as the terms ask.
 class _MapCopyright extends StatelessWidget {
   const _MapCopyright({required this.tiles});
 
@@ -580,19 +568,18 @@ class _MapCopyright extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListenableBuilder(
       listenable: tiles,
-      builder: (context, _) => tiles.status == MapTilesStatus.ready && tiles.copyright != null
-          ? _MapChip(text: tiles.copyright!)
+      builder: (context, _) => tiles.status == MapTilesStatus.ready && tiles.attribution != null
+          ? _MapChip(text: tiles.attribution!)
           : const SizedBox.shrink(),
     );
   }
 }
 
 class _MapChip extends StatelessWidget {
-  const _MapChip({required this.text, this.icon, this.strong = false});
+  const _MapChip({required this.text, this.icon});
 
   final String text;
   final IconData? icon;
-  final bool strong;
 
   @override
   Widget build(BuildContext context) {
@@ -614,8 +601,8 @@ class _MapChip extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                color: strong ? c.onSurface : c.onSurfaceVariant,
-                fontWeight: strong ? FontWeight.w700 : FontWeight.w500,
+                color: c.onSurfaceVariant,
+                fontWeight: FontWeight.w500,
               ),
             ),
           ),

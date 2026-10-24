@@ -453,7 +453,7 @@
   "evDeliveryCompleted": "Đã giao xong",
   "stageSavedTheirs": "Đã lưu trên điện thoại của họ",
   "stageSavedTheirsSub": "Được giữ ở đó cho đến khi có radio gần",
-  "mapSource": "Bản đồ đường phố từ Google Maps",
+  "mapSource": "Bản đồ đường phố từ Amazon Location",
   "mapSourceNote": "Cần internet. Ghim, radio và yêu cầu vẫn hiện khi bản đồ đường phố không tải được.",
   "mapNotSetUp": "Chưa thiết lập bản đồ đường phố",
   "mapOffline": "Bản đồ đường phố cần internet",

@@ -1589,7 +1589,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get stageSavedTheirsSub => 'Se guardó ahí hasta tener una radio cerca';
 
   @override
-  String get mapSource => 'Mapa de calles de Google Maps';
+  String get mapSource => 'Mapa de calles de Amazon Location';
 
   @override
   String get mapSourceNote =>

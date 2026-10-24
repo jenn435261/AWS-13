@@ -8,7 +8,7 @@ web, iOS and Android, with three roles: client, authorized manager, admin.
 ```bash
 cd mesh_app
 flutter pub get
-flutter run -d chrome --dart-define=GOOGLE_MAPS_KEY=your-key   # or a phone
+flutter run -d chrome --dart-define=AWS_MAP_KEY=your-key   # or a phone
 flutter test
 ```
 
@@ -44,23 +44,28 @@ your Apple ID under Signing & Capabilities, and change the bundle identifier
 (`org.resilience.meshApp`) if Xcode says it is taken. `ios/Runner/Info.plist`
 already explains why the app asks for Face ID and the camera.
 
-## Street map (Google Maps)
+## Street map (Amazon Location Service)
 
-The street map comes from Google's Map Tiles API (`lib/data/map_tiles.dart`);
-the app's own pins, radio coverage and links are drawn on top. To set it up:
+The street map comes from Amazon Location Service, Maps API v2
+(`lib/data/map_tiles.dart`). It arrives as vector tiles plus a style, drawn by
+`vector_map_tiles`; the app's own pins, radio coverage and links are drawn on
+top. The app hides shop, restaurant, hotel and nightlife labels, and shows
+street names in the app's language where the map has them. To set it up:
 
-1. In Google Cloud Console, create a project and turn on billing (Google
-   gives a free monthly allowance).
-2. Turn on **Map Tiles API**, then create an API key under Credentials.
-3. Restrict the key to the Map Tiles API, and to your web address or app.
-4. Build with `--dart-define=GOOGLE_MAPS_KEY=your-key`. Never commit the key.
+1. In the AWS console, open **Amazon Location Service**, then **API keys**, and
+   create a key in your Region (the team uses `us-east-2`).
+2. Allow only the map action the app uses: `geo-maps:GetTile`. (The style,
+   icons and fonts load without a key.)
+3. Restrict the key to your app: iOS bundle ID `org.resilience.meshApp`, the
+   Android package, and your web address. Give it an expiry date.
+4. Build with `--dart-define=AWS_MAP_KEY=your-key` (and
+   `--dart-define=AWS_MAP_REGION=...` for a Region other than `us-east-2`).
+   Never commit the key.
 
-Google's terms require "Google Maps" at the bottom left (the app shows it as
-text; swap in Google's official logo image when you have it) and the data
-credit at the bottom right (fetched for the area on screen). The terms do not
-allow keeping tiles for offline use, so with no internet the map shows pins and
-radios only. A real offline map (OpenStreetMap data in a downloaded package,
-as the Spec describes) is the next step for that.
+The data credit ("© AWS, HERE") shows at the bottom right, as the terms ask.
+With no internet the map shows pins and radios only, and the street map comes
+back on its own when the connection does. A real offline map (OpenStreetMap
+data in a downloaded package, as the Spec describes) is the next step for that.
 
 ## Look and feel
 

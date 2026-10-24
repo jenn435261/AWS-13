@@ -1546,7 +1546,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get stageSavedTheirsSub => '保存在那里，直到附近有电台';
 
   @override
-  String get mapSource => '街道地图来自 Google 地图';
+  String get mapSource => '街道地图来自 Amazon Location';
 
   @override
   String get mapSourceNote => '需要联网。街道地图无法加载时，标记、电台和求助仍会显示。';

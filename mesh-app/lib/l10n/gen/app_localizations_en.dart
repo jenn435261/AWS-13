@@ -1580,7 +1580,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get stageSavedTheirsSub => 'Kept there until a radio was in range';
 
   @override
-  String get mapSource => 'Street map from Google Maps';
+  String get mapSource => 'Street map from Amazon Location';
 
   @override
   String get mapSourceNote =>
